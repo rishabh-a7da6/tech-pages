@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>How USB-C Works — Interactive Simulator</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -18,7 +21,9 @@
             --text-muted: #94a3b8;
         }
 
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -35,9 +40,12 @@
         body::before {
             content: "";
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 40px 40px;
             z-index: -1;
         }
@@ -107,7 +115,7 @@
             background-position: right 14px center;
             background-size: 18px;
             backdrop-filter: blur(10px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         }
 
         .device-select:hover {
@@ -144,12 +152,19 @@
         }
 
         @keyframes pulse-glow {
-            0%, 100% { opacity: 0.7; }
-            50% { opacity: 1; }
+
+            0%,
+            100% {
+                opacity: 0.7;
+            }
+
+            50% {
+                opacity: 1;
+            }
         }
 
         .swap-btn {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--panel-border);
             color: var(--text-muted);
             width: 36px;
@@ -204,7 +219,7 @@
 
         .compat-empty {
             background: rgba(148, 163, 184, 0.05);
-            border: 1px solid rgba(255,255,255,0.06);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             color: var(--text-muted);
         }
 
@@ -263,8 +278,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .panel {
@@ -273,7 +295,7 @@
             border-radius: 20px;
             padding: 24px;
             backdrop-filter: blur(16px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             z-index: 5;
         }
 
@@ -289,11 +311,11 @@
         }
 
         .status-box {
-            background: rgba(0,0,0,0.3);
+            background: rgba(0, 0, 0, 0.3);
             border-radius: 12px;
             padding: 15px;
             margin-bottom: 12px;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .status-header {
@@ -312,12 +334,29 @@
             font-size: 1rem;
         }
 
-        .data-row:last-child { margin-bottom: 0; }
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
 
-        .val-highlight { color: #facc15; font-weight: 600; }
-        .val-green { color: var(--neon-green); font-weight: 600; }
-        .val-blue { color: var(--neon-blue); font-weight: 600; }
-        .val-red { color: var(--neon-red); font-weight: 600; }
+        .val-highlight {
+            color: #facc15;
+            font-weight: 600;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
 
         /* ── Animation Stage ── */
         .stage {
@@ -335,8 +374,15 @@
             transition: background 0.3s, box-shadow 0.3s;
         }
 
-        .dot-active { background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); }
-        .dot-power { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+        .dot-active {
+            background: var(--neon-blue);
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .dot-power {
+            background: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+        }
 
         /* ── Feed Wrapper ── */
         .feed-wrapper {
@@ -371,14 +417,14 @@
         /* ── Story Feed ── */
         .story-feed {
             grid-column: 1 / -1;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0, 0, 0, 0.4);
             border: 1px solid var(--panel-border);
             border-radius: 16px;
             padding: 20px;
-            height: 300px;
+            height: 500px;
             overflow-y: auto;
             position: relative;
-            box-shadow: inset 0 5px 15px rgba(0,0,0,0.5);
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -392,28 +438,56 @@
             animation: slideUp 0.4s forwards;
             padding: 10px 15px;
             border-radius: 8px;
-            background: rgba(255,255,255,0.03);
+            background: rgba(255, 255, 255, 0.03);
             border-left: 4px solid var(--text-muted);
         }
 
-        .log-icon { font-size: 1.2rem; }
-        .log-text { font-size: 1.05rem; line-height: 1.4; }
+        .log-icon {
+            font-size: 1.2rem;
+        }
 
-        .type-info { border-left-color: var(--neon-blue); }
-        .type-power { border-left-color: var(--neon-green); }
-        .type-success { border-left-color: var(--neon-purple); background: rgba(192, 132, 252, 0.05); }
-        .type-error { border-left-color: var(--neon-red); background: rgba(248, 113, 113, 0.05); }
+        .log-text {
+            font-size: 1.05rem;
+            line-height: 1.4;
+        }
+
+        .type-info {
+            border-left-color: var(--neon-blue);
+        }
+
+        .type-power {
+            border-left-color: var(--neon-green);
+        }
+
+        .type-success {
+            border-left-color: var(--neon-purple);
+            background: rgba(192, 132, 252, 0.05);
+        }
+
+        .type-error {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, 0.05);
+        }
 
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* ── SVG Lines ── */
         svg.lines {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             z-index: 4;
         }
@@ -426,31 +500,74 @@
             transition: opacity 0.4s ease;
         }
 
-        .flow-active { opacity: 1; stroke-dasharray: 10 10; animation: flowAnim 1s linear infinite; }
+        .flow-active {
+            opacity: 1;
+            stroke-dasharray: 10 10;
+            animation: flowAnim 1s linear infinite;
+        }
 
-        @keyframes flowAnim { to { stroke-dashoffset: -20; } }
+        @keyframes flowAnim {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
 
         /* ── Responsive ── */
         @media (max-width: 1100px) {
-            .dashboard { grid-template-columns: 1fr; max-width: 500px; }
-            .stage { min-height: 280px; }
+            .dashboard {
+                grid-template-columns: 1fr;
+                max-width: 500px;
+            }
+
+            .stage {
+                min-height: 280px;
+            }
         }
 
         @media (max-width: 600px) {
-            body { padding: 1rem; }
-            h1 { font-size: 1.8rem; }
-            .device-selector { flex-direction: column; gap: 10px; }
-            .select-card { min-width: unset; width: 100%; }
-            .connector-icon { flex-direction: row; padding-top: 0; }
-            .connector-icon .cable-line { width: 30px; }
-            .swap-btn { margin-top: 0; }
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .device-selector {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .connector-icon {
+                flex-direction: row;
+                padding-top: 0;
+            }
+
+            .connector-icon .cable-line {
+                width: 30px;
+            }
+
+            .swap-btn {
+                margin-top: 0;
+            }
         }
     </style>
 </head>
-<body>
 
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
     <h1>How USB-C Actually Works</h1>
-    <p class="subtitle">USB-C is famously "reversible". But how does your device know which way you plugged it in? Pick any two devices below, then watch the real communication steps that happen in the blink of an eye.</p>
+    <p class="subtitle">USB-C is famously "reversible". But how does your device know which way you plugged it in? Pick
+        any two devices below, then watch the real communication steps that happen in the blink of an eye.</p>
 
     <!-- ── Device Selector ── -->
     <div class="device-selector" id="device-selector">
@@ -541,23 +658,34 @@
             <svg class="lines" id="svg-layer"></svg>
 
             <!-- Port (Pill-shaped USB-C receptacle) -->
-            <div id="laptop-port" style="position:absolute;left:10%;top:50%;transform:translateY(-50%);width:60px;height:140px;background:#020617;border:2px solid #334155;border-radius:30px;z-index:2;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 15px rgba(0,0,0,1);">
-                <div style="width:14px;height:110px;background:#1e293b;border-radius:7px;display:flex;flex-direction:column;justify-content:space-around;padding:10px 0;position:relative;">
+            <div id="laptop-port"
+                style="position:absolute;left:10%;top:50%;transform:translateY(-50%);width:60px;height:140px;background:#020617;border:2px solid #334155;border-radius:30px;z-index:2;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 15px rgba(0,0,0,1);">
+                <div
+                    style="width:14px;height:110px;background:#1e293b;border-radius:7px;display:flex;flex-direction:column;justify-content:space-around;padding:10px 0;position:relative;">
                     <div class="indicator-dot" id="port-dot-1" style="width:6px;height:6px;"></div>
-                    <div class="indicator-dot" id="port-dot-2" style="background:var(--text-muted);width:6px;height:6px;"></div>
+                    <div class="indicator-dot" id="port-dot-2"
+                        style="background:var(--text-muted);width:6px;height:6px;"></div>
                     <div class="indicator-dot" id="port-dot-3" style="width:6px;height:6px;"></div>
                 </div>
             </div>
 
             <!-- Cable Assembly -->
-            <div id="cable-assembly" style="position:absolute;left:80%;top:50%;transform:translateY(-50%);width:120px;height:140px;z-index:3;transition:left 0.6s cubic-bezier(0.34,1.56,0.64,1);opacity:0.6;">
-                <div style="position:absolute;left:100px;top:50%;transform:translateY(-50%);width:300px;height:35px;background:#334155;border-top:2px solid #475569;border-bottom:2px solid #1e293b;z-index:1;"></div>
-                <div id="cable-head" style="position:absolute;left:0;top:0;width:100%;height:100%;background:linear-gradient(90deg,#334155,#475569);border-radius:12px;border:2px solid #64748b;z-index:2;transition:transform 0.6s ease;display:flex;align-items:center;justify-content:flex-start;box-shadow:10px 10px 30px rgba(0,0,0,0.6);">
-                    <div style="position:absolute;left:-30px;top:50%;transform:translateY(-50%);width:30px;height:120px;background:linear-gradient(90deg,#e2e8f0,#94a3b8);border-radius:15px 0 0 15px;z-index:1;border:1px solid #64748b;border-right:none;box-shadow:inset 0 3px 5px rgba(255,255,255,0.7);">
-                        <div style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:18px;height:106px;background:#0f172a;border-radius:10px 0 0 10px;border-left:1px solid #475569;border-top:1px solid #475569;border-bottom:1px solid #475569;">
-                            <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-around;align-items:center;padding:10px 0;">
+            <div id="cable-assembly"
+                style="position:absolute;left:80%;top:50%;transform:translateY(-50%);width:120px;height:140px;z-index:3;transition:left 0.6s cubic-bezier(0.34,1.56,0.64,1);opacity:0.6;">
+                <div
+                    style="position:absolute;left:100px;top:50%;transform:translateY(-50%);width:300px;height:35px;background:#334155;border-top:2px solid #475569;border-bottom:2px solid #1e293b;z-index:1;">
+                </div>
+                <div id="cable-head"
+                    style="position:absolute;left:0;top:0;width:100%;height:100%;background:linear-gradient(90deg,#334155,#475569);border-radius:12px;border:2px solid #64748b;z-index:2;transition:transform 0.6s ease;display:flex;align-items:center;justify-content:flex-start;box-shadow:10px 10px 30px rgba(0,0,0,0.6);">
+                    <div
+                        style="position:absolute;left:-30px;top:50%;transform:translateY(-50%);width:30px;height:120px;background:linear-gradient(90deg,#e2e8f0,#94a3b8);border-radius:15px 0 0 15px;z-index:1;border:1px solid #64748b;border-right:none;box-shadow:inset 0 3px 5px rgba(255,255,255,0.7);">
+                        <div
+                            style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:18px;height:106px;background:#0f172a;border-radius:10px 0 0 10px;border-left:1px solid #475569;border-top:1px solid #475569;border-bottom:1px solid #475569;">
+                            <div
+                                style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-around;align-items:center;padding:10px 0;">
                                 <div class="indicator-dot" id="cab-dot-1" style="width:6px;height:6px;margin:0;"></div>
-                                <div class="indicator-dot" id="cab-dot-2" style="background:var(--text-muted);width:6px;height:6px;margin:0;"></div>
+                                <div class="indicator-dot" id="cab-dot-2"
+                                    style="background:var(--text-muted);width:6px;height:6px;margin:0;"></div>
                                 <div class="indicator-dot" id="cab-dot-3" style="width:6px;height:6px;margin:0;"></div>
                             </div>
                         </div>
@@ -574,679 +702,681 @@
             <div class="story-feed" id="feed">
                 <div class="log-msg" style="border-left-color:#64748b;">
                     <span class="log-icon">👋</span>
-                    <span class="log-text">Welcome! Select two devices above, then plug the cable in to see what happens behind the scenes.</span>
+                    <span class="log-text">Welcome! Select two devices above, then plug the cable in to see what happens
+                        behind the scenes.</span>
                 </div>
             </div>
             <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
         </div>
     </div>
 
-<script>
-/* ═══════════════════════════════════════════
-   DEVICE DEFINITIONS
-   ═══════════════════════════════════════════ */
-const DEVICES = {
-    laptop: {
-        id:'laptop', name:'Laptop', icon:'💻', role:'host',
-        canReceivePower:true, maxPowerIn:100,
-        canProvidePower:true, maxPowerOut:15,
-        canSendVideo:true, canReceiveVideo:false,
-        hasData:true, dataSpeed:'USB 3.2 (10 Gbps)',
-    },
-    smartphone: {
-        id:'smartphone', name:'Smartphone', icon:'📱', role:'host',
-        canReceivePower:true, maxPowerIn:25,
-        canProvidePower:false, maxPowerOut:0,
-        canSendVideo:true, canReceiveVideo:false,
-        hasData:true, dataSpeed:'USB 3.0 (5 Gbps)',
-    },
-    tablet: {
-        id:'tablet', name:'Tablet', icon:'📲', role:'host',
-        canReceivePower:true, maxPowerIn:30,
-        canProvidePower:false, maxPowerOut:0,
-        canSendVideo:true, canReceiveVideo:false,
-        hasData:true, dataSpeed:'USB 3.0 (5 Gbps)',
-    },
-    monitor: {
-        id:'monitor', name:'Monitor', icon:'🖥️', role:'sink',
-        canReceivePower:false, maxPowerIn:0,
-        canProvidePower:true, maxPowerOut:90,
-        canSendVideo:false, canReceiveVideo:true,
-        hasData:true, dataSpeed:'USB 3.0 (5 Gbps)',
-    },
-    projector: {
-        id:'projector', name:'Portable Projector', icon:'📽️', role:'sink',
-        canReceivePower:true, maxPowerIn:15,
-        canProvidePower:false, maxPowerOut:0,
-        canSendVideo:false, canReceiveVideo:true,
-        hasData:false, dataSpeed:null,
-    },
-    'usb-hub': {
-        id:'usb-hub', name:'USB-C Hub', icon:'🔌', role:'hub',
-        canReceivePower:false, maxPowerIn:0,
-        canProvidePower:false, maxPowerOut:0,
-        canSendVideo:false, canReceiveVideo:true,
-        hasData:true, dataSpeed:'USB 3.0 (5 Gbps)',
-        hasPowerPassthrough:true, passthroughWatts:60,
-        ports:['HDMI Out','USB-A 3.0 ×3','Ethernet (RJ45)','SD Card Reader'],
-    },
-    dock: {
-        id:'dock', name:'Docking Station', icon:'🔗', role:'hub',
-        canReceivePower:false, maxPowerIn:0,
-        canProvidePower:true, maxPowerOut:85,
-        canSendVideo:false, canReceiveVideo:true,
-        hasData:true, dataSpeed:'Thunderbolt 4 (40 Gbps)',
-        ports:['HDMI ×2','DisplayPort','USB-A 3.0 ×4','Ethernet','Audio Jack'],
-    },
-    ssd: {
-        id:'ssd', name:'External SSD', icon:'💾', role:'sink',
-        canReceivePower:true, maxPowerIn:5,
-        canProvidePower:false, maxPowerOut:0,
-        canSendVideo:false, canReceiveVideo:false,
-        hasData:true, dataSpeed:'USB 3.2 Gen 2 (10 Gbps)',
-    },
-    earbuds: {
-        id:'earbuds', name:'USB-C Earbuds', icon:'🎧', role:'sink',
-        canReceivePower:true, maxPowerIn:1,
-        canProvidePower:false, maxPowerOut:0,
-        canSendVideo:false, canReceiveVideo:false,
-        hasData:true, dataSpeed:'USB 2.0 (480 Mbps)',
-        isAudio:true,
-    },
-    charger: {
-        id:'charger', name:'Wall Charger', icon:'🔋', role:'power',
-        canReceivePower:false, maxPowerIn:0,
-        canProvidePower:true, maxPowerOut:65,
-        canSendVideo:false, canReceiveVideo:false,
-        hasData:false, dataSpeed:null,
-    },
-    powerbank: {
-        id:'powerbank', name:'Power Bank', icon:'🪫', role:'power',
-        canReceivePower:true, maxPowerIn:18,
-        canProvidePower:true, maxPowerOut:22,
-        canSendVideo:false, canReceiveVideo:false,
-        hasData:false, dataSpeed:null,
-    },
-};
+    <script>
+        /* ═══════════════════════════════════════════
+           DEVICE DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const DEVICES = {
+            laptop: {
+                id: 'laptop', name: 'Laptop', icon: '💻', role: 'host',
+                canReceivePower: true, maxPowerIn: 100,
+                canProvidePower: true, maxPowerOut: 15,
+                canSendVideo: true, canReceiveVideo: false,
+                hasData: true, dataSpeed: 'USB 3.2 (10 Gbps)',
+            },
+            smartphone: {
+                id: 'smartphone', name: 'Smartphone', icon: '📱', role: 'host',
+                canReceivePower: true, maxPowerIn: 25,
+                canProvidePower: false, maxPowerOut: 0,
+                canSendVideo: true, canReceiveVideo: false,
+                hasData: true, dataSpeed: 'USB 3.0 (5 Gbps)',
+            },
+            tablet: {
+                id: 'tablet', name: 'Tablet', icon: '📲', role: 'host',
+                canReceivePower: true, maxPowerIn: 30,
+                canProvidePower: false, maxPowerOut: 0,
+                canSendVideo: true, canReceiveVideo: false,
+                hasData: true, dataSpeed: 'USB 3.0 (5 Gbps)',
+            },
+            monitor: {
+                id: 'monitor', name: 'Monitor', icon: '🖥️', role: 'sink',
+                canReceivePower: false, maxPowerIn: 0,
+                canProvidePower: true, maxPowerOut: 90,
+                canSendVideo: false, canReceiveVideo: true,
+                hasData: true, dataSpeed: 'USB 3.0 (5 Gbps)',
+            },
+            projector: {
+                id: 'projector', name: 'Portable Projector', icon: '📽️', role: 'sink',
+                canReceivePower: true, maxPowerIn: 15,
+                canProvidePower: false, maxPowerOut: 0,
+                canSendVideo: false, canReceiveVideo: true,
+                hasData: false, dataSpeed: null,
+            },
+            'usb-hub': {
+                id: 'usb-hub', name: 'USB-C Hub', icon: '🔌', role: 'hub',
+                canReceivePower: false, maxPowerIn: 0,
+                canProvidePower: false, maxPowerOut: 0,
+                canSendVideo: false, canReceiveVideo: true,
+                hasData: true, dataSpeed: 'USB 3.0 (5 Gbps)',
+                hasPowerPassthrough: true, passthroughWatts: 60,
+                ports: ['HDMI Out', 'USB-A 3.0 ×3', 'Ethernet (RJ45)', 'SD Card Reader'],
+            },
+            dock: {
+                id: 'dock', name: 'Docking Station', icon: '🔗', role: 'hub',
+                canReceivePower: false, maxPowerIn: 0,
+                canProvidePower: true, maxPowerOut: 85,
+                canSendVideo: false, canReceiveVideo: true,
+                hasData: true, dataSpeed: 'Thunderbolt 4 (40 Gbps)',
+                ports: ['HDMI ×2', 'DisplayPort', 'USB-A 3.0 ×4', 'Ethernet', 'Audio Jack'],
+            },
+            ssd: {
+                id: 'ssd', name: 'External SSD', icon: '💾', role: 'sink',
+                canReceivePower: true, maxPowerIn: 5,
+                canProvidePower: false, maxPowerOut: 0,
+                canSendVideo: false, canReceiveVideo: false,
+                hasData: true, dataSpeed: 'USB 3.2 Gen 2 (10 Gbps)',
+            },
+            earbuds: {
+                id: 'earbuds', name: 'USB-C Earbuds', icon: '🎧', role: 'sink',
+                canReceivePower: true, maxPowerIn: 1,
+                canProvidePower: false, maxPowerOut: 0,
+                canSendVideo: false, canReceiveVideo: false,
+                hasData: true, dataSpeed: 'USB 2.0 (480 Mbps)',
+                isAudio: true,
+            },
+            charger: {
+                id: 'charger', name: 'Wall Charger', icon: '🔋', role: 'power',
+                canReceivePower: false, maxPowerIn: 0,
+                canProvidePower: true, maxPowerOut: 65,
+                canSendVideo: false, canReceiveVideo: false,
+                hasData: false, dataSpeed: null,
+            },
+            powerbank: {
+                id: 'powerbank', name: 'Power Bank', icon: '🪫', role: 'power',
+                canReceivePower: true, maxPowerIn: 18,
+                canProvidePower: true, maxPowerOut: 22,
+                canSendVideo: false, canReceiveVideo: false,
+                hasData: false, dataSpeed: null,
+            },
+        };
 
-/* ═══════════════════════════════════════════
-   COMPATIBILITY
-   ═══════════════════════════════════════════ */
-function checkCompatibility(aId, bId) {
-    if (!aId || !bId) return { ok: false, reason: 'Select two devices to begin.', empty: true };
-    if (aId === bId) return { ok: false, reason: `Cannot connect two identical ${DEVICES[aId].name}s together — there is no meaningful role differentiation.` };
+        /* ═══════════════════════════════════════════
+           COMPATIBILITY
+           ═══════════════════════════════════════════ */
+        function checkCompatibility(aId, bId) {
+            if (!aId || !bId) return { ok: false, reason: 'Select two devices to begin.', empty: true };
+            if (aId === bId) return { ok: false, reason: `Cannot connect two identical ${DEVICES[aId].name}s together — there is no meaningful role differentiation.` };
 
-    const a = DEVICES[aId], b = DEVICES[bId];
-    const hasHost = a.role === 'host' || b.role === 'host';
+            const a = DEVICES[aId], b = DEVICES[bId];
+            const hasHost = a.role === 'host' || b.role === 'host';
 
-    // Special: Charger + Power Bank (charging the bank)
-    if ((aId === 'charger' && bId === 'powerbank') || (aId === 'powerbank' && bId === 'charger')) {
-        return { ok: true, summary: 'Power Delivery only — charger will recharge the power bank.' };
-    }
+            // Special: Charger + Power Bank (charging the bank)
+            if ((aId === 'charger' && bId === 'powerbank') || (aId === 'powerbank' && bId === 'charger')) {
+                return { ok: true, summary: 'Power Delivery only — charger will recharge the power bank.' };
+            }
 
-    // Two power devices
-    if (a.role === 'power' && b.role === 'power')
-        return { ok: false, reason: `${a.name} and ${b.name} are both power sources — neither can act as a host to negotiate the connection.` };
+            // Two power devices
+            if (a.role === 'power' && b.role === 'power')
+                return { ok: false, reason: `${a.name} and ${b.name} are both power sources — neither can act as a host to negotiate the connection.` };
 
-    // No host present
-    if (!hasHost) {
-        // Hub/dock + sink or hub/dock + power
-        if (a.role === 'hub' || b.role === 'hub')
-            return { ok: false, reason: `A hub or docking station requires a host device (laptop, phone, tablet) to function — it cannot manage a connection on its own.` };
-        if (a.role === 'sink' && b.role === 'sink')
-            return { ok: false, reason: `Both ${a.name} and ${b.name} are peripheral devices. At least one host (laptop, phone, or tablet) is needed to manage the connection.` };
-        if ((a.role === 'sink' && b.role === 'power') || (a.role === 'power' && b.role === 'sink'))
-            return { ok: false, reason: `${a.name} and ${b.name} cannot communicate — there is no host device to negotiate the USB Power Delivery protocol.` };
-        return { ok: false, reason: `This combination lacks a host device to coordinate the connection.` };
-    }
+            // No host present
+            if (!hasHost) {
+                // Hub/dock + sink or hub/dock + power
+                if (a.role === 'hub' || b.role === 'hub')
+                    return { ok: false, reason: `A hub or docking station requires a host device (laptop, phone, tablet) to function — it cannot manage a connection on its own.` };
+                if (a.role === 'sink' && b.role === 'sink')
+                    return { ok: false, reason: `Both ${a.name} and ${b.name} are peripheral devices. At least one host (laptop, phone, or tablet) is needed to manage the connection.` };
+                if ((a.role === 'sink' && b.role === 'power') || (a.role === 'power' && b.role === 'sink'))
+                    return { ok: false, reason: `${a.name} and ${b.name} cannot communicate — there is no host device to negotiate the USB Power Delivery protocol.` };
+                return { ok: false, reason: `This combination lacks a host device to coordinate the connection.` };
+            }
 
-    // Build summary of capabilities
-    const caps = [];
-    // Power
-    if ((a.canProvidePower && b.canReceivePower) || (b.canProvidePower && a.canReceivePower)) caps.push('Power Delivery');
-    // Video
-    if ((a.canSendVideo && b.canReceiveVideo) || (b.canSendVideo && a.canReceiveVideo)) caps.push('Video Output');
-    // Data
-    if (a.hasData && b.hasData) caps.push('Data Transfer');
-    // Audio
-    if (a.isAudio || b.isAudio) caps.push('Audio');
-    // Ports
-    if (a.ports || b.ports) caps.push('Port Expansion');
+            // Build summary of capabilities
+            const caps = [];
+            // Power
+            if ((a.canProvidePower && b.canReceivePower) || (b.canProvidePower && a.canReceivePower)) caps.push('Power Delivery');
+            // Video
+            if ((a.canSendVideo && b.canReceiveVideo) || (b.canSendVideo && a.canReceiveVideo)) caps.push('Video Output');
+            // Data
+            if (a.hasData && b.hasData) caps.push('Data Transfer');
+            // Audio
+            if (a.isAudio || b.isAudio) caps.push('Audio');
+            // Ports
+            if (a.ports || b.ports) caps.push('Port Expansion');
 
-    return { ok: true, summary: caps.length ? caps.join(', ') : 'Basic connection' };
-}
-
-/* ═══════════════════════════════════════════
-   NEGOTIATE ROLES
-   ═══════════════════════════════════════════ */
-function negotiateRoles(devA, devB) {
-    let host = null, peripheral = null;
-
-    if (devA.role === 'host' && devB.role !== 'host') { host = devA; peripheral = devB; }
-    else if (devB.role === 'host' && devA.role !== 'host') { host = devB; peripheral = devA; }
-    else if (devA.role === 'host' && devB.role === 'host') { host = devA; peripheral = devB; }
-    else { host = devA; peripheral = devB; } // fallback (power-only pair)
-
-    // Power
-    let powerSource = null, powerSink = null, powerWatts = 0;
-    if (devA.canProvidePower && devB.canReceivePower) {
-        powerSource = devA; powerSink = devB;
-        powerWatts = Math.min(devA.maxPowerOut, devB.maxPowerIn);
-    } else if (devB.canProvidePower && devA.canReceivePower) {
-        powerSource = devB; powerSink = devA;
-        powerWatts = Math.min(devB.maxPowerOut, devA.maxPowerIn);
-    }
-    // If host provides power to the other host (e.g. laptop→phone)
-    if (!powerSource && devA.role === 'host' && devB.role === 'host') {
-        if (devA.canProvidePower && devB.canReceivePower) {
-            powerSource = devA; powerSink = devB;
-            powerWatts = Math.min(devA.maxPowerOut, devB.maxPowerIn);
+            return { ok: true, summary: caps.length ? caps.join(', ') : 'Basic connection' };
         }
-    }
 
-    // Video
-    let videoSource = null, videoSink = null;
-    if (devA.canSendVideo && devB.canReceiveVideo) { videoSource = devA; videoSink = devB; }
-    else if (devB.canSendVideo && devA.canReceiveVideo) { videoSource = devB; videoSink = devA; }
+        /* ═══════════════════════════════════════════
+           NEGOTIATE ROLES
+           ═══════════════════════════════════════════ */
+        function negotiateRoles(devA, devB) {
+            let host = null, peripheral = null;
 
-    // Data
-    let hasData = devA.hasData && devB.hasData;
-    let dataSpeed = null;
-    if (hasData) {
-        if (devA.dataSpeed && devB.dataSpeed) {
-            // Pick slower speed (simplified)
-            const aGbps = parseFloat(devA.dataSpeed.match(/[\d.]+\s*(Gbps|Mbps)/)?.[0] || '0');
-            const bGbps = parseFloat(devB.dataSpeed.match(/[\d.]+\s*(Gbps|Mbps)/)?.[0] || '0');
-            dataSpeed = aGbps <= bGbps ? devA.dataSpeed : devB.dataSpeed;
-        } else {
-            dataSpeed = devA.dataSpeed || devB.dataSpeed;
+            if (devA.role === 'host' && devB.role !== 'host') { host = devA; peripheral = devB; }
+            else if (devB.role === 'host' && devA.role !== 'host') { host = devB; peripheral = devA; }
+            else if (devA.role === 'host' && devB.role === 'host') { host = devA; peripheral = devB; }
+            else { host = devA; peripheral = devB; } // fallback (power-only pair)
+
+            // Power
+            let powerSource = null, powerSink = null, powerWatts = 0;
+            if (devA.canProvidePower && devB.canReceivePower) {
+                powerSource = devA; powerSink = devB;
+                powerWatts = Math.min(devA.maxPowerOut, devB.maxPowerIn);
+            } else if (devB.canProvidePower && devA.canReceivePower) {
+                powerSource = devB; powerSink = devA;
+                powerWatts = Math.min(devB.maxPowerOut, devA.maxPowerIn);
+            }
+            // If host provides power to the other host (e.g. laptop→phone)
+            if (!powerSource && devA.role === 'host' && devB.role === 'host') {
+                if (devA.canProvidePower && devB.canReceivePower) {
+                    powerSource = devA; powerSink = devB;
+                    powerWatts = Math.min(devA.maxPowerOut, devB.maxPowerIn);
+                }
+            }
+
+            // Video
+            let videoSource = null, videoSink = null;
+            if (devA.canSendVideo && devB.canReceiveVideo) { videoSource = devA; videoSink = devB; }
+            else if (devB.canSendVideo && devA.canReceiveVideo) { videoSource = devB; videoSink = devA; }
+
+            // Data
+            let hasData = devA.hasData && devB.hasData;
+            let dataSpeed = null;
+            if (hasData) {
+                if (devA.dataSpeed && devB.dataSpeed) {
+                    // Pick slower speed (simplified)
+                    const aGbps = parseFloat(devA.dataSpeed.match(/[\d.]+\s*(Gbps|Mbps)/)?.[0] || '0');
+                    const bGbps = parseFloat(devB.dataSpeed.match(/[\d.]+\s*(Gbps|Mbps)/)?.[0] || '0');
+                    dataSpeed = aGbps <= bGbps ? devA.dataSpeed : devB.dataSpeed;
+                } else {
+                    dataSpeed = devA.dataSpeed || devB.dataSpeed;
+                }
+            }
+
+            // Audio
+            let hasAudio = devA.isAudio || devB.isAudio;
+
+            return { host, peripheral, powerSource, powerSink, powerWatts, videoSource, videoSink, hasData, dataSpeed, hasAudio };
         }
-    }
 
-    // Audio
-    let hasAudio = devA.isAudio || devB.isAudio;
+        /* ═══════════════════════════════════════════
+           DYNAMIC PANEL RENDERING
+           ═══════════════════════════════════════════ */
+        function renderPanel(device, prefix) {
+            let html = `<div class="panel-title"><span>${device.icon} ${device.name}</span></div>`;
 
-    return { host, peripheral, powerSource, powerSink, powerWatts, videoSource, videoSink, hasData, dataSpeed, hasAudio };
-}
-
-/* ═══════════════════════════════════════════
-   DYNAMIC PANEL RENDERING
-   ═══════════════════════════════════════════ */
-function renderPanel(device, prefix) {
-    let html = `<div class="panel-title"><span>${device.icon} ${device.name}</span></div>`;
-
-    // Connection
-    html += `<div class="status-box">
+            // Connection
+            html += `<div class="status-box">
         <div class="status-header">Cable Detection</div>
         <div class="data-row"><span>Status:</span> <span id="${prefix}-status">Waiting for cable...</span></div>
         <div class="data-row"><span>Orientation:</span> <span id="${prefix}-orient">Unknown</span></div>
     </div>`;
 
-    // Power
-    if (device.canProvidePower || device.canReceivePower || device.hasPowerPassthrough) {
-        const label = device.canProvidePower ? 'Power Output' : (device.hasPowerPassthrough ? 'Power Passthrough' : 'Charging');
-        html += `<div class="status-box">
+            // Power
+            if (device.canProvidePower || device.canReceivePower || device.hasPowerPassthrough) {
+                const label = device.canProvidePower ? 'Power Output' : (device.hasPowerPassthrough ? 'Power Passthrough' : 'Charging');
+                html += `<div class="status-box">
             <div class="status-header">${label}</div>`;
-        if (device.canProvidePower) {
-            html += `<div class="data-row"><span>Available:</span> <span class="val-highlight">${device.maxPowerOut} Watts</span></div>`;
-        }
-        if (device.hasPowerPassthrough) {
-            html += `<div class="data-row"><span>Passthrough:</span> <span class="val-highlight">Up to ${device.passthroughWatts}W</span></div>`;
-        }
-        html += `<div class="data-row"><span>${device.canProvidePower ? 'Supplying:' : 'Receiving:'}</span> <span id="${prefix}-power">0 Watts</span></div>
+                if (device.canProvidePower) {
+                    html += `<div class="data-row"><span>Available:</span> <span class="val-highlight">${device.maxPowerOut} Watts</span></div>`;
+                }
+                if (device.hasPowerPassthrough) {
+                    html += `<div class="data-row"><span>Passthrough:</span> <span class="val-highlight">Up to ${device.passthroughWatts}W</span></div>`;
+                }
+                html += `<div class="data-row"><span>${device.canProvidePower ? 'Supplying:' : 'Receiving:'}</span> <span id="${prefix}-power">0 Watts</span></div>
         </div>`;
-    }
+            }
 
-    // Video
-    if (device.canSendVideo || device.canReceiveVideo) {
-        html += `<div class="status-box">
+            // Video
+            if (device.canSendVideo || device.canReceiveVideo) {
+                html += `<div class="status-box">
             <div class="status-header">Display</div>
             <div class="data-row"><span>${device.canReceiveVideo ? 'Video Input:' : 'Video Output:'}</span> <span id="${prefix}-video">No Signal</span></div>
         </div>`;
-    }
+            }
 
-    // Audio
-    if (device.isAudio) {
-        html += `<div class="status-box">
+            // Audio
+            if (device.isAudio) {
+                html += `<div class="status-box">
             <div class="status-header">Audio</div>
             <div class="data-row"><span>DAC Stream:</span> <span id="${prefix}-audio">Inactive</span></div>
         </div>`;
-    }
+            }
 
-    // Data
-    if (device.hasData) {
-        html += `<div class="status-box">
+            // Data
+            if (device.hasData) {
+                html += `<div class="status-box">
             <div class="status-header">Data Transfer</div>
             <div class="data-row"><span>Link Speed:</span> <span id="${prefix}-data">Inactive</span></div>
         </div>`;
-    }
+            }
 
-    // Ports (hubs/docks)
-    if (device.ports) {
-        html += `<div class="status-box">
+            // Ports (hubs/docks)
+            if (device.ports) {
+                html += `<div class="status-box">
             <div class="status-header">Available Ports</div>
             ${device.ports.map(p => `<div class="data-row"><span>${p}</span> <span style="color:#64748b;">○ Ready</span></div>`).join('')}
         </div>`;
-    }
+            }
 
-    // MUX (hosts only)
-    if (device.role === 'host') {
-        html += `<div class="status-box">
+            // MUX (hosts only)
+            if (device.role === 'host') {
+                html += `<div class="status-box">
             <div class="status-header">Data Routing (MUX)</div>
             <div class="data-row"><span>Cross-Switch:</span> <span id="${prefix}-route" style="color:#64748b;">Inactive</span></div>
             <div style="font-size:0.85rem;color:var(--text-muted);margin-top:8px;">
                 Because the cable is reversible, the ${device.name.toLowerCase()} has a built-in MUX to untangle data lanes.
             </div>
         </div>`;
-    }
+            }
 
-    return html;
-}
+            return html;
+        }
 
-/* ═══════════════════════════════════════════
-   STATE & DOM
-   ═══════════════════════════════════════════ */
-const state = { connected: false, flipped: false, animating: false };
-const selectA = document.getElementById('select-a');
-const selectB = document.getElementById('select-b');
+        /* ═══════════════════════════════════════════
+           STATE & DOM
+           ═══════════════════════════════════════════ */
+        const state = { connected: false, flipped: false, animating: false };
+        const selectA = document.getElementById('select-a');
+        const selectB = document.getElementById('select-b');
 
-const els = {
-    cableAssembly: document.getElementById('cable-assembly'),
-    cableHead: document.getElementById('cable-head'),
-    btnToggle: document.getElementById('btn-toggle'),
-    btnFlip: document.getElementById('btn-flip'),
-    feed: document.getElementById('feed'),
-    panelA: document.getElementById('panel-a'),
-    panelB: document.getElementById('panel-b'),
-    controls: document.getElementById('controls'),
-    dashboard: document.getElementById('dashboard'),
-    compatStatus: document.getElementById('compat-status'),
-    dots: [document.getElementById('port-dot-1'), document.getElementById('port-dot-2'), document.getElementById('port-dot-3')],
-    svgLayer: document.getElementById('svg-layer'),
-};
+        const els = {
+            cableAssembly: document.getElementById('cable-assembly'),
+            cableHead: document.getElementById('cable-head'),
+            btnToggle: document.getElementById('btn-toggle'),
+            btnFlip: document.getElementById('btn-flip'),
+            feed: document.getElementById('feed'),
+            panelA: document.getElementById('panel-a'),
+            panelB: document.getElementById('panel-b'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compatStatus: document.getElementById('compat-status'),
+            dots: [document.getElementById('port-dot-1'), document.getElementById('port-dot-2'), document.getElementById('port-dot-3')],
+            svgLayer: document.getElementById('svg-layer'),
+        };
 
-/* ═══════════════════════════════════════════
-   DEVICE SELECTION HANDLING
-   ═══════════════════════════════════════════ */
-function onDeviceChange() {
-    const aId = selectA.value;
-    const bId = selectB.value;
+        /* ═══════════════════════════════════════════
+           DEVICE SELECTION HANDLING
+           ═══════════════════════════════════════════ */
+        function onDeviceChange() {
+            const aId = selectA.value;
+            const bId = selectB.value;
 
-    // Reset if connected
-    if (state.connected) {
-        state.connected = false;
-        state.animating = false;
-        els.cableAssembly.style.left = '80%';
-        els.cableAssembly.style.opacity = '0.6';
-    }
+            // Reset if connected
+            if (state.connected) {
+                state.connected = false;
+                state.animating = false;
+                els.cableAssembly.style.left = '80%';
+                els.cableAssembly.style.opacity = '0.6';
+            }
 
-    const result = checkCompatibility(aId, bId);
+            const result = checkCompatibility(aId, bId);
 
-    if (result.empty) {
-        els.compatStatus.className = 'compat-status compat-empty';
-        els.compatStatus.innerHTML = '<span>👆 Select two devices above to begin the simulation.</span>';
-        els.controls.style.display = 'none';
-        els.dashboard.style.display = 'none';
-        return;
-    }
+            if (result.empty) {
+                els.compatStatus.className = 'compat-status compat-empty';
+                els.compatStatus.innerHTML = '<span>👆 Select two devices above to begin the simulation.</span>';
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
 
-    if (!result.ok) {
-        els.compatStatus.className = 'compat-status compat-error';
-        els.compatStatus.innerHTML = `<span>❌ Incompatible — ${result.reason}</span>`;
-        els.controls.style.display = 'none';
-        els.dashboard.style.display = 'none';
-        return;
-    }
+            if (!result.ok) {
+                els.compatStatus.className = 'compat-status compat-error';
+                els.compatStatus.innerHTML = `<span>❌ Incompatible — ${result.reason}</span>`;
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
 
-    // Compatible!
-    els.compatStatus.className = 'compat-status compat-ok';
-    els.compatStatus.innerHTML = `<span>✅ Compatible! Supports: ${result.summary}</span>`;
+            // Compatible!
+            els.compatStatus.className = 'compat-status compat-ok';
+            els.compatStatus.innerHTML = `<span>✅ Compatible! Supports: ${result.summary}</span>`;
 
-    // Render panels
-    const devA = DEVICES[aId];
-    const devB = DEVICES[bId];
-    els.panelA.innerHTML = renderPanel(devA, 'a');
-    els.panelB.innerHTML = renderPanel(devB, 'b');
+            // Render panels
+            const devA = DEVICES[aId];
+            const devB = DEVICES[bId];
+            els.panelA.innerHTML = renderPanel(devA, 'a');
+            els.panelB.innerHTML = renderPanel(devB, 'b');
 
-    // Show dashboard and controls
-    els.controls.style.display = 'flex';
-    els.dashboard.style.display = 'grid';
+            // Show dashboard and controls
+            els.controls.style.display = 'flex';
+            els.dashboard.style.display = 'grid';
 
-    // Reset controls
-    els.btnToggle.innerText = 'Plug Cable In';
-    els.btnToggle.className = 'primary';
-    els.btnToggle.disabled = false;
-    els.btnFlip.disabled = true;
+            // Reset controls
+            els.btnToggle.innerText = 'Plug Cable In';
+            els.btnToggle.className = 'primary';
+            els.btnToggle.disabled = false;
+            els.btnFlip.disabled = true;
 
-    // Reset cable position
-    els.cableAssembly.style.left = '80%';
-    els.cableAssembly.style.opacity = '0.6';
-    state.flipped = false;
-    els.cableHead.style.transform = 'rotateX(0deg)';
+            // Reset cable position
+            els.cableAssembly.style.left = '80%';
+            els.cableAssembly.style.opacity = '0.6';
+            state.flipped = false;
+            els.cableHead.style.transform = 'rotateX(0deg)';
 
-    // Reset dots and SVG
-    els.dots.forEach(d => { d.classList.remove('dot-active'); d.classList.remove('dot-power'); });
-    els.svgLayer.innerHTML = '';
+            // Reset dots and SVG
+            els.dots.forEach(d => { d.classList.remove('dot-active'); d.classList.remove('dot-power'); });
+            els.svgLayer.innerHTML = '';
 
-    // Reset feed
-    els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+            // Reset feed
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
         <span class="log-icon">👋</span>
         <span class="log-text">Ready! ${devA.icon} ${devA.name} ↔ ${devB.icon} ${devB.name} — plug the cable in to see what happens.</span>
     </div>`;
-}
+        }
 
-function swapDevices() {
-    const tmp = selectA.value;
-    selectA.value = selectB.value;
-    selectB.value = tmp;
-    onDeviceChange();
-}
+        function swapDevices() {
+            const tmp = selectA.value;
+            selectA.value = selectB.value;
+            selectB.value = tmp;
+            onDeviceChange();
+        }
 
-/* ═══════════════════════════════════════════
-   HELPERS
-   ═══════════════════════════════════════════ */
-function addStory(icon, text, type = 'type-info') {
-    const el = document.createElement('div');
-    el.className = `log-msg ${type}`;
-    el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
-    els.feed.appendChild(el);
-    els.feed.scrollTop = els.feed.scrollHeight;
-}
+        /* ═══════════════════════════════════════════
+           HELPERS
+           ═══════════════════════════════════════════ */
+        function addStory(icon, text, type = 'type-info') {
+            const el = document.createElement('div');
+            el.className = `log-msg ${type}`;
+            el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
+            els.feed.appendChild(el);
+            els.feed.scrollTop = els.feed.scrollHeight;
+        }
 
-function setField(id, text, cls) {
-    const el = document.getElementById(id);
-    if (el) { el.innerText = text; if (cls) el.className = cls; }
-}
+        function setField(id, text, cls) {
+            const el = document.getElementById(id);
+            if (el) { el.innerText = text; if (cls) el.className = cls; }
+        }
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/* ═══════════════════════════════════════════
-   CONNECTION TOGGLE
-   ═══════════════════════════════════════════ */
-async function toggleConnection() {
-    if (state.animating) return;
-    state.animating = true;
-    els.btnToggle.disabled = true;
-    els.btnFlip.disabled = true;
-
-    if (state.connected) {
-        // Disconnect
-        els.btnToggle.innerText = 'Plug Cable In';
-        els.btnToggle.className = 'primary';
-        state.connected = false;
-        els.cableAssembly.style.left = '80%';
-        els.cableAssembly.style.opacity = '0.6';
-        resetPanelFields();
-        addStory('🔌', 'Cable unplugged. Connection safely terminated.', '');
-        setTimeout(() => {
-            state.animating = false;
-            els.btnToggle.disabled = false;
-        }, 600);
-    } else {
-        // Connect
-        els.btnToggle.innerText = 'Unplug Cable';
-        els.btnToggle.className = '';
-        state.connected = true;
-        els.cableAssembly.style.opacity = '1';
-        els.cableAssembly.style.left = 'calc(10% + 60px + 2px)';
-        addStory('⚡', 'Physical click! Cable plugged in.');
-        setTimeout(startHandshake, 700);
-    }
-}
-
-/* ═══════════════════════════════════════════
-   FLIP CABLE
-   ═══════════════════════════════════════════ */
-async function flipCable() {
-    if (state.animating) return;
-    state.animating = true;
-    els.btnToggle.disabled = true;
-    els.btnFlip.disabled = true;
-    state.flipped = !state.flipped;
-
-    addStory('🔄', 'You flipped the cable plug upside down.', '');
-
-    if (state.connected) {
-        els.cableAssembly.style.left = '80%';
-        resetPanelFields();
-        setTimeout(() => {
-            els.cableHead.style.transform = `rotateX(${state.flipped ? 180 : 0}deg)`;
-            setTimeout(() => {
-                els.cableAssembly.style.left = 'calc(10% + 60px + 2px)';
-                setTimeout(startHandshake, 700);
-            }, 400);
-        }, 500);
-    } else {
-        els.cableHead.style.transform = `rotateX(${state.flipped ? 180 : 0}deg)`;
-        setTimeout(() => {
-            state.animating = false;
-            els.btnToggle.disabled = false;
+        /* ═══════════════════════════════════════════
+           CONNECTION TOGGLE
+           ═══════════════════════════════════════════ */
+        async function toggleConnection() {
+            if (state.animating) return;
+            state.animating = true;
+            els.btnToggle.disabled = true;
             els.btnFlip.disabled = true;
-        }, 600);
-    }
-}
 
-/* ═══════════════════════════════════════════
-   RESET PANEL FIELDS
-   ═══════════════════════════════════════════ */
-function resetPanelFields() {
-    ['a','b'].forEach(p => {
-        setField(`${p}-status`, 'Waiting for cable...', '');
-        setField(`${p}-orient`, 'Unknown', '');
-        setField(`${p}-power`, '0 Watts', '');
-        setField(`${p}-video`, 'No Signal', '');
-        setField(`${p}-data`, 'Inactive', '');
-        setField(`${p}-route`, 'Inactive', '');
-        setField(`${p}-audio`, 'Inactive', '');
-    });
-    els.dots.forEach(d => { d.classList.remove('dot-active'); d.classList.remove('dot-power'); });
-    els.svgLayer.innerHTML = '';
-}
-
-/* ═══════════════════════════════════════════
-   DRAW MANE CURVES
-   ═══════════════════════════════════════════ */
-function drawCurve(startDotId, targetDotId, colorClass) {
-    const svgRect = els.svgLayer.getBoundingClientRect();
-    const startDot = document.getElementById(startDotId);
-    const targetDot = document.getElementById(targetDotId);
-    if (!startDot || !targetDot) return;
-
-    const startRect = startDot.getBoundingClientRect();
-    const targetRect = targetDot.getBoundingClientRect();
-
-    const startX = startRect.left + startRect.width / 2 - svgRect.left;
-    const startY = startRect.top + startRect.height / 2 - svgRect.top;
-    const endX = svgRect.width;
-    const endY = targetRect.top + targetRect.height / 2 - svgRect.top;
-
-    const cp1X = startX + (endX - startX) * 0.4;
-    const cp2X = startX + (endX - startX) * 0.6;
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', `M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`);
-    path.setAttribute('class', 'data-flow flow-active');
-    path.setAttribute('stroke', colorClass === 'blue' ? 'var(--neon-blue)' : 'var(--neon-purple)');
-    els.svgLayer.appendChild(path);
-}
-
-/* ═══════════════════════════════════════════
-   THE HANDSHAKE — DYNAMIC
-   ═══════════════════════════════════════════ */
-async function startHandshake() {
-    const devA = DEVICES[selectA.value];
-    const devB = DEVICES[selectB.value];
-    const flipped = state.flipped;
-    const neg = negotiateRoles(devA, devB);
-    const { host, peripheral, powerSource, powerSink, powerWatts, videoSource, videoSink, hasData, dataSpeed, hasAudio } = neg;
-
-    /* ── Step 1: Detection ── */
-    addStory('🔍', `${host.icon} ${host.name} sends a tiny electrical ping to detect what's on the other end...`);
-    await sleep(900);
-
-    setField('a-status', `${devB.name} Detected`, 'val-green');
-    setField('b-status', `Connected to ${devA.name}`, 'val-green');
-
-    if (!flipped) {
-        setField('a-orient', 'Right-Side Up', 'val-blue');
-        setField('b-orient', 'Right-Side Up', 'val-blue');
-        addStory('✅', 'Ping came back on the top CC pin — cable is Right-Side Up.', 'type-info');
-        els.dots[0].classList.add('dot-active');
-    } else {
-        setField('a-orient', 'Upside Down', 'val-highlight');
-        setField('b-orient', 'Upside Down', 'val-highlight');
-        addStory('🙃', 'Ping came back on the bottom CC pin — cable is Upside Down!', 'type-info');
-        els.dots[2].classList.add('dot-active');
-    }
-
-    await sleep(1000);
-
-    /* ── Step 2: Role Negotiation ── */
-    if (devA.role === 'host' && devB.role === 'host') {
-        addStory('🤝', `Both devices are smart! ${devA.icon} ${devA.name} takes the Host role while ${devB.icon} ${devB.name} acts as an accessory.`, 'type-info');
-        await sleep(800);
-    } else if (host && peripheral) {
-        addStory('🏷️', `${host.icon} ${host.name} is the Host (DFP). ${peripheral.icon} ${peripheral.name} is the Device (UFP).`, 'type-info');
-        await sleep(800);
-    }
-
-    /* ── Step 3: Power Delivery ── */
-    if (powerSource && powerSink && powerWatts > 0) {
-        const fastCharge = powerWatts >= 25;
-        addStory('🔋', `${powerSource.icon} ${powerSource.name}: "I can supply up to ${powerSource.maxPowerOut}W via USB Power Delivery!"`, 'type-power');
-        await sleep(800);
-        addStory('🤝', `${powerSink.icon} ${powerSink.name}: "${fastCharge ? 'Great — taking' : 'Accepting'} ${powerWatts}W ${fastCharge ? 'for fast charging' : 'for power'}!"`, 'type-power');
-
-        // Update BOTH panels — find which prefix matches which device
-        const aIsPowerSource = devA.id === powerSource.id;
-        if (aIsPowerSource) {
-            setField('a-power', `Supplying ${powerWatts}W`, 'val-green');
-            setField('b-power', `Receiving ${powerWatts}W`, 'val-green');
-        } else {
-            setField('b-power', `Supplying ${powerWatts}W`, 'val-green');
-            setField('a-power', `Receiving ${powerWatts}W`, 'val-green');
+            if (state.connected) {
+                // Disconnect
+                els.btnToggle.innerText = 'Plug Cable In';
+                els.btnToggle.className = 'primary';
+                state.connected = false;
+                els.cableAssembly.style.left = '80%';
+                els.cableAssembly.style.opacity = '0.6';
+                resetPanelFields();
+                addStory('🔌', 'Cable unplugged. Connection safely terminated.', '');
+                setTimeout(() => {
+                    state.animating = false;
+                    els.btnToggle.disabled = false;
+                }, 600);
+            } else {
+                // Connect
+                els.btnToggle.innerText = 'Unplug Cable';
+                els.btnToggle.className = '';
+                state.connected = true;
+                els.cableAssembly.style.opacity = '1';
+                els.cableAssembly.style.left = 'calc(10% + 60px + 2px)';
+                addStory('⚡', 'Physical click! Cable plugged in.');
+                setTimeout(startHandshake, 700);
+            }
         }
-        els.dots[1].classList.add('dot-power');
-        await sleep(800);
-    } else if (devA.hasPowerPassthrough || devB.hasPowerPassthrough) {
-        const hub = devA.hasPowerPassthrough ? devA : devB;
-        addStory('🔌', `${hub.icon} ${hub.name} supports power passthrough (up to ${hub.passthroughWatts}W) — connect a charger to its upstream port to charge your device.`, 'type-power');
-        await sleep(600);
-    } else {
-        addStory('⚡', 'No power delivery negotiated for this connection — both devices are self-powered.', '');
-        await sleep(500);
-    }
 
-    /* ── Step 4: MUX / Data Routing ── */
-    if (host && (hasData || videoSource)) {
-        if (!flipped) {
-            addStory('🛤️', `Routing data lanes straight across — no MUX reconfiguration needed.`);
-            setField('a-route', 'Straight Path (Normal)', 'val-blue');
-            setField('b-route', 'Straight Path (Normal)', 'val-blue');
-            drawCurve('port-dot-1', 'port-dot-1', 'blue');
-            drawCurve('port-dot-3', 'port-dot-3', 'purple');
-        } else {
-            addStory('🔀', `Cable is flipped! ${host.icon} ${host.name}'s internal MUX instantly criss-crosses the data lanes to match.`, 'type-success');
-            setField('a-route', 'Criss-Crossed (Flipped)', 'val-highlight');
-            setField('b-route', 'Criss-Crossed (Flipped)', 'val-highlight');
-            drawCurve('port-dot-1', 'port-dot-3', 'blue');
-            drawCurve('port-dot-3', 'port-dot-1', 'purple');
+        /* ═══════════════════════════════════════════
+           FLIP CABLE
+           ═══════════════════════════════════════════ */
+        async function flipCable() {
+            if (state.animating) return;
+            state.animating = true;
+            els.btnToggle.disabled = true;
+            els.btnFlip.disabled = true;
+            state.flipped = !state.flipped;
+
+            addStory('🔄', 'You flipped the cable plug upside down.', '');
+
+            if (state.connected) {
+                els.cableAssembly.style.left = '80%';
+                resetPanelFields();
+                setTimeout(() => {
+                    els.cableHead.style.transform = `rotateX(${state.flipped ? 180 : 0}deg)`;
+                    setTimeout(() => {
+                        els.cableAssembly.style.left = 'calc(10% + 60px + 2px)';
+                        setTimeout(startHandshake, 700);
+                    }, 400);
+                }, 500);
+            } else {
+                els.cableHead.style.transform = `rotateX(${state.flipped ? 180 : 0}deg)`;
+                setTimeout(() => {
+                    state.animating = false;
+                    els.btnToggle.disabled = false;
+                    els.btnFlip.disabled = true;
+                }, 600);
+            }
         }
-        await sleep(800);
-    }
 
-    /* ── Step 5: Feature Activation ── */
-    // Video
-    if (videoSource && videoSink) {
-        const res = videoSink.id === 'projector' ? '1080p Projection' : '4K @ 60Hz';
-        addStory('🎬', `${videoSource.icon} ${videoSource.name} begins streaming video via DisplayPort Alt Mode to ${videoSink.icon} ${videoSink.name}...`, 'type-info');
-        const aIsVideoSource = devA.id === videoSource.id;
-        if (aIsVideoSource) {
-            setField('a-video', 'Sending Signal', 'val-blue');
-            setField('b-video', `${res} Active`, 'val-blue');
-        } else {
-            setField('b-video', 'Sending Signal', 'val-blue');
-            setField('a-video', `${res} Active`, 'val-blue');
+        /* ═══════════════════════════════════════════
+           RESET PANEL FIELDS
+           ═══════════════════════════════════════════ */
+        function resetPanelFields() {
+            ['a', 'b'].forEach(p => {
+                setField(`${p}-status`, 'Waiting for cable...', '');
+                setField(`${p}-orient`, 'Unknown', '');
+                setField(`${p}-power`, '0 Watts', '');
+                setField(`${p}-video`, 'No Signal', '');
+                setField(`${p}-data`, 'Inactive', '');
+                setField(`${p}-route`, 'Inactive', '');
+                setField(`${p}-audio`, 'Inactive', '');
+            });
+            els.dots.forEach(d => { d.classList.remove('dot-active'); d.classList.remove('dot-power'); });
+            els.svgLayer.innerHTML = '';
         }
-        await sleep(600);
-    }
 
-    // Data
-    if (hasData && dataSpeed) {
-        addStory('💾', `Data link established at ${dataSpeed}.`, 'type-info');
-        setField('a-data', dataSpeed, 'val-blue');
-        setField('b-data', dataSpeed, 'val-blue');
-        await sleep(500);
-    }
+        /* ═══════════════════════════════════════════
+           DRAW MANE CURVES
+           ═══════════════════════════════════════════ */
+        function drawCurve(startDotId, targetDotId, colorClass) {
+            const svgRect = els.svgLayer.getBoundingClientRect();
+            const startDot = document.getElementById(startDotId);
+            const targetDot = document.getElementById(targetDotId);
+            if (!startDot || !targetDot) return;
 
-    // Audio
-    if (hasAudio) {
-        addStory('🎵', 'Digital audio stream negotiated — USB Audio Class active.', 'type-info');
-        setField('a-audio', '24-bit / 96kHz', 'val-blue');
-        setField('b-audio', '24-bit / 96kHz', 'val-blue');
-        await sleep(500);
-    }
+            const startRect = startDot.getBoundingClientRect();
+            const targetRect = targetDot.getBoundingClientRect();
 
-    // Hub/Dock ports
-    if (devA.ports || devB.ports) {
-        const hubDev = devA.ports ? devA : devB;
-        addStory('🔌', `${hubDev.icon} ${hubDev.name} activates all downstream ports: ${hubDev.ports.join(', ')}.`, 'type-info');
-        await sleep(500);
-    }
+            const startX = startRect.left + startRect.width / 2 - svgRect.left;
+            const startY = startRect.top + startRect.height / 2 - svgRect.top;
+            const endX = svgRect.width;
+            const endY = targetRect.top + targetRect.height / 2 - svgRect.top;
 
-    /* ── Step 6: Fun Fact ── */
-    const funFacts = getFunFact(devA, devB);
-    if (funFacts) {
-        await sleep(400);
-        addStory('💡', funFacts, 'type-success');
-    }
+            const cp1X = startX + (endX - startX) * 0.4;
+            const cp2X = startX + (endX - startX) * 0.6;
 
-    /* ── Step 7: Summary ── */
-    await sleep(400);
-    const features = [];
-    if (videoSource) features.push('video');
-    if (powerSource && powerWatts > 0) features.push(`${powerWatts}W charging`);
-    if (hasData) features.push('data transfer');
-    if (hasAudio) features.push('audio');
-    if (devA.ports || devB.ports) features.push('port expansion');
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`);
+            path.setAttribute('class', 'data-flow flow-active');
+            path.setAttribute('stroke', colorClass === 'blue' ? 'var(--neon-blue)' : 'var(--neon-purple)');
+            els.svgLayer.appendChild(path);
+        }
 
-    addStory('🎉', `All done! ${features.join(', ')} — all through one USB-C cable, negotiated in a fraction of a second.`, 'type-success');
+        /* ═══════════════════════════════════════════
+           THE HANDSHAKE — DYNAMIC
+           ═══════════════════════════════════════════ */
+        async function startHandshake() {
+            const devA = DEVICES[selectA.value];
+            const devB = DEVICES[selectB.value];
+            const flipped = state.flipped;
+            const neg = negotiateRoles(devA, devB);
+            const { host, peripheral, powerSource, powerSink, powerWatts, videoSource, videoSink, hasData, dataSpeed, hasAudio } = neg;
 
-    state.animating = false;
-    els.btnToggle.disabled = false;
-    els.btnFlip.disabled = false;
-}
+            /* ── Step 1: Detection ── */
+            addStory('🔍', `${host.icon} ${host.name} sends a tiny electrical ping to detect what's on the other end...`);
+            await sleep(900);
 
-/* ═══════════════════════════════════════════
-   FUN FACTS PER DEVICE PAIR
-   ═══════════════════════════════════════════ */
-function getFunFact(a, b) {
-    const ids = [a.id, b.id].sort().join('+');
-    const facts = {
-        'laptop+monitor': 'Fun fact: This uses USB-C "Alt Mode" — the same pins that carry data are repurposed to carry a DisplayPort video signal. One cable replaces HDMI, power, and USB!',
-        'laptop+charger': 'Fun fact: USB Power Delivery (PD) can negotiate up to 240W on newer EPR cables — enough to charge gaming laptops!',
-        'laptop+smartphone': 'Fun fact: When two smart devices connect, they negotiate who is "host" using the CC pins. Your laptop wins and the phone appears as a storage device.',
-        'laptop+dock': 'Fun fact: Thunderbolt 4 docking stations multiplex up to two 4K displays, gigabit ethernet, and 85W charging — all over a single cable with 40 Gbps bandwidth.',
-        'laptop+ssd': 'Fun fact: USB 3.2 Gen 2 can transfer a full HD movie (~5 GB) in about 4 seconds!',
-        'laptop+usb-hub': 'Fun fact: A USB-C hub uses a "Transaction Translator" chip to fan out one USB connection into multiple downstream ports — even mixing USB 2.0 and 3.0 devices.',
-        'charger+smartphone': 'Fun fact: USB PD fast charging works by increasing voltage (up to 20V) rather than just amperage — this reduces heat and charges batteries faster.',
-        'laptop+projector': 'Fun fact: Portable USB-C projectors can be fully bus-powered — no wall outlet needed for quick presentations!',
-        'laptop+earbuds': 'Fun fact: USB-C earbuds contain a tiny DAC (Digital-to-Analog Converter) chip that converts digital audio right inside the cable connector.',
-        'charger+powerbank': 'Fun fact: Power banks use the same PD protocol as laptops — they can negotiate the optimal charging voltage and current for fastest safe charging.',
-        'laptop+tablet': 'Fun fact: When a laptop connects to a tablet, the tablet can act as a secondary touch display using manufacturer software — like Apple Sidecar!',
-        'monitor+smartphone': 'Fun fact: Some phones (like Samsung with DeX) launch a full desktop environment when connected to an external display — turning your phone into a PC!',
-        'monitor+tablet': 'Fun fact: Many modern tablets support video output via USB-C, turning any monitor into a large drawing canvas or presentation display.',
-    };
-    return facts[ids] || null;
-}
+            setField('a-status', `${devB.name} Detected`, 'val-green');
+            setField('b-status', `Connected to ${devA.name}`, 'val-green');
 
-function clearLogs() {
-    els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+            if (!flipped) {
+                setField('a-orient', 'Right-Side Up', 'val-blue');
+                setField('b-orient', 'Right-Side Up', 'val-blue');
+                addStory('✅', 'Ping came back on the top CC pin — cable is Right-Side Up.', 'type-info');
+                els.dots[0].classList.add('dot-active');
+            } else {
+                setField('a-orient', 'Upside Down', 'val-highlight');
+                setField('b-orient', 'Upside Down', 'val-highlight');
+                addStory('🙃', 'Ping came back on the bottom CC pin — cable is Upside Down!', 'type-info');
+                els.dots[2].classList.add('dot-active');
+            }
+
+            await sleep(1000);
+
+            /* ── Step 2: Role Negotiation ── */
+            if (devA.role === 'host' && devB.role === 'host') {
+                addStory('🤝', `Both devices are smart! ${devA.icon} ${devA.name} takes the Host role while ${devB.icon} ${devB.name} acts as an accessory.`, 'type-info');
+                await sleep(800);
+            } else if (host && peripheral) {
+                addStory('🏷️', `${host.icon} ${host.name} is the Host (DFP). ${peripheral.icon} ${peripheral.name} is the Device (UFP).`, 'type-info');
+                await sleep(800);
+            }
+
+            /* ── Step 3: Power Delivery ── */
+            if (powerSource && powerSink && powerWatts > 0) {
+                const fastCharge = powerWatts >= 25;
+                addStory('🔋', `${powerSource.icon} ${powerSource.name}: "I can supply up to ${powerSource.maxPowerOut}W via USB Power Delivery!"`, 'type-power');
+                await sleep(800);
+                addStory('🤝', `${powerSink.icon} ${powerSink.name}: "${fastCharge ? 'Great — taking' : 'Accepting'} ${powerWatts}W ${fastCharge ? 'for fast charging' : 'for power'}!"`, 'type-power');
+
+                // Update BOTH panels — find which prefix matches which device
+                const aIsPowerSource = devA.id === powerSource.id;
+                if (aIsPowerSource) {
+                    setField('a-power', `Supplying ${powerWatts}W`, 'val-green');
+                    setField('b-power', `Receiving ${powerWatts}W`, 'val-green');
+                } else {
+                    setField('b-power', `Supplying ${powerWatts}W`, 'val-green');
+                    setField('a-power', `Receiving ${powerWatts}W`, 'val-green');
+                }
+                els.dots[1].classList.add('dot-power');
+                await sleep(800);
+            } else if (devA.hasPowerPassthrough || devB.hasPowerPassthrough) {
+                const hub = devA.hasPowerPassthrough ? devA : devB;
+                addStory('🔌', `${hub.icon} ${hub.name} supports power passthrough (up to ${hub.passthroughWatts}W) — connect a charger to its upstream port to charge your device.`, 'type-power');
+                await sleep(600);
+            } else {
+                addStory('⚡', 'No power delivery negotiated for this connection — both devices are self-powered.', '');
+                await sleep(500);
+            }
+
+            /* ── Step 4: MUX / Data Routing ── */
+            if (host && (hasData || videoSource)) {
+                if (!flipped) {
+                    addStory('🛤️', `Routing data lanes straight across — no MUX reconfiguration needed.`);
+                    setField('a-route', 'Straight Path (Normal)', 'val-blue');
+                    setField('b-route', 'Straight Path (Normal)', 'val-blue');
+                    drawCurve('port-dot-1', 'port-dot-1', 'blue');
+                    drawCurve('port-dot-3', 'port-dot-3', 'purple');
+                } else {
+                    addStory('🔀', `Cable is flipped! ${host.icon} ${host.name}'s internal MUX instantly criss-crosses the data lanes to match.`, 'type-success');
+                    setField('a-route', 'Criss-Crossed (Flipped)', 'val-highlight');
+                    setField('b-route', 'Criss-Crossed (Flipped)', 'val-highlight');
+                    drawCurve('port-dot-1', 'port-dot-3', 'blue');
+                    drawCurve('port-dot-3', 'port-dot-1', 'purple');
+                }
+                await sleep(800);
+            }
+
+            /* ── Step 5: Feature Activation ── */
+            // Video
+            if (videoSource && videoSink) {
+                const res = videoSink.id === 'projector' ? '1080p Projection' : '4K @ 60Hz';
+                addStory('🎬', `${videoSource.icon} ${videoSource.name} begins streaming video via DisplayPort Alt Mode to ${videoSink.icon} ${videoSink.name}...`, 'type-info');
+                const aIsVideoSource = devA.id === videoSource.id;
+                if (aIsVideoSource) {
+                    setField('a-video', 'Sending Signal', 'val-blue');
+                    setField('b-video', `${res} Active`, 'val-blue');
+                } else {
+                    setField('b-video', 'Sending Signal', 'val-blue');
+                    setField('a-video', `${res} Active`, 'val-blue');
+                }
+                await sleep(600);
+            }
+
+            // Data
+            if (hasData && dataSpeed) {
+                addStory('💾', `Data link established at ${dataSpeed}.`, 'type-info');
+                setField('a-data', dataSpeed, 'val-blue');
+                setField('b-data', dataSpeed, 'val-blue');
+                await sleep(500);
+            }
+
+            // Audio
+            if (hasAudio) {
+                addStory('🎵', 'Digital audio stream negotiated — USB Audio Class active.', 'type-info');
+                setField('a-audio', '24-bit / 96kHz', 'val-blue');
+                setField('b-audio', '24-bit / 96kHz', 'val-blue');
+                await sleep(500);
+            }
+
+            // Hub/Dock ports
+            if (devA.ports || devB.ports) {
+                const hubDev = devA.ports ? devA : devB;
+                addStory('🔌', `${hubDev.icon} ${hubDev.name} activates all downstream ports: ${hubDev.ports.join(', ')}.`, 'type-info');
+                await sleep(500);
+            }
+
+            /* ── Step 6: Fun Fact ── */
+            const funFacts = getFunFact(devA, devB);
+            if (funFacts) {
+                await sleep(400);
+                addStory('💡', funFacts, 'type-success');
+            }
+
+            /* ── Step 7: Summary ── */
+            await sleep(400);
+            const features = [];
+            if (videoSource) features.push('video');
+            if (powerSource && powerWatts > 0) features.push(`${powerWatts}W charging`);
+            if (hasData) features.push('data transfer');
+            if (hasAudio) features.push('audio');
+            if (devA.ports || devB.ports) features.push('port expansion');
+
+            addStory('🎉', `All done! ${features.join(', ')} — all through one USB-C cable, negotiated in a fraction of a second.`, 'type-success');
+
+            state.animating = false;
+            els.btnToggle.disabled = false;
+            els.btnFlip.disabled = false;
+        }
+
+        /* ═══════════════════════════════════════════
+           FUN FACTS PER DEVICE PAIR
+           ═══════════════════════════════════════════ */
+        function getFunFact(a, b) {
+            const ids = [a.id, b.id].sort().join('+');
+            const facts = {
+                'laptop+monitor': 'Fun fact: This uses USB-C "Alt Mode" — the same pins that carry data are repurposed to carry a DisplayPort video signal. One cable replaces HDMI, power, and USB!',
+                'laptop+charger': 'Fun fact: USB Power Delivery (PD) can negotiate up to 240W on newer EPR cables — enough to charge gaming laptops!',
+                'laptop+smartphone': 'Fun fact: When two smart devices connect, they negotiate who is "host" using the CC pins. Your laptop wins and the phone appears as a storage device.',
+                'laptop+dock': 'Fun fact: Thunderbolt 4 docking stations multiplex up to two 4K displays, gigabit ethernet, and 85W charging — all over a single cable with 40 Gbps bandwidth.',
+                'laptop+ssd': 'Fun fact: USB 3.2 Gen 2 can transfer a full HD movie (~5 GB) in about 4 seconds!',
+                'laptop+usb-hub': 'Fun fact: A USB-C hub uses a "Transaction Translator" chip to fan out one USB connection into multiple downstream ports — even mixing USB 2.0 and 3.0 devices.',
+                'charger+smartphone': 'Fun fact: USB PD fast charging works by increasing voltage (up to 20V) rather than just amperage — this reduces heat and charges batteries faster.',
+                'laptop+projector': 'Fun fact: Portable USB-C projectors can be fully bus-powered — no wall outlet needed for quick presentations!',
+                'laptop+earbuds': 'Fun fact: USB-C earbuds contain a tiny DAC (Digital-to-Analog Converter) chip that converts digital audio right inside the cable connector.',
+                'charger+powerbank': 'Fun fact: Power banks use the same PD protocol as laptops — they can negotiate the optimal charging voltage and current for fastest safe charging.',
+                'laptop+tablet': 'Fun fact: When a laptop connects to a tablet, the tablet can act as a secondary touch display using manufacturer software — like Apple Sidecar!',
+                'monitor+smartphone': 'Fun fact: Some phones (like Samsung with DeX) launch a full desktop environment when connected to an external display — turning your phone into a PC!',
+                'monitor+tablet': 'Fun fact: Many modern tablets support video output via USB-C, turning any monitor into a large drawing canvas or presentation display.',
+            };
+            return facts[ids] || null;
+        }
+
+        function clearLogs() {
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
         <span class="log-icon">🧹</span>
         <span class="log-text">Logs cleared.</span>
     </div>`;
-}
+        }
 
-</script>
+    </script>
 </body>
+
 </html>

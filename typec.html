@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How USB-C Works</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #c084fc;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Subtle grid background */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-blue), var(--neon-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(192, 132, 252, 0.2));
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+        
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+            border-color: #fff;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 15px;
+        }
+
+        .status-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .status-header {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-highlight { color: #facc15; font-weight: 600; }
+        .val-green { color: var(--neon-green); font-weight: 600; }
+        .val-blue { color: var(--neon-blue); font-weight: 600; }
+
+        /* Animation Stage */
+        .stage {
+            position: relative;
+            width: 100%;
+            min-height: 350px;
+        }
+
+        /* Simplified visual indicators */
+        .indicator-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #475569;
+            margin: 0 auto;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .dot-active { background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); }
+        .dot-power { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+
+        /* Story/Log Feed */
+        .story-feed {
+            grid-column: 1 / -1;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp 0.4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon { font-size: 1.2rem; }
+        .log-text { font-size: 1.05rem; }
+
+        .type-info { border-left-color: var(--neon-blue); }
+        .type-power { border-left-color: var(--neon-green); }
+        .type-success { border-left-color: var(--neon-purple); background: rgba(192, 132, 252, 0.05); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Connecting Lines */
+        svg.lines {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 4; /* Render lines on top of cable so they are visible */
+        }
+
+        .data-flow {
+            fill: none;
+            stroke-width: 4;
+            stroke-linecap: round;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .flow-active { opacity: 1; stroke-dasharray: 10 10; animation: flowAnim 1s linear infinite; }
+        
+        @keyframes flowAnim { to { stroke-dashoffset: -20; } }
+
+    </style>
+</head>
+<body>
+
+    <h1>How USB-C Actually Works</h1>
+    <p class="subtitle">USB-C is famously "reversible". But how does your laptop know which way you plugged it in? Watch the simple communication steps that happen in the blink of an eye when you plug a device in.</p>
+
+    <div class="controls">
+        <button id="btn-toggle" class="primary" onclick="toggleConnection()">Plug Cable In</button>
+        <button id="btn-flip" disabled onclick="flipCable()">Flip Cable Upside Down</button>
+    </div>
+
+    <div class="dashboard" id="dashboard">
+        
+        <!-- Laptop Panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>💻 Your Laptop</span>
+            </div>
+            
+            <div class="status-box">
+                <div class="status-header">Cable Detection</div>
+                <div class="data-row"><span>Status:</span> <span id="host-status">Waiting for cable...</span></div>
+                <div class="data-row"><span>Orientation:</span> <span id="host-orient">Unknown</span></div>
+            </div>
+
+            <div class="status-box">
+                <div class="status-header">Power Input</div>
+                <div class="data-row"><span>Receiving Power:</span> <span id="host-power">OFF</span></div>
+            </div>
+
+            <div class="status-box">
+                <div class="status-header">Data Routing</div>
+                <div class="data-row"><span>Cross-Switch:</span> <span id="host-route" style="color:#64748b;">Inactive</span></div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">
+                    Because the cable can be flipped, the laptop has a built-in switch to seamlessly untangle the data lanes!
+                </div>
+            </div>
+        </div>
+
+        <!-- Animation Center -->
+        <div class="stage" id="stage">
+            <svg class="lines" id="svg-layer"></svg>
+
+            <!-- Laptop Port (Pill Shaped USB-C) -->
+            <div id="laptop-port" style="position: absolute; left: 10%; top: 50%; transform: translateY(-50%); width: 60px; height: 140px; background: #020617; border: 2px solid #334155; border-radius: 30px; z-index: 2; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 15px rgba(0,0,0,1);">
+                <!-- Female Tongue inside the port -->
+                <div style="width: 14px; height: 110px; background: #1e293b; border-radius: 7px; display: flex; flex-direction: column; justify-content: space-around; padding: 10px 0; position: relative;">
+                    <div class="indicator-dot" id="port-dot-1" style="width: 6px; height: 6px;"></div>
+                    <div class="indicator-dot" id="port-dot-2" style="background:var(--text-muted); width: 6px; height: 6px;"></div>
+                    <div class="indicator-dot" id="port-dot-3" style="width: 6px; height: 6px;"></div>
+                </div>
+            </div>
+
+            <!-- Cable Assembly (Splitting the rotating head and the fixed wire) -->
+            <div id="cable-assembly" style="position: absolute; left: 80%; top: 50%; transform: translateY(-50%); width: 120px; height: 140px; z-index: 3; transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); opacity: 0.6;">
+                
+                <!-- Trailing wire going seamlessly into the monitor -->
+                <div style="position: absolute; left: 100px; top: 50%; transform: translateY(-50%); width: 300px; height: 35px; background: #334155; border-top: 2px solid #475569; border-bottom: 2px solid #1e293b; z-index: 1;"></div>
+                
+                <!-- Rotating head (Can be flipped upside down without moving the wire) -->
+                <div id="cable-head" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: linear-gradient(90deg, #334155, #475569); border-radius: 12px; border: 2px solid #64748b; z-index: 2; transition: transform 0.6s ease; display: flex; align-items: center; justify-content: flex-start; box-shadow: 10px 10px 30px rgba(0,0,0,0.6);">
+                    <!-- Metal connector tip perfectly fitting the pill port -->
+                    <div style="position: absolute; left: -30px; top: 50%; transform: translateY(-50%); width: 30px; height: 120px; background: linear-gradient(90deg, #e2e8f0, #94a3b8); border-radius: 15px 0 0 15px; z-index: 1; border: 1px solid #64748b; border-right: none; box-shadow: inset 0 3px 5px rgba(255,255,255,0.7);">
+                        <!-- Hollow inside of the metal tip where pins go -->
+                        <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 18px; height: 106px; background: #0f172a; border-radius: 10px 0 0 10px; border-left: 1px solid #475569; border-top: 1px solid #475569; border-bottom: 1px solid #475569;">
+                            <!-- Indicator dots perfectly placed inside the metal plug -->
+                            <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 10px 0;">
+                                <div class="indicator-dot" id="cab-dot-1" style="width: 6px; height: 6px; margin: 0;"></div>
+                                <div class="indicator-dot" id="cab-dot-2" style="background:var(--text-muted); width: 6px; height: 6px; margin: 0;"></div>
+                                <div class="indicator-dot" id="cab-dot-3" style="width: 6px; height: 6px; margin: 0;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monitor Panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>🖥️ Connected Monitor</span>
+            </div>
+
+            <div class="status-box">
+                <div class="status-header">Device Check-in</div>
+                <div class="data-row"><span>Connection:</span> <span id="mon-conn">Unplugged</span></div>
+            </div>
+
+            <div class="status-box">
+                <div class="status-header">Charging Hub</div>
+                <div class="data-row"><span>Available:</span> <span class="val-highlight">60 Watts (Fast Charge)</span></div>
+                <div class="data-row"><span>Supplying:</span> <span id="mon-power">0 Watts</span></div>
+            </div>
+
+            <div class="status-box">
+                <div class="status-header">Features active</div>
+                <div class="data-row"><span>Screen Display:</span> <span id="mon-disp">No Signal</span></div>
+                <div class="data-row"><span>File Transfer:</span> <span id="mon-data">Disconnected</span></div>
+            </div>
+        </div>
+
+        <!-- Story Feed -->
+        <div class="story-feed" id="feed">
+            <div class="log-msg" style="border-left-color: #64748b;">
+                <span class="log-icon">👋</span>
+                <span class="log-text">Welcome! Try plugging the cable in to see what happens behind the scenes.</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            connected: false,
+            flipped: false,
+            animating: false
+        };
+
+        const elements = {
+            cableAssembly: document.getElementById('cable-assembly'),
+            cableHead: document.getElementById('cable-head'),
+            
+            btnToggle: document.getElementById('btn-toggle'),
+            btnFlip: document.getElementById('btn-flip'),
+            feed: document.getElementById('feed'),
+            
+            hostStatus: document.getElementById('host-status'),
+            hostOrient: document.getElementById('host-orient'),
+            hostPower: document.getElementById('host-power'),
+            hostRoute: document.getElementById('host-route'),
+            
+            monConn: document.getElementById('mon-conn'),
+            monPower: document.getElementById('mon-power'),
+            monDisp: document.getElementById('mon-disp'),
+            monData: document.getElementById('mon-data'),
+
+            dots: [document.getElementById('port-dot-1'), document.getElementById('port-dot-2'), document.getElementById('port-dot-3')],
+            svgLayer: document.getElementById('svg-layer')
+        };
+
+        function addStory(icon, text, type = 'type-info') {
+            const el = document.createElement('div');
+            el.className = `log-msg ${type}`;
+            el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
+            elements.feed.appendChild(el);
+            elements.feed.scrollTop = elements.feed.scrollHeight;
+        }
+
+        async function toggleConnection() {
+            if (state.animating) return;
+            state.animating = true;
+            elements.btnToggle.disabled = true;
+            elements.btnFlip.disabled = true;
+
+            if (state.connected) {
+                // Disconnect
+                elements.btnToggle.innerText = "Plug Cable In";
+                elements.btnToggle.className = "primary";
+                state.connected = false;
+                
+                elements.cableAssembly.style.left = '80%';
+                elements.cableAssembly.style.opacity = '0.6';
+                
+                resetUI();
+                addStory("🔌", "Cable unplugged. Power safely shut off.", "");
+                
+                setTimeout(() => {
+                    state.animating = false;
+                    elements.btnToggle.disabled = false;
+                }, 600); // Re-enable after physical unplug animation completes
+            } else {
+                // Connect
+                elements.btnToggle.innerText = "Unplug Cable";
+                elements.btnToggle.className = "";
+                state.connected = true;
+
+                elements.cableAssembly.style.opacity = '1';
+                elements.cableAssembly.style.left = 'calc(10% + 60px + 2px)'; // Insert tightly, visually slides into the port
+                
+                addStory("⚡", "Physical click! You just plugged the cable in.");
+                setTimeout(startHandshake, 700);
+            }
+        }
+
+        async function flipCable() {
+            if (state.animating) return;
+            state.animating = true;
+            elements.btnToggle.disabled = true;
+            elements.btnFlip.disabled = true;
+
+            state.flipped = !state.flipped;
+            addStory("🔄", "You flipped the cable plug upside down.", "");
+            
+            if (state.connected) {
+                // Animate out, spin, and back in
+                elements.cableAssembly.style.left = '80%';
+                resetUI();
+                
+                setTimeout(() => {
+                    elements.cableHead.style.transform = `rotateX(${state.flipped ? 180 : 0}deg)`;
+                    setTimeout(() => {
+                        elements.cableAssembly.style.left = 'calc(10% + 60px + 2px)';
+                        setTimeout(startHandshake, 700);
+                    }, 400);
+                }, 500);
+            } else {
+                // Spin in place
+                elements.cableHead.style.transform = `rotateX(${state.flipped ? 180 : 0}deg)`;
+                setTimeout(() => {
+                    state.animating = false;
+                    elements.btnToggle.disabled = false;
+                    elements.btnFlip.disabled = true; // Still cannot flip while unplugged logically, maybe allow it but disabled originally
+                }, 600);
+            }
+        }
+
+        function resetUI() {
+            elements.hostStatus.innerText = "Waiting for cable...";
+            elements.hostStatus.className = "";
+            elements.hostOrient.innerText = "Unknown";
+            elements.hostOrient.className = "";
+            elements.hostPower.innerText = "OFF";
+            elements.hostPower.className = "";
+            elements.hostRoute.innerText = "Inactive";
+            elements.hostRoute.className = "";
+            
+            elements.monConn.innerText = "Unplugged";
+            elements.monConn.className = "";
+            elements.monPower.innerText = "0 Watts";
+            elements.monPower.className = "";
+            elements.monDisp.innerText = "No Signal";
+            elements.monDisp.className = "";
+            elements.monData.innerText = "Disconnected";
+            elements.monData.className = "";
+
+            elements.dots.forEach(d => {
+                d.classList.remove('dot-active');
+                d.classList.remove('dot-power');
+            });
+            elements.svgLayer.innerHTML = '';
+        }
+
+        function drawCurve(startDotId, targetDotId, colorClass) {
+            const svgRect = elements.svgLayer.getBoundingClientRect();
+            
+            const startDot = document.getElementById(startDotId);
+            const startRect = startDot.getBoundingClientRect();
+            const targetDot = document.getElementById(targetDotId);
+            const targetRect = targetDot.getBoundingClientRect();
+            
+            const startX = startRect.left + startRect.width / 2 - svgRect.left;
+            const startY = startRect.top + startRect.height / 2 - svgRect.top;
+            
+            // Draw all the way to the right side of the stage exactly
+            const endX = svgRect.width; 
+            
+            // Route lines toward the Y position of the target dot to show cross configuration
+            const endY = targetRect.top + targetRect.height / 2 - svgRect.top;
+
+            const cp1X = startX + (endX - startX) * 0.4;
+            const cp1Y = startY;
+            const cp2X = startX + (endX - startX) * 0.6;
+            const cp2Y = endY;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const d = `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+            path.setAttribute('d', d);
+            path.setAttribute('class', `data-flow flow-active`);
+            path.setAttribute('stroke', colorClass === 'blue' ? 'var(--neon-blue)' : 'var(--neon-purple)');
+            elements.svgLayer.appendChild(path);
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        async function startHandshake() {
+            const flipped = state.flipped;
+            
+            // Step 1: Detect
+            addStory("🔍", "The laptop sends a tiny ping to see if anything is connected...");
+            await sleep(800);
+
+            elements.hostStatus.innerText = "Monitor Detected";
+            elements.hostStatus.className = "val-green";
+            elements.monConn.innerText = "Connected to Laptop";
+            elements.monConn.className = "val-green";
+            
+            if (!flipped) {
+                elements.hostOrient.innerText = "Right-Side Up";
+                elements.hostOrient.className = "val-blue";
+                addStory("✅", "Ping came back on the top pin! The cable is Right-Side Up.", "type-info");
+                elements.dots[0].classList.add('dot-active');
+            } else {
+                elements.hostOrient.innerText = "Upside Down";
+                elements.hostOrient.className = "val-highlight";
+                addStory("🙃", "Ping came back on the bottom pin! The cable is Upside Down.", "type-info");
+                elements.dots[2].classList.add('dot-active'); // Laptop detects upside down ping on bottom physical pin
+            }
+
+            await sleep(1000);
+            
+            // Step 2: Power
+            addStory("🔋", "Monitor says: 'I can supply up to 60 Watts of power to charge your battery!'.", "type-power");
+            await sleep(800);
+            addStory("🤝", "Laptop confirms: 'Great, taking 60 Watts to fast charge!'.", "type-power");
+            
+            elements.hostPower.innerText = "Receiving 60 Watts";
+            elements.hostPower.className = "val-green";
+            elements.monPower.innerText = "Supplying Fast Charge";
+            elements.monPower.className = "val-green";
+            elements.dots[1].classList.add('dot-power'); // Power on middle pin
+
+            await sleep(1000);
+
+            // Step 3: Data switch
+            if (!flipped) {
+                addStory("🛤️", "Routing data lanes straight across. No changes needed.");
+                elements.hostRoute.innerText = "Straight Path (Normal)";
+                elements.hostRoute.className = "val-blue";
+                drawCurve('port-dot-1', 'port-dot-1', 'blue');
+                drawCurve('port-dot-3', 'port-dot-3', 'purple');
+            } else {
+                addStory("🔀", "Cable is upside down! The laptop's switch flips the internal data lanes to untangle them instantly.", "type-success");
+                elements.hostRoute.innerText = "Criss-Crossed (Flipped)";
+                elements.hostRoute.className = "val-highlight";
+                // Cross configuration - top routes to target bottom's Y position
+                drawCurve('port-dot-1', 'port-dot-3', 'blue');
+                drawCurve('port-dot-3', 'port-dot-1', 'purple');
+            }
+
+            await sleep(800);
+            elements.monDisp.innerText = "4K Video Active";
+            elements.monDisp.className = "val-blue";
+            elements.monData.innerText = "SuperSpeed Active";
+            elements.monData.className = "val-purple";
+
+            addStory("🎉", "All done! Monitor is displaying video and charging your laptop. All in a fraction of a second.", "type-success");
+            
+            state.animating = false;
+            elements.btnToggle.disabled = false;
+            elements.btnFlip.disabled = false;
+        }
+
+    </script>
+</body>
+</html>

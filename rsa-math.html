@@ -226,7 +226,7 @@
 
         .split-view {
             display: grid;
-            grid-template-columns: 1.3fr 0.9fr;
+            grid-template-columns: 1fr 1fr;
             gap: 24px;
         }
 
@@ -252,7 +252,10 @@
         /* ══════════ THE STAGE (RSA GRAPH) ══════════ */
         .stage {
             position: relative;
-            height: 600px;
+            height: 500px;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
             background: rgba(0, 0, 0, .3);
             border: 1px solid var(--panel-border);
             border-radius: 16px;
@@ -466,7 +469,7 @@
             border: 1px solid var(--panel-border);
             border-radius: 16px 16px 0 0;
             padding: 22px;
-            height: 340px;
+            height: 500px;
             overflow-y: auto;
             box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
             display: flex;
@@ -618,92 +621,127 @@
     </div>
 
     <div class="main-grid" id="dashboard" style="display:none">
+        <!-- THE STAGE -->
+        <div class="stage" id="stage">
+            <!-- SVG Connections -->
+            <svg width="100%" height="100%" style="position:absolute; inset:0; z-index:1;">
+                <line x1="25%" y1="15%" x2="50%" y2="38%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+                <line x1="75%" y1="15%" x2="50%" y2="38%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+
+                <line x1="50%" y1="38%" x2="25%" y2="82%" stroke="rgba(239,68,68,0.2)" stroke-width="3"
+                    stroke-dasharray="5 5" />
+                <line x1="50%" y1="38%" x2="75%" y2="82%" stroke="rgba(74,222,128,0.2)" stroke-width="3"
+                    stroke-dasharray="5 5" />
+            </svg>
+
+            <!-- Nodes -->
+            <div class="node n-prime" id="nd-p" style="left:25%; top:15%; opacity:0.2;">
+                <span class="lbl-top">Prime P</span>
+                <div class="val" id="val-p">61</div>
+            </div>
+            <div class="node n-prime" id="nd-q" style="left:75%; top:15%; opacity:0.2;">
+                <span class="lbl-top">Prime Q</span>
+                <div class="val" id="val-q">53</div>
+            </div>
+
+            <div class="node n-engine" id="nd-engine" style="left:50%; top:38%; opacity:0.2;">
+                <div class="val" id="val-engine">⚙️</div>
+                <div class="lbl-bot">RSA Engine</div>
+            </div>
+
+            <div class="node n-phi" id="nd-phi" style="left:50%; top:66%; opacity:0.1;">
+                <span class="lbl-top">Euler's Totient φ(n)</span>
+                <div class="val" id="val-phi">φ</div>
+            </div>
+
+            <div class="node n-pub" id="nd-pub" style="left:25%; top:82%; opacity:0.2;">
+                <div style="font-size:2.5rem; filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));">🔒</div>
+                <div class="lbl-bot">Public Lock<br><span id="val-pub-k" class="k-val v-n">Waiting...</span></div>
+            </div>
+            <div class="node n-priv" id="nd-priv" style="left:75%; top:82%; opacity:0.2;">
+                <div style="font-size:2.5rem; filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));">🔑</div>
+                <div class="lbl-bot">Private Key<br><span id="val-priv-k" class="k-val v-d">Waiting...</span></div>
+            </div>
+        </div>
+
+        <!-- CARDS (SIDE BY SIDE) -->
         <div class="split-view">
-            <!-- THE STAGE -->
-            <div class="stage" id="stage">
-                <!-- SVG Connections -->
-                <svg width="100%" height="100%" style="position:absolute; inset:0; z-index:1;">
-                    <line x1="25%" y1="15%" x2="50%" y2="38%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
-                    <line x1="75%" y1="15%" x2="50%" y2="38%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+            <div class="detail-card">
+                <div class="panel-title">🧮 RSA Math Breakdown</div>
+                <table class="k-table">
+                    <tr>
+                        <td>Prime P</td>
+                        <td class="mono v-p">?</td>
+                    </tr>
+                    <tr>
+                        <td>Prime Q</td>
+                        <td class="mono v-p">?</td>
+                    </tr>
+                    <tr>
+                        <td>Modulo N <br><span style="font-size:.65rem;color:var(--text-muted);">(p × q)</span></td>
+                        <td class="mono v-n" id="tb-n">?</td>
+                    </tr>
+                    <tr>
+                        <td>Euler's Totient φ(n) <br><span style="font-size:.65rem;color:var(--text-muted);">(p-1) ×
+                                (q-1)</span></td>
+                        <td class="mono v-phi" id="tb-phi">?</td>
+                    </tr>
+                    <tr>
+                        <td>Public Exp (e) <br><span style="font-size:.65rem;color:var(--text-muted);">Coprime to
+                                φ(n)</span></td>
+                        <td class="mono" id="tb-e">?</td>
+                    </tr>
+                    <tr>
+                        <td>Private Key (d) <br><span style="font-size:.65rem;color:var(--text-muted);">Modular
+                                Inverse: (d·e) ≡ 1 mod φ(n)</span></td>
+                        <td class="mono v-d" id="tb-d">?</td>
+                    </tr>
+                </table>
 
-                    <line x1="50%" y1="38%" x2="25%" y2="82%" stroke="rgba(239,68,68,0.2)" stroke-width="3"
-                        stroke-dasharray="5 5" />
-                    <line x1="50%" y1="38%" x2="75%" y2="82%" stroke="rgba(74,222,128,0.2)" stroke-width="3"
-                        stroke-dasharray="5 5" />
-                </svg>
-
-                <!-- Nodes -->
-                <div class="node n-prime" id="nd-p" style="left:25%; top:15%; opacity:0.2;">
-                    <span class="lbl-top">Prime P</span>
-                    <div class="val" id="val-p">61</div>
-                </div>
-                <div class="node n-prime" id="nd-q" style="left:75%; top:15%; opacity:0.2;">
-                    <span class="lbl-top">Prime Q</span>
-                    <div class="val" id="val-q">53</div>
-                </div>
-
-                <div class="node n-engine" id="nd-engine" style="left:50%; top:38%; opacity:0.2;">
-                    <div class="val" id="val-engine">⚙️</div>
-                    <div class="lbl-bot">RSA Engine</div>
-                </div>
-
-                <div class="node n-phi" id="nd-phi" style="left:50%; top:66%; opacity:0.1;">
-                    <span class="lbl-top">Euler's Totient φ(n)</span>
-                    <div class="val" id="val-phi">φ</div>
-                </div>
-
-                <div class="node n-pub" id="nd-pub" style="left:25%; top:82%; opacity:0.2;">
-                    <div style="font-size:2.5rem; filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));">🔒</div>
-                    <div class="lbl-bot">Public Lock<br><span id="val-pub-k" class="k-val v-n">Waiting...</span></div>
-                </div>
-                <div class="node n-priv" id="nd-priv" style="left:75%; top:82%; opacity:0.2;">
-                    <div style="font-size:2.5rem; filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));">🔑</div>
-                    <div class="lbl-bot">Private Key<br><span id="val-priv-k" class="k-val v-d">Waiting...</span></div>
+                <div class="hacker-box" id="hacker-box">
+                    <div style="color:var(--neon-red); font-weight:700; margin-bottom:6px; font-size:.8rem;">🕵️
+                        Attacker Brute Force</div>
+                    <div style="font-size:.75rem; margin-bottom:6px; color:var(--text-muted);">Trying to factor N to
+                        find the secret primes:</div>
+                    <div class="mono" id="brute-val"
+                        style="font-size:.7rem; color:#fff; background:#000; padding:6px; border-radius:4px;">
+                        Waiting...</div>
                 </div>
             </div>
 
-            <!-- MATH DATA -->
-            <div>
-                <div class="detail-card">
-                    <div class="panel-title">🧮 RSA Math Breakdown</div>
-                    <table class="k-table">
-                        <tr>
-                            <td>Prime P</td>
-                            <td class="mono v-p">?</td>
-                        </tr>
-                        <tr>
-                            <td>Prime Q</td>
-                            <td class="mono v-p">?</td>
-                        </tr>
-                        <tr>
-                            <td>Modulo N <br><span style="font-size:.65rem;color:var(--text-muted);">(p × q)</span></td>
-                            <td class="mono v-n" id="tb-n">?</td>
-                        </tr>
-                        <tr>
-                            <td>Euler's Totient φ(n) <br><span style="font-size:.65rem;color:var(--text-muted);">(p-1) ×
-                                    (q-1)</span></td>
-                            <td class="mono v-phi" id="tb-phi">?</td>
-                        </tr>
-                        <tr>
-                            <td>Public Exp (e) <br><span style="font-size:.65rem;color:var(--text-muted);">Coprime to
-                                    φ(n)</span></td>
-                            <td class="mono" id="tb-e">?</td>
-                        </tr>
-                        <tr>
-                            <td>Private Key (d) <br><span style="font-size:.65rem;color:var(--text-muted);">Modular
-                                    Inverse: (d·e) ≡ 1 mod φ(n)</span></td>
-                            <td class="mono v-d" id="tb-d">?</td>
-                        </tr>
-                    </table>
-
-                    <div class="hacker-box" id="hacker-box">
-                        <div style="color:var(--neon-red); font-weight:700; margin-bottom:6px; font-size:.8rem;">🕵️
-                            Attacker Brute Force</div>
-                        <div style="font-size:.75rem; margin-bottom:6px; color:var(--text-muted);">Trying to factor N to
-                            find the secret primes:</div>
-                        <div class="mono" id="brute-val"
-                            style="font-size:.7rem; color:#fff; background:#000; padding:6px; border-radius:4px;">
-                            Waiting...</div>
+            <div class="detail-card" id="pem-card">
+                <div class="panel-title">📝 Real-World Key Formatting</div>
+                <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; line-height: 1.4;">
+                    Raw math numbers are not easily shared. To create an actual key file (like a <code>.pem</code>
+                    file), the integers are converted to Binary, then to Base64.
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div class="status-box" style="padding:10px;">
+                        <div style="color:var(--neon-cyan);font-weight:700;font-size:0.8rem;">1. Binary / ASN.1 Encoding
+                        </div>
+                        <div
+                            style="font-size:0.75rem; color:#f8fafc; font-family:'JetBrains Mono', monospace; margin-top:4px;">
+                            n=<span id="pem-n-v">?</span> → <span style="color:var(--text-muted);"
+                                id="pem-n-bin">Waiting...</span><br>
+                            e=<span id="pem-e-v">?</span> → <span style="color:var(--text-muted);"
+                                id="pem-e-bin">Waiting...</span>
+                        </div>
+                    </div>
+                    <div class="status-box" style="padding:10px;">
+                        <div style="color:var(--neon-green);font-weight:700;font-size:0.8rem;">2. Base64 Representation
+                        </div>
+                        <div
+                            style="font-size:0.75rem; color:#f8fafc; font-family:'JetBrains Mono', monospace; margin-top:4px;">
+                            Map binary to base64 for safe transport.<br>
+                            <span style="color:var(--neon-purple); word-break:break-all;" id="pem-b64">Waiting...</span>
+                        </div>
+                    </div>
+                    <div class="status-box" style="padding:10px;">
+                        <div style="color:var(--neon-orange);font-weight:700;font-size:0.8rem;">3. Armor Headers</div>
+                        <div style="font-size:0.7rem; color:#f8fafc; font-family:'JetBrains Mono', monospace; margin-top:4px;"
+                            id="pem-armor">
+                            Waiting...
+                        </div>
                     </div>
                 </div>
             </div>
@@ -818,6 +856,13 @@
                 currentHoverBox = null;
             }
             els.valEngine.textContent = '⚙️';
+
+            document.getElementById('pem-n-v').textContent = '?';
+            document.getElementById('pem-e-v').textContent = '?';
+            document.getElementById('pem-n-bin').textContent = 'Waiting...';
+            document.getElementById('pem-e-bin').textContent = 'Waiting...';
+            document.getElementById('pem-b64').textContent = 'Waiting...';
+            document.getElementById('pem-armor').textContent = 'Waiting...';
         }
 
         function onSelectionChange() {
@@ -894,10 +939,10 @@
             document.querySelectorAll('.v-p')[0].textContent = pVal;
             els.ndQ.style.opacity = 1;
             document.querySelectorAll('.v-p')[1].textContent = qVal;
-            addStory('✨', `<strong>1. Key Generation: Pick Primes.</strong> Alice picks two distinct prime numbers: <span class="v-p">p = ${pVal}</span> and <span class="v-p">q = ${qVal}</span>.`, 'type-gen');
+            addStory('✨', `<strong>1. Key Generation: Pick Primes.</strong> Alice picks two distinct prime numbers. Primes are numbers divisible only by 1 and themselves.<br><span class="v-p">p = ${pVal}</span> and <span class="v-p">q = ${qVal}</span>.`, 'type-gen');
             await delay(ms);
 
-            addStory('💥', `<strong>2. Compute Modulus (n).</strong> We multiply them: <span class="mono">n = p × q</span>.<br><span class="v-n">n = ${pVal} × ${qVal} = ${nVal}</span>. This value is part of both keys.`, 'type-gen');
+            addStory('💥', `<strong>2. Compute Modulus (n).</strong> We multiply them to create the lock mechanism: <span class="mono">n = p × q</span>.<br><span class="v-n">Calculation: n = ${pVal} × ${qVal} = ${nVal}</span>. This value is part of both keys.`, 'type-gen');
             sendPkt(pVal, 'nd-p', 'nd-engine', 'theme-p');
             sendPkt(qVal, 'nd-q', 'nd-engine', 'theme-p');
             await delay(1000);
@@ -913,14 +958,14 @@
             }, 600);
             await delay(ms);
 
-            addStory('φ', `<strong>3. Euler's Totient φ(n).</strong> We calculate the number of positive integers less than ${nVal} that are coprime to it.<br><span class="mono">φ(n) = (p-1)(q-1)</span>.<br><span class="v-phi">φ(${nVal}) = ${pVal - 1} × ${qVal - 1} = ${phiVal}</span>.`, 'type-gen');
+            addStory('φ', `<strong>3. Euler\'s Totient φ(n).</strong> We calculate the number of positive integers less than ${nVal} that are coprime to it. Rule: <span class="mono">φ(n) = (p-1) × (q-1)</span>.<br><span class="v-phi">Calculation: φ(${nVal}) = (${pVal} - 1) × (${qVal} - 1) = ${pVal - 1} × ${qVal - 1} = ${phiVal}</span>.`, 'type-gen');
             els.ndPhi.style.opacity = 1;
             await sendPkt(phiVal, 'nd-engine', 'nd-phi', 'theme-p');
             els.valPhi.textContent = `φ=${phiVal}`;
             els.tbPhi.textContent = phiVal;
             await delay(ms);
 
-            addStory('🔒', `<strong>4. Choose Public Exponent (e).</strong> We pick a prime <span class="mono">e = ${eVal}</span>. It must be coprime to <span class="v-phi">${phiVal}</span>.<br><span class="mono">gcd(${eVal}, ${phiVal}) = 1</span>.`, 'type-enc');
+            addStory('🔒', `<strong>4. Choose Public Exponent (e).</strong> We pick a prime <span class="mono">e = ${eVal}</span>. It must be coprime to <span class="v-phi">${phiVal}</span> (meaning they share no common factors).<br><span class="mono">Check: gcd(${eVal}, ${phiVal}) = 1</span>.`, 'type-enc');
             els.ndPub.style.opacity = 1;
             await sendPkt(`e=${eVal}`, 'nd-phi', 'nd-pub', 'theme-n');
             els.valPub.textContent = `n=${nVal}, e=${eVal}`;
@@ -928,7 +973,7 @@
             els.tbE.textContent = eVal;
             await delay(ms);
 
-            addStory('🔑', `<strong>5. Compute Private Key (d).</strong> We find the <strong>Modular Multiplicative Inverse</strong> of <span class="mono">e</span> modulo <span class="v-phi">φ(n)</span>.<br><span class="mono">d ≡ e⁻¹ mod φ(n)</span> → <span class="v-d">d = ${dVal}</span>.`, 'type-dec');
+            addStory('🔑', `<strong>5. Compute Private Key (d).</strong> We calculate the <strong>Modular Multiplicative Inverse</strong> of <span class="mono">e</span> modulo <span class="v-phi">φ(n)</span>. This means <span class="mono">(d × e) % φ(n) = 1</span>.<br><span class="mono">Calculation: (d × ${eVal}) % ${phiVal} = 1</span> → <span class="v-d">d = ${dVal}</span>.`, 'type-dec');
             els.ndPriv.style.opacity = 1;
             await sendPkt(`d=${dVal}`, 'nd-phi', 'nd-priv', 'theme-d');
             els.valPriv.textContent = `d=${dVal}`;
@@ -938,6 +983,15 @@
             addStory('✅', `<strong>Trapdoor Installed!</strong> The public key (n, e) is published. The private key (d) and primes (p, q) are kept secret.`, 'type-success');
             els.ndP.style.opacity = 0.2;
             els.ndQ.style.opacity = 0.2;
+
+            // Populate PEM card
+            document.getElementById('pem-n-v').textContent = nVal;
+            document.getElementById('pem-e-v').textContent = eVal;
+            document.getElementById('pem-n-bin').textContent = '00001100 10100001';
+            document.getElementById('pem-e-bin').textContent = '00010001';
+            document.getElementById('pem-b64').textContent = 'MCwwDQYJKoZIhvcNAQEBBQADGwAwGAIR...';
+            document.getElementById('pem-armor').innerHTML = '-----BEGIN PUBLIC KEY-----<br>MCwwDQYJKoZIhvcNAQE...<br>-----END PUBLIC KEY-----';
+
             keysGenerated = true;
         }
 
@@ -950,7 +1004,7 @@
             currentHoverBox = createHoverBox('M=65', 'nd-pub', 'theme-msg');
             await delay(ms);
 
-            addStory('🧮', `<strong>2. Modular Exponentiation.</strong> The message (M) is raised to the power of the public exponent (e) modulo n.<br><code>Ciphertext = Mᵉ mod n</code><br><code>C = 65¹⁷ mod 3233</code>.`, 'type-enc');
+            addStory('🧮', `<strong>2. Modular Exponentiation.</strong> The message (M) is raised to the power of the public exponent (e) modulo n.<br><code>Ciphertext = M<sup>e</sup> mod n</code><br><code>C = 65<sup>17</sup> mod 3233</code>.`, 'type-enc');
             currentHoverBox.style.top = els.ndPub.style.top;
             await delay(1000);
 
@@ -985,7 +1039,7 @@
                 await delay(1600);
             }
 
-            addStory('🧪', `<strong>2. Decryption Math.</strong> The private key applies the modular inverse to recover the message.<br><code>Message = Cᵈ mod n</code><br><code>M = 2790²⁷⁵³ mod 3233</code>.`, 'type-dec');
+            addStory('🧪', `<strong>2. Decryption Math.</strong> The private key applies the modular inverse to recover the message.<br><code>Message = C<sup>d</sup> mod n</code><br><code>M = 2790<sup>2753</sup> mod 3233</code>.`, 'type-dec');
 
             if (currentHoverBox) {
                 currentHoverBox.style.top = els.ndPriv.style.top;

@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symmetric vs Asymmetric Encryption — Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive side-by-side comparison of symmetric (shared key) and asymmetric (public/private key) encryption. Watch messages encrypt and decrypt with the mailbox analogy.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --neon-amber: #f59e0b;
+            --neon-pink: #f472b6;
+            --text-muted: #94a3b8;
+            --sym-c: #f59e0b;
+            --asym-c: #a78bfa;
+            --pub-c: #4ade80;
+            --priv-c: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--sym-c), var(--asym-c));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 780px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(167, 139, 250, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--asym-c);
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 860px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(167, 139, 250, .08);
+            border: 1px solid rgba(167, 139, 250, .25);
+            color: var(--asym-c);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(245, 158, 11, .2), rgba(167, 139, 250, .2));
+            border-color: var(--asym-c);
+            box-shadow: 0 0 15px rgba(167, 139, 250, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(167, 139, 250, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1300px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ══════════ SPLIT VIEW ══════════ */
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .col-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        .col-header.sym {
+            background: rgba(245, 158, 11, .06);
+            border: 1px solid rgba(245, 158, 11, .2);
+        }
+
+        .col-header.asym {
+            background: rgba(167, 139, 250, .06);
+            border: 1px solid rgba(167, 139, 250, .2);
+        }
+
+        .ch-icon {
+            font-size: 1.6rem;
+        }
+
+        .ch-info {
+            flex: 1;
+        }
+
+        .ch-name {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .ch-name.sym-c {
+            color: var(--sym-c);
+        }
+
+        .ch-name.asym-c {
+            color: var(--asym-c);
+        }
+
+        .ch-desc {
+            font-size: .72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .ch-badge {
+            padding: 5px 14px;
+            border-radius: 8px;
+            font-size: .65rem;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .badge-sym {
+            background: rgba(245, 158, 11, .12);
+            color: var(--sym-c);
+            border: 1px solid rgba(245, 158, 11, .25);
+        }
+
+        .badge-asym {
+            background: rgba(167, 139, 250, .12);
+            color: var(--asym-c);
+            border: 1px solid rgba(167, 139, 250, .25);
+        }
+
+        /* ══════════ STAGE ══════════ */
+        .stage {
+            position: relative;
+            min-height: 270px;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            overflow: hidden;
+        }
+
+        .stage-label {
+            position: absolute;
+            top: 8px;
+            left: 14px;
+            font-size: .58rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 2;
+        }
+
+        .stage-step {
+            position: absolute;
+            top: 8px;
+            right: 14px;
+            font-size: .65rem;
+            font-weight: 700;
+            z-index: 2;
+            padding: 3px 10px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, .5);
+        }
+
+        .actor {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            z-index: 5;
+            transition: all .5s;
+        }
+
+        .actor-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, .95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            transition: all .5s;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .5);
+        }
+
+        .actor-name {
+            font-weight: 600;
+            font-size: .68rem;
+            text-align: center;
+        }
+
+        .actor-sub {
+            font-size: .5rem;
+            color: var(--text-muted);
+            text-align: center;
+            max-width: 70px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .actor.active .actor-icon {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 14px rgba(34, 211, 238, .25);
+        }
+
+        /* Key visuals */
+        .key-visual {
+            position: absolute;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            transition: all .5s;
+            opacity: 0;
+        }
+
+        .key-visual.visible {
+            opacity: 1;
+        }
+
+        .key-icon {
+            font-size: 1.6rem;
+            filter: drop-shadow(0 0 6px rgba(255, 255, 255, .2));
+        }
+
+        .key-label {
+            font-size: .5rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .key-sym {
+            color: var(--sym-c);
+        }
+
+        .kl-sym {
+            background: rgba(245, 158, 11, .15);
+            color: var(--sym-c);
+        }
+
+        .key-pub {
+            color: var(--pub-c);
+        }
+
+        .kl-pub {
+            background: rgba(74, 222, 128, .15);
+            color: var(--pub-c);
+        }
+
+        .key-priv {
+            color: var(--priv-c);
+        }
+
+        .kl-priv {
+            background: rgba(248, 113, 113, .15);
+            color: var(--priv-c);
+        }
+
+        /* Message / mailbox elements */
+        .msg-bubble {
+            position: absolute;
+            z-index: 8;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: .6rem;
+            font-weight: 700;
+            max-width: 140px;
+            text-align: center;
+            transition: all .6s ease-in-out;
+            opacity: 0;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            word-break: break-all;
+        }
+
+        .msg-bubble.visible {
+            opacity: 1;
+        }
+
+        .msg-plain {
+            background: rgba(74, 222, 128, .9);
+            color: #0f172a;
+            border: 1px solid var(--pub-c);
+        }
+
+        .msg-encrypted {
+            background: rgba(248, 113, 113, .9);
+            color: #0f172a;
+            border: 1px solid var(--neon-red);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .5rem;
+        }
+
+        .msg-key {
+            background: rgba(245, 158, 11, .9);
+            color: #0f172a;
+            border: 1px solid var(--sym-c);
+        }
+
+        .mailbox {
+            position: absolute;
+            z-index: 4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            transition: all .5s;
+            opacity: 0;
+        }
+
+        .mailbox.visible {
+            opacity: 1;
+        }
+
+        .mailbox-icon {
+            font-size: 2.2rem;
+        }
+
+        .mailbox-label {
+            font-size: .5rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .mailbox-slot {
+            width: 40px;
+            height: 6px;
+            background: rgba(74, 222, 128, .3);
+            border-radius: 3px;
+            border: 1px solid rgba(74, 222, 128, .4);
+            margin-top: -2px;
+        }
+
+        /* ══════════ ANALOGY ══════════ */
+        .analogy {
+            padding: 14px 16px;
+            border-radius: 14px;
+            font-size: .85rem;
+            line-height: 1.6;
+            backdrop-filter: blur(10px);
+        }
+
+        .analogy.sym-a {
+            background: rgba(245, 158, 11, .05);
+            border: 1px solid rgba(245, 158, 11, .12);
+            color: var(--sym-c);
+        }
+
+        .analogy.asym-a {
+            background: rgba(167, 139, 250, .05);
+            border: 1px solid rgba(167, 139, 250, .12);
+            color: var(--asym-c);
+        }
+
+        .analogy-title {
+            font-weight: 700;
+            font-size: .78rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ══════════ DETAILS ══════════ */
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .detail-card .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .mini-header {
+            color: var(--text-muted);
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: .82rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--asym-c);
+            font-weight: 600;
+        }
+
+        .val-amber {
+            color: var(--sym-c);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .76rem;
+        }
+
+        /* Feed */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 460px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+        }
+
+        .type-sym {
+            border-left-color: var(--sym-c);
+        }
+
+        .type-asym {
+            border-left-color: var(--asym-c);
+            background: rgba(167, 139, 250, .04);
+        }
+
+        .type-key {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        .type-danger {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-indigo);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .04);
+        }
+
+        .type-hybrid {
+            border-left-color: var(--neon-emerald);
+            background: rgba(52, 211, 153, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>Symmetric vs Asymmetric Encryption</h1>
+    <p class="subtitle"><strong>Symmetric</strong> encryption uses <em>one shared key</em> — like two people with copies
+        of the same house key.
+        <strong>Asymmetric</strong> uses a <em>public/private pair</em> — like a mailbox anyone can drop letters into,
+        but only you can open. Watch both in action.
+    </p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Scenario</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a scenario —</option>
+                <option value="msg">✉️ Send a Secret Message</option>
+                <option value="problem">⚠️ The Key Exchange Problem</option>
+                <option value="signature">✍️ Digital Signature</option>
+                <option value="hybrid">🔗 TLS/HTTPS (Hybrid)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to compare both encryption methods.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">🔐 Run Simulation</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- Headers -->
+        <div class="split-view">
+            <div class="col-header sym">
+                <div class="ch-icon">🔑</div>
+                <div class="ch-info">
+                    <div class="ch-name sym-c">Symmetric Encryption</div>
+                    <div class="ch-desc">One shared key — both lock & unlock</div>
+                </div>
+                <div class="ch-badge badge-sym">AES-256</div>
+            </div>
+            <div class="col-header asym">
+                <div class="ch-icon">🔐</div>
+                <div class="ch-info">
+                    <div class="ch-name asym-c">Asymmetric Encryption</div>
+                    <div class="ch-desc">Public key locks, Private key unlocks</div>
+                </div>
+                <div class="ch-badge badge-asym">RSA / ECC</div>
+            </div>
+        </div>
+
+        <!-- Stages -->
+        <div class="split-view">
+            <div class="stage" id="stage-sym">
+                <div class="stage-label">🔑 Symmetric</div>
+                <div class="stage-step" id="sym-step" style="color:var(--sym-c);">Ready</div>
+                <div class="actor" id="sym-alice" style="left:6%;top:40%;transform:translateY(-50%);">
+                    <div class="actor-icon">👩</div>
+                    <div class="actor-name">Alice</div>
+                    <div class="actor-sub">sender</div>
+                </div>
+                <div class="actor" id="sym-bob" style="right:6%;top:40%;transform:translateY(-50%);">
+                    <div class="actor-icon">👨</div>
+                    <div class="actor-name">Bob</div>
+                    <div class="actor-sub">receiver</div>
+                </div>
+                <div class="key-visual" id="sym-key-a" style="left:18%;bottom:12%;">
+                    <div class="key-icon key-sym">🔑</div>
+                    <div class="key-label kl-sym">Shared Key</div>
+                </div>
+                <div class="key-visual" id="sym-key-b" style="right:18%;bottom:12%;">
+                    <div class="key-icon key-sym">🔑</div>
+                    <div class="key-label kl-sym">Same Key</div>
+                </div>
+            </div>
+            <div class="stage" id="stage-asym">
+                <div class="stage-label">🔐 Asymmetric</div>
+                <div class="stage-step" id="asym-step" style="color:var(--asym-c);">Ready</div>
+                <div class="actor" id="asym-alice" style="left:6%;top:40%;transform:translateY(-50%);">
+                    <div class="actor-icon">👩</div>
+                    <div class="actor-name">Alice</div>
+                    <div class="actor-sub">sender</div>
+                </div>
+                <div class="actor" id="asym-bob" style="right:6%;top:40%;transform:translateY(-50%);">
+                    <div class="actor-icon">👨</div>
+                    <div class="actor-name">Bob</div>
+                    <div class="actor-sub">receiver</div>
+                </div>
+                <div class="key-visual" id="asym-pub" style="left:18%;bottom:12%;">
+                    <div class="key-icon key-pub">🔓</div>
+                    <div class="key-label kl-pub">Bob's Public Key</div>
+                </div>
+                <div class="key-visual" id="asym-priv" style="right:18%;bottom:12%;">
+                    <div class="key-icon key-priv">🔒</div>
+                    <div class="key-label kl-priv">Bob's Private Key</div>
+                </div>
+                <div class="mailbox" id="mailbox" style="right:20%;top:14%;">
+                    <div class="mailbox-icon">📬</div>
+                    <div class="mailbox-slot"></div>
+                    <div class="mailbox-label">Bob's Mailbox</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analogies -->
+        <div class="split-view">
+            <div class="analogy sym-a">
+                <div class="analogy-title">🔑 The Shared Key Analogy</div>
+                Alice and Bob both have a copy of the <strong>same house key</strong>. Alice locks the box with her key,
+                sends it to Bob, and Bob unlocks it with his identical key. <strong>Problem:</strong> How did they share
+                the key in the first place without someone intercepting it?
+            </div>
+            <div class="analogy asym-a">
+                <div class="analogy-title">📬 The Mailbox Analogy</div>
+                Bob puts a <span style="color:var(--pub-c);">mailbox</span> on his front lawn — anyone can <strong>drop
+                    a letter in</strong> through the slot (encrypt with public key). But only Bob has the <span
+                    style="color:var(--priv-c);">key to open the back</span> and read the letters (decrypt with private
+                key). No shared secret needed!
+            </div>
+        </div>
+
+        <!-- Details -->
+        <div class="split-view">
+            <div class="detail-card">
+                <div class="panel-title" style="color:var(--sym-c);">🔑 Symmetric Details</div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Key Count:</span><span class="val-amber">1 key (shared)</span></div>
+                    <div class="data-row"><span>Speed:</span><span class="val-green">⚡ Very fast</span></div>
+                    <div class="data-row"><span>Key Size:</span><span class="mono">128 / 256 bits</span></div>
+                    <div class="data-row"><span>Algorithms:</span><span class="mono">AES, ChaCha20</span></div>
+                    <div class="data-row"><span>Use Case:</span><span>Bulk data encryption</span></div>
+                    <div class="data-row"><span>Weakness:</span><span class="val-red">Key distribution</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">Performance</div>
+                    <div class="data-row"><span>AES-256-GCM:</span><span class="val-green">~1 GB/s</span></div>
+                    <div class="data-row"><span>Hardware:</span><span class="val-green">AES-NI CPU instruction</span>
+                    </div>
+                </div>
+            </div>
+            <div class="detail-card">
+                <div class="panel-title" style="color:var(--asym-c);">🔐 Asymmetric Details</div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Key Count:</span><span class="val-purple">2 (public + private)</span>
+                    </div>
+                    <div class="data-row"><span>Speed:</span><span class="val-red">🐢 1000× slower</span></div>
+                    <div class="data-row"><span>Key Size:</span><span class="mono">2048 / 4096 bits</span></div>
+                    <div class="data-row"><span>Algorithms:</span><span class="mono">RSA, ECDSA, Ed25519</span></div>
+                    <div class="data-row"><span>Use Case:</span><span>Key exchange, signatures</span></div>
+                    <div class="data-row"><span>Strength:</span><span class="val-green">No shared secret!</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">Math Basis</div>
+                    <div class="data-row"><span>RSA:</span><span>Prime factorization</span></div>
+                    <div class="data-row"><span>ECC:</span><span>Elliptic curve discrete log</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a scenario and click "Run" to watch both encryption methods
+                        work.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            msg: { name: 'Send a Secret Message', icon: '✉️' },
+            problem: { name: 'The Key Exchange Problem', icon: '⚠️' },
+            signature: { name: 'Digital Signature', icon: '✍️' },
+            hybrid: { name: 'TLS/HTTPS (Hybrid)', icon: '🔗' },
+        };
+
+        let animating = false;
+        const selScenario = document.getElementById('select-scenario');
+        const els = { btnGo: document.getElementById('btn-go'), controls: document.getElementById('controls'), dashboard: document.getElementById('dashboard'), compat: document.getElementById('compat-status'), feed: document.getElementById('feed') };
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+
+        function scramble(text) {
+            const chars = 'ÄÖÜ¥£€§¿¡∆πΩ∑µ∂ƒ©®†¥';
+            return text.split('').map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+        }
+
+        function setStep(id, text) { document.getElementById(id).textContent = text; }
+        function setActive(id, on) { const e = document.getElementById(id); if (e) e.classList.toggle('active', on); }
+        function showKey(id, on) { const e = document.getElementById(id); if (e) e.classList.toggle('visible', on); }
+        function showMailbox(on) { document.getElementById('mailbox').classList.toggle('visible', on); }
+
+        function createMsg(stageId, text, cls, left, top) {
+            const stage = document.getElementById(stageId);
+            const msg = document.createElement('div');
+            msg.className = `msg-bubble ${cls}`;
+            msg.style.left = left; msg.style.top = top;
+            msg.textContent = text;
+            stage.appendChild(msg);
+            requestAnimationFrame(() => requestAnimationFrame(() => msg.classList.add('visible')));
+            return msg;
+        }
+        function moveMsg(msg, left, top) {
+            msg.style.left = left; msg.style.top = top;
+        }
+        function removeMsg(msg) {
+            msg.classList.remove('visible');
+            setTimeout(() => msg.remove(), 400);
+        }
+
+        function resetStages() {
+            ['sym-alice', 'sym-bob', 'asym-alice', 'asym-bob'].forEach(id => setActive(id, false));
+            ['sym-key-a', 'sym-key-b', 'asym-pub', 'asym-priv'].forEach(id => showKey(id, false));
+            showMailbox(false);
+            setStep('sym-step', 'Ready'); setStep('asym-step', 'Ready');
+            document.querySelectorAll('.msg-bubble').forEach(el => el.remove());
+        }
+
+        function onSelectionChange() {
+            const sId = selScenario.value;
+            if (!sId) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            const sc = SCENARIOS[sId];
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${sc.icon} ${sc.name}</span>`;
+            resetStages();
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = '🔐 Run Simulation'; els.btnGo.disabled = false;
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🎯</span><span class="log-text">Ready! Click "Run" to watch <strong>${sc.icon} ${sc.name}</strong> on both symmetric and asymmetric sides.</span></div>`;
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            const scId = selScenario.value;
+            resetStages();
+
+            if (scId === 'msg') await demoMessage();
+            else if (scId === 'problem') await demoProblem();
+            else if (scId === 'signature') await demoSignature();
+            else if (scId === 'hybrid') await demoHybrid();
+
+            animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+
+        async function demoMessage() {
+            const MSG = 'Meet at 9pm';
+            const ENC = scramble(MSG);
+
+            addStory('✉️', `<strong>Alice wants to send Bob a secret message:</strong> <span class="mono val-green">"${MSG}"</span><br>Let's see how each method handles it.`, 'type-info');
+            await sleep(400);
+
+            /* ── SYMMETRIC ── */
+            setStep('sym-step', '① Keys Ready');
+            showKey('sym-key-a', true); showKey('sym-key-b', true);
+            addStory('🔑', `<strong>Symmetric:</strong> Both Alice and Bob already have a copy of the <span class="val-amber">same secret key</span> (they exchanged it earlier somehow).`, 'type-sym');
+            await sleep(500);
+
+            setStep('sym-step', '② Encrypting...');
+            setActive('sym-alice', true);
+            const symMsg1 = createMsg('stage-sym', MSG, 'msg-plain', '26%', '35%');
+            addStory('🔒', `Alice encrypts: <span class="mono val-green">"${MSG}"</span> → <span class="mono val-amber">AES-256(key, plaintext)</span> → <span class="mono val-red">"${ENC}"</span>`, 'type-sym');
+            await sleep(600);
+            symMsg1.textContent = ENC; symMsg1.className = 'msg-bubble msg-encrypted visible';
+            await sleep(400);
+
+            setStep('sym-step', '③ Sending...');
+            moveMsg(symMsg1, '70%', '35%');
+            await sleep(600);
+
+            setStep('sym-step', '④ Decrypting...');
+            setActive('sym-bob', true);
+            addStory('🔓', `Bob decrypts with the <span class="val-amber">same key</span>: <span class="mono val-red">"${ENC}"</span> → <span class="mono val-amber">AES-256(key, ciphertext)</span> → <span class="mono val-green">"${MSG}"</span> ✅`, 'type-sym');
+            symMsg1.textContent = MSG; symMsg1.className = 'msg-bubble msg-plain visible';
+            setStep('sym-step', '✅ Decrypted!');
+            await sleep(500);
+
+            /* ── ASYMMETRIC ── */
+            setStep('asym-step', '① Bob Publishes Key');
+            showKey('asym-pub', true); showKey('asym-priv', true); showMailbox(true);
+            addStory('🔐', `<strong>Asymmetric:</strong> Bob has 2 keys: <span class="val-green">🔓 Public Key</span> (published to the world) and <span class="val-red">🔒 Private Key</span> (kept secret, NEVER shared).`, 'type-asym');
+            await sleep(500);
+
+            setStep('asym-step', '② Alice Gets Public Key');
+            setActive('asym-alice', true);
+            addStory('📬', `Alice grabs Bob's <span class="val-green">public key</span> — it's like knowing where Bob's mailbox is. Anyone can get this key.`, 'type-asym');
+            await sleep(500);
+
+            setStep('asym-step', '③ Encrypting...');
+            const asymMsg1 = createMsg('stage-asym', MSG, 'msg-plain', '26%', '35%');
+            addStory('🔒', `Alice encrypts with Bob's <span class="val-green">PUBLIC key</span>: <span class="mono val-green">"${MSG}"</span> → <span class="mono val-purple">RSA(pubkey, plaintext)</span> → <span class="mono val-red">"${ENC}"</span><br>Once encrypted with the public key, <strong>even Alice can't decrypt it</strong> — only the private key can.`, 'type-asym');
+            await sleep(600);
+            asymMsg1.textContent = ENC; asymMsg1.className = 'msg-bubble msg-encrypted visible';
+            await sleep(400);
+
+            setStep('asym-step', '④ Dropped in Mailbox');
+            moveMsg(asymMsg1, '72%', '22%');
+            addStory('📬', `The encrypted message is dropped into Bob's mailbox slot. Interceptors can see the envelope, but can't read the contents — they don't have the private key.`, 'type-asym');
+            await sleep(600);
+
+            setStep('asym-step', '⑤ Decrypting...');
+            setActive('asym-bob', true);
+            moveMsg(asymMsg1, '72%', '40%');
+            addStory('🔓', `Bob opens his mailbox with his <span class="val-red">PRIVATE key</span>: <span class="mono val-red">"${ENC}"</span> → <span class="mono val-purple">RSA(privkey, ciphertext)</span> → <span class="mono val-green">"${MSG}"</span> ✅`, 'type-asym');
+            await sleep(400);
+            asymMsg1.textContent = MSG; asymMsg1.className = 'msg-bubble msg-plain visible';
+            setStep('asym-step', '✅ Decrypted!');
+            await sleep(600);
+
+            addStory('📊', `<strong>Key Difference:</strong><br>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:.84rem;">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">Step</td><td style="padding:5px;color:var(--sym-c);font-weight:600;">🔑 Symmetric</td><td style="padding:5px;color:var(--asym-c);font-weight:600;">🔐 Asymmetric</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Key Setup</td><td style="padding:5px;color:var(--neon-red);">Must share key secretly first</td><td style="padding:5px;color:var(--neon-green);">Public key is… public!</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Encrypt With</td><td style="padding:5px;">Shared key</td><td style="padding:5px;">Recipient's public key</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Decrypt With</td><td style="padding:5px;">Same shared key</td><td style="padding:5px;">Recipient's private key</td></tr>
+    <tr><td style="padding:5px;">Speed</td><td style="padding:5px;color:var(--neon-green);">~1 GB/s</td><td style="padding:5px;color:var(--neon-red);">~1 MB/s (1000× slower)</td></tr>
+    </table>`, 'type-compare');
+        }
+
+        async function demoProblem() {
+            addStory('⚠️', `<strong>The Key Exchange Problem</strong> — Symmetric's fatal flaw:`, 'type-info');
+            await sleep(300);
+
+            showKey('sym-key-a', true);
+            setStep('sym-step', 'Key Created');
+            addStory('🔑', `Alice creates a secret key. She now needs to send it to Bob. But <em>how?</em>`, 'type-sym');
+            await sleep(500);
+
+            setStep('sym-step', '⚠️ Sending Key...');
+            const keyMsg = createMsg('stage-sym', '🔑 Secret Key', 'msg-key', '36%', '35%');
+            addStory('⚠️', `If Alice sends the key over the internet UNENCRYPTED, an attacker (Eve 🕵️) can intercept it.<br>But she can't encrypt the key without… a key. 🤯 <strong>Chicken-and-egg problem!</strong>`, 'type-danger');
+            await sleep(600);
+            moveMsg(keyMsg, '55%', '35%');
+
+            // Eve intercepts
+            const eveMsg = createMsg('stage-sym', '🕵️ Eve', 'msg-encrypted', '50%', '12%');
+            eveMsg.style.background = 'rgba(248,113,113,.85)';
+            addStory('🕵️', `<strong>Eve intercepts the key!</strong> She now has the shared secret and can decrypt ALL future messages between Alice and Bob. They'd never know.`, 'type-danger');
+            await sleep(800);
+
+            setStep('sym-step', '❌ Key Compromised');
+            setActive('sym-alice', true); setActive('sym-bob', true);
+
+            /* ── Asymmetric solves it ── */
+            setStep('asym-step', 'No Key to Steal!');
+            showKey('asym-pub', true); showKey('asym-priv', true); showMailbox(true);
+            addStory('🔐', `<strong>Asymmetric solves this!</strong> Bob publishes his <span class="val-green">public key</span> openly. Eve can see it — <strong>that's fine!</strong> The public key can only <em>encrypt</em>, not decrypt.`, 'type-asym');
+            await sleep(600);
+
+            setActive('asym-alice', true);
+            addStory('✅', `Alice encrypts with Bob's public key. Even if Eve intercepts the ciphertext, she can't decrypt without Bob's <span class="val-red">private key</span> — which Bob never shared with anyone.`, 'type-asym');
+            setActive('asym-bob', true);
+            setStep('asym-step', '✅ Problem Solved!');
+            await sleep(600);
+
+            addStory('💡', `<strong>This is exactly why TLS/HTTPS exists:</strong> Use asymmetric encryption to safely exchange a symmetric key, then switch to fast symmetric encryption for the actual data. Best of both worlds!`, 'type-hybrid');
+        }
+
+        async function demoSignature() {
+            addStory('✍️', `<strong>Digital Signatures</strong> — Asymmetric encryption in REVERSE:<br>Instead of encrypting WITH the public key, Alice <em>signs</em> WITH her <strong>private key</strong>.`, 'type-info');
+            await sleep(400);
+
+            /* ── Symmetric can't sign ── */
+            setStep('sym-step', '❌ Can\'t Prove Identity');
+            showKey('sym-key-a', true); showKey('sym-key-b', true);
+            addStory('🔑', `<strong>Symmetric problem:</strong> Both Alice and Bob have the same key. So if Bob receives a message, he can't prove it was from Alice — he could have written it himself! <span class="val-red">No non-repudiation.</span>`, 'type-sym');
+            await sleep(600);
+
+            /* ── Asymmetric signing ── */
+            setStep('asym-step', '① Alice\'s Keys');
+            showKey('asym-pub', true); showKey('asym-priv', true);
+            document.querySelector('#asym-pub .key-label').textContent = "Alice's Public Key";
+            document.querySelector('#asym-priv .key-label').textContent = "Alice's Private Key";
+            document.getElementById('asym-priv').style.left = '18%';
+            document.getElementById('asym-priv').style.right = 'auto';
+            document.getElementById('asym-pub').style.right = '18%';
+            document.getElementById('asym-pub').style.left = 'auto';
+            addStory('🔐', `For signing, Alice uses <strong>her own key pair</strong>. Her <span class="val-red">private key</span> creates the signature, and anyone with her <span class="val-green">public key</span> can verify it.`, 'type-asym');
+            await sleep(500);
+
+            setStep('asym-step', '② Signing...');
+            setActive('asym-alice', true);
+            const doc = createMsg('stage-asym', '📄 Contract.pdf', 'msg-plain', '26%', '30%');
+            addStory('✍️', `Alice signs: <span class="mono">signature = RSA(<span class="val-red">privateKey</span>, hash("Contract.pdf"))</span><br>She sends the document + the signature to Bob.`, 'type-asym');
+            await sleep(600);
+
+            setStep('asym-step', '③ Sending...');
+            moveMsg(doc, '68%', '30%');
+            const sig = createMsg('stage-asym', '✍️ Signature', 'msg-encrypted', '68%', '50%');
+            sig.style.background = 'rgba(167,139,250,.85)';
+            await sleep(600);
+
+            setStep('asym-step', '④ Verifying...');
+            setActive('asym-bob', true);
+            addStory('✅', `Bob verifies: <span class="mono">verify(<span class="val-green">Alice's publicKey</span>, signature, document) → <span class="val-green">VALID ✅</span></span><br>
+    This proves:<br>
+    <strong>1. Authenticity:</strong> Only Alice's private key could create that signature<br>
+    <strong>2. Integrity:</strong> If the document was altered, the hash wouldn't match<br>
+    <strong>3. Non-repudiation:</strong> Alice can't deny signing — only she has the private key`, 'type-asym');
+            setStep('asym-step', '✅ Signature Valid!');
+            doc.className = 'msg-bubble msg-plain visible';
+            await sleep(600);
+
+            addStory('💡', `<strong>Real-world uses:</strong> HTTPS certificates, software updates (code signing), Git commit signing, DocuSign contracts, cryptocurrency transactions — all use digital signatures.`, 'type-info');
+        }
+
+        async function demoHybrid() {
+            addStory('🔗', `<strong>TLS/HTTPS: The Hybrid Approach</strong> — Every HTTPS website uses BOTH encryption types together. Here's why:`, 'type-info');
+            await sleep(300);
+
+            addStory('🤔', `<strong>The dilemma:</strong><br>
+    • Asymmetric is <span class="val-green">secure</span> (no shared secret) but <span class="val-red">1000× slower</span><br>
+    • Symmetric is <span class="val-green">blazing fast</span> but has the <span class="val-red">key exchange problem</span><br>
+    <strong>Solution:</strong> Use asymmetric to safely share a symmetric key, then switch to symmetric for speed!`, 'type-info');
+            await sleep(600);
+
+            /* ── Asymmetric: Key Exchange ── */
+            setStep('asym-step', '① TLS Handshake');
+            showKey('asym-pub', true); showKey('asym-priv', true);
+            setActive('asym-alice', true); setActive('asym-bob', true);
+            document.querySelector('#asym-pub .key-label').textContent = "Server's Public Cert";
+            document.querySelector('#asym-priv .key-label').textContent = "Server's Private Key";
+            document.getElementById('asym-pub').style.left = '18%';
+            document.getElementById('asym-pub').style.right = 'auto';
+            document.getElementById('asym-priv').style.right = '18%';
+            document.getElementById('asym-priv').style.left = 'auto';
+            document.querySelector('#asym-alice .actor-name').textContent = 'Browser';
+            document.querySelector('#asym-bob .actor-name').textContent = 'Server';
+
+            addStory('🔐', `<strong>Step 1 — Asymmetric handshake (slow, but only once):</strong><br>
+    Server sends its <span class="val-green">public certificate</span> → Browser generates a random <span class="val-amber">session key</span> → Encrypts it with the server's public key → Sends it → Server decrypts with private key<br>
+    <em>Now both sides have the same session key, exchanged securely!</em>`, 'type-asym');
+            const cert = createMsg('stage-asym', '📜 Certificate', 'msg-plain', '72%', '25%');
+            await sleep(500);
+            moveMsg(cert, '28%', '25%');
+            await sleep(500);
+            const sessKey = createMsg('stage-asym', '🔑 Session Key', 'msg-key', '28%', '45%');
+            await sleep(400);
+            sessKey.className = 'msg-bubble msg-encrypted visible'; sessKey.textContent = '🔒 Encrypted Key';
+            moveMsg(sessKey, '72%', '45%');
+            setStep('asym-step', '✅ Key Exchanged!');
+            await sleep(600);
+
+            /* ── Symmetric: Data Transfer ── */
+            setStep('sym-step', '② Fast Data Transfer');
+            showKey('sym-key-a', true); showKey('sym-key-b', true);
+            setActive('sym-alice', true); setActive('sym-bob', true);
+            document.querySelector('#sym-alice .actor-name').textContent = 'Browser';
+            document.querySelector('#sym-bob .actor-name').textContent = 'Server';
+
+            addStory('🔑', `<strong>Step 2 — Symmetric encryption (fast, for all data):</strong><br>
+    Now both sides use the <span class="val-amber">session key</span> with <span class="mono">AES-256-GCM</span> for all data. This is ~1000× faster than continuing with RSA. Every HTTP request/response is encrypted with this key.`, 'type-sym');
+
+            for (let i = 0; i < 3; i++) {
+                const data = createMsg('stage-sym', ['GET /page', 'POST /login', 'GET /api/data'][i], 'msg-plain', '22%', '35%');
+                await sleep(300);
+                data.textContent = scramble('encrypted_data'); data.className = 'msg-bubble msg-encrypted visible';
+                moveMsg(data, '75%', '35%');
+                await sleep(400);
+                data.textContent = ['200 OK + HTML', 'Set-Cookie: sess', '{"user":"..."}'][i]; data.className = 'msg-bubble msg-plain visible';
+                await sleep(300);
+                removeMsg(data);
+                await sleep(200);
+            }
+
+            setStep('sym-step', '✅ Encrypted Session');
+            setStep('asym-step', '✅ Handshake Done');
+            await sleep(400);
+
+            addStory('📊', `<strong>The Hybrid Model (TLS 1.3):</strong><br>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:.84rem;">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">Phase</td><td style="padding:5px;">Type</td><td style="padding:5px;">Purpose</td><td style="padding:5px;">Speed</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Handshake</td><td style="padding:5px;color:var(--asym-c);">🔐 Asymmetric</td><td style="padding:5px;">Exchange session key safely</td><td style="padding:5px;color:var(--neon-red);">~100ms (once)</td></tr>
+    <tr><td style="padding:5px;">Data Transfer</td><td style="padding:5px;color:var(--sym-c);">🔑 Symmetric</td><td style="padding:5px;">Encrypt all HTTP traffic</td><td style="padding:5px;color:var(--neon-green);">~1 GB/s (ongoing)</td></tr>
+    </table><br>
+    This is why the TLS handshake is "slow" (one round-trip) but actual HTTPS browsing feels instant — it's all symmetric after the handshake.`, 'type-hybrid');
+            await sleep(500);
+
+            addStory('💡', `<strong>Summary:</strong><br>
+    🔑 <strong>Symmetric:</strong> Fast encryption, but "how do you share the key?" problem<br>
+    🔐 <strong>Asymmetric:</strong> Solves key sharing, but too slow for bulk data<br>
+    🔗 <strong>Hybrid (TLS):</strong> Asymmetric delivers the key, symmetric encrypts the data — perfect!<br>
+    <br>Every time you see 🔒 in your browser's address bar, this exact dance is happening.`, 'type-compare');
+        }
+    </script>
+
+</body>
+
+</html>

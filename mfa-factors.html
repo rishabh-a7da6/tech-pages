@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFA Factors Visualization: 1FA vs 2FA vs 3FA</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="An interactive visualizer comparing the security layers of Single-Factor, Two-Factor, and Three-Factor Authentication.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-cyan: #22d3ee;
+            --neon-purple: #d946ef;
+            --neon-red: #ef4444;
+            --neon-yellow: #facc15;
+            --neon-green: #4ade80;
+            --neon-blue: #0ea5e9;
+            --neon-orange: #fb923c;
+            --text-muted: #94a3b8;
+            --c-lap: #22d3ee;
+            --c-srvB: #4ade80;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-green), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 850px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 860px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(34, 211, 238, .08);
+            border: 1px solid rgba(34, 211, 238, .25);
+            color: var(--neon-cyan);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(74, 222, 128, .2), rgba(34, 211, 238, .2));
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(34, 211, 238, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(34, 211, 238, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1150px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .split-view {
+            display: grid;
+            grid-template-columns: 1.2fr 0.9fr;
+            gap: 24px;
+        }
+
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            height: 100%;
+        }
+
+        .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ══════════ THE STAGE (VAULT) ══════════ */
+        .stage-wrap {
+            position: relative;
+        }
+
+        .stage {
+            position: relative;
+            height: 520px;
+            background: #0f172a;
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: inset 0 10px 40px rgba(0, 0, 0, .8);
+            width: 100%;
+            transition: opacity 0.4s;
+        }
+
+        .vault-inside {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1;
+            background: linear-gradient(135deg, #166534, #14532d);
+            transition: background 0.5s;
+        }
+
+        .vault-door {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 50%;
+            background: #1e293b;
+            border: 4px solid #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            transition: transform 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(255, 255, 255, 0.02) 10px, rgba(255, 255, 255, 0.02) 20px);
+        }
+
+        .left-door {
+            left: 0;
+            border-right: 2px solid #0f172a;
+            border-radius: 12px 0 0 12px;
+        }
+
+        .right-door {
+            right: 0;
+            border-left: 2px solid #0f172a;
+            border-radius: 0 12px 12px 0;
+        }
+
+        .left-door.open {
+            transform: translateX(-100%);
+        }
+
+        .right-door.open {
+            transform: translateX(100%);
+        }
+
+        .lock-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 10;
+            transition: opacity 0.4s, transform 0.4s;
+        }
+
+        .lock-panel.hidden {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.6);
+            pointer-events: none;
+        }
+
+        /* Modules */
+        .factor-module {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            align-items: center;
+            gap: 15px;
+            background: rgba(15, 23, 42, .95);
+            padding: 14px 18px;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            width: 380px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, .6);
+            transition: all .4s;
+        }
+
+        .f-icon {
+            font-size: 2rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        }
+
+        .f-title {
+            font-weight: 800;
+            font-size: .85rem;
+            letter-spacing: 1px;
+            color: #f8fafc;
+        }
+
+        .f-desc {
+            font-size: .68rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .f-visual {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            font-weight: 800;
+            background: rgba(0, 0, 0, .8);
+            padding: 6px 10px;
+            border-radius: 6px;
+            min-width: 80px;
+            text-align: center;
+            color: var(--neon-cyan);
+            border: 1px solid rgba(255, 255, 255, .1);
+        }
+
+        .f-status {
+            font-size: 1.3rem;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        .mod-dimmed {
+            opacity: 0.3;
+            filter: grayscale(1);
+            border-color: #334155 !important;
+            box-shadow: none !important;
+        }
+
+        .mod-active {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(34, 211, 238, .3);
+        }
+
+        .mod-req {
+            border-color: var(--neon-yellow);
+            box-shadow: 0 0 15px rgba(250, 204, 21, .4);
+        }
+
+        .mod-unlocked {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 20px rgba(74, 222, 128, .4);
+            background: rgba(74, 222, 128, .05);
+        }
+
+        .mod-failed {
+            border-color: var(--neon-red);
+            box-shadow: 0 0 20px rgba(239, 68, 68, .4);
+            background: rgba(239, 68, 68, .05);
+        }
+
+        /* ══════════ DATA TABLE ══════════ */
+        .k-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+        }
+
+        .k-table td {
+            padding: 14px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+            line-height: 1.5;
+            vertical-align: top;
+        }
+
+        .k-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Feed */
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            height: 100%;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 22px;
+            flex-grow: 1;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 220px;
+            max-height: 480px;
+        }
+
+        .clear-logs-btn {
+            align-self: stretch;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 10px 24px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .92rem;
+            line-height: 1.5;
+        }
+
+        .type-info {
+            border-left-color: var(--neon-cyan);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-yellow);
+            background: rgba(250, 204, 21, .05);
+        }
+
+        .type-err {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .08);
+        }
+
+        .type-success {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .05);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:950px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+
+            .right-col {
+                order: 2;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>Multi-Factor Breakdown: 1FA vs 2FA vs 3FA</h1>
+    <p class="subtitle">Understand exactly *why* multiple security layers are practically invincible. Visualize the
+        mathematical difference between what a user <b>KNOWS</b>, what a user <b>HAS</b>, and what a user <b>IS</b>.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Security Model</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Select an authentication layer —</option>
+                <option value="1fa">🔓 1FA (Knowledge Only)</option>
+                <option value="2fa">🛡️ 2FA (Knowledge + Possession)</option>
+                <option value="3fa">🧬 3FA (Know + Have + Are)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to dive into authentication vectors.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">▶ Run Architecture Sim</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <div class="split-view">
+            <!-- THE STAGE -->
+            <div class="stage-wrap">
+                <div class="stage" id="stage">
+
+                    <!-- Inside Vault -->
+                    <div class="vault-inside" id="vault-inside">
+                        <div style="font-size:4.5rem; filter:drop-shadow(0 4px 10px rgba(0,0,0,0.8));">💎</div>
+                        <div id="vault-status"
+                            style="font-size:1.6rem; font-weight:800; color:#4ade80; margin-top:20px; letter-spacing:3px; text-shadow:0 0 10px rgba(74,222,128,0.5);">
+                            AUTHORIZED ACCESS</div>
+                    </div>
+
+                    <!-- Vault Doors -->
+                    <div class="vault-door left-door" id="door-l"></div>
+                    <div class="vault-door right-door" id="door-r"></div>
+
+                    <!-- The Lock Panel -->
+                    <div class="lock-panel" id="lock-panel">
+                        <!-- Knowledge Factor -->
+                        <div class="factor-module" id="mod-know">
+                            <div class="f-icon">⌨️</div>
+                            <div class="f-info">
+                                <div class="f-title">KNOWLEDGE FACTOR</div>
+                                <div class="f-desc">Something you KNOW (Password/PIN)</div>
+                            </div>
+                            <div class="f-visual" id="vis-know">----</div>
+                            <div class="f-status" id="stat-know">🔒</div>
+                        </div>
+
+                        <!-- Possession Factor -->
+                        <div class="factor-module" id="mod-have">
+                            <div class="f-icon">📱</div>
+                            <div class="f-info">
+                                <div class="f-title">POSSESSION FACTOR</div>
+                                <div class="f-desc">Something you HAVE (Phone/YubiKey)</div>
+                            </div>
+                            <div class="f-visual" id="vis-have">WAIT</div>
+                            <div class="f-status" id="stat-have">🔒</div>
+                        </div>
+
+                        <!-- Inherence Factor -->
+                        <div class="factor-module" id="mod-are">
+                            <div class="f-icon">👁️</div>
+                            <div class="f-info">
+                                <div class="f-title">INHERENCE FACTOR</div>
+                                <div class="f-desc">Something you ARE (Finger / Retina)</div>
+                            </div>
+                            <div class="f-visual" id="vis-are">WAIT</div>
+                            <div class="f-status" id="stat-are">🔒</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="right-col">
+                <div class="detail-card">
+                    <div class="panel-title">🛡️ Authentication Factors</div>
+                    <table class="k-table">
+                        <tr>
+                            <td style="width: 35%;"><strong>1. Knowledge</strong><br><span
+                                    style="font-size:0.65rem;color:var(--text-muted)">"What you know"</span></td>
+                            <td>Passwords or PINs. The weakest theoretical factor because they can be easily guessed,
+                                socially engineered, or stolen globally via database leaks.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2. Possession</strong><br><span
+                                    style="font-size:0.65rem;color:var(--text-muted)">"What you have"</span></td>
+                            <td>Hardware Keys (YubiKey) or Smartphones. Extremely strong because physical geographical
+                                theft is required to compromise it.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>3. Inherence</strong><br><span
+                                    style="font-size:0.65rem;color:var(--text-muted)">"What you are"</span></td>
+                            <td>Fingerprints, FaceID, or DNA. The ultimate absolute assurance factor tying digital
+                                identity natively to your real-world biological presence.</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="display:flex;flex-direction:column;flex-grow:1;">
+                    <div class="story-feed" id="feed">
+                        <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                                class="log-text">Welcome! Select a scenario to simulate physical security layers.</span>
+                        </div>
+                    </div>
+                    <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            '1fa': { name: '1FA (Knowledge Only)', icon: '🔓' },
+            '2fa': { name: '2FA (Knowledge + Possession)', icon: '🛡️' },
+            '3fa': { name: '3FA (Know + Have + Are)', icon: '🧬' }
+        };
+
+        let animating = false;
+
+        const els = {
+            sel: document.selectElementById('select-scenario'),
+            compat: document.getElementById('compat-status'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            btnGo: document.getElementById('btn-go'),
+            feed: document.getElementById('feed'),
+            stage: document.getElementById('stage'),
+
+            doorL: document.getElementById('door-l'),
+            doorR: document.getElementById('door-r'),
+            lockPanel: document.getElementById('lock-panel'),
+            vaultInside: document.getElementById('vault-inside'),
+            vaultStatus: document.getElementById('vault-status'),
+
+            modKnow: document.getElementById('mod-know'),
+            visKnow: document.getElementById('vis-know'),
+            statKnow: document.getElementById('stat-know'),
+
+            modHave: document.getElementById('mod-have'),
+            visHave: document.getElementById('vis-have'),
+            statHave: document.getElementById('stat-have'),
+
+            modAre: document.getElementById('mod-are'),
+            visAre: document.getElementById('vis-are'),
+            statAre: document.getElementById('stat-are'),
+        };
+        // patch typo in reference
+        els.sel = document.getElementById('select-scenario');
+
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function clearLogs() { els.feed.innerHTML = ''; }
+
+        function resetStage() {
+            els.modKnow.className = 'factor-module';
+            els.modHave.className = 'factor-module';
+            els.modAre.className = 'factor-module';
+
+            els.visKnow.textContent = '----'; els.statKnow.textContent = '🔒';
+            els.visHave.textContent = 'WAIT'; els.statHave.textContent = '🔒';
+            els.visAre.textContent = 'WAIT'; els.statAre.textContent = '🔒';
+
+            els.visKnow.style.color = 'var(--neon-cyan)';
+            els.visHave.style.color = 'var(--neon-cyan)';
+            els.visAre.style.color = 'var(--neon-cyan)';
+
+            els.doorL.classList.remove('open');
+            els.doorR.classList.remove('open');
+            els.lockPanel.classList.remove('hidden');
+            els.lockPanel.style.opacity = 1;
+
+            els.vaultInside.style.background = 'linear-gradient(135deg, #166534, #14532d)';
+            els.vaultStatus.textContent = 'AUTHORIZED ACCESS';
+            els.vaultStatus.style.color = '#4ade80';
+            els.vaultStatus.style.textShadow = '0 0 10px rgba(74,222,128,0.5)';
+        }
+
+        async function flashReset() {
+            els.lockPanel.style.opacity = 0;
+            await delay(300);
+            resetStage();
+            await delay(300);
+        }
+
+        async function activateFactor(name, isHacker, success) {
+            const mod = els[`mod${name}`];
+            const vis = els[`vis${name}`];
+            const stat = els[`stat${name}`];
+
+            mod.classList.add('mod-req');
+
+            if (name === 'Know') {
+                const str = isHacker ? 'HACK' : '****';
+                for (let i = 1; i <= 4; i++) {
+                    vis.textContent = str.substring(0, i) + '-'.repeat(4 - i);
+                    await delay(250);
+                }
+            } else if (name === 'Have') {
+                vis.textContent = '...';
+                await delay(500);
+                vis.textContent = success ? 'AUTH' : 'FAIL';
+                vis.style.color = success ? 'var(--neon-green)' : 'var(--neon-red)';
+                await delay(300);
+            } else if (name === 'Are') {
+                vis.textContent = '...';
+                await delay(500);
+                vis.textContent = success ? 'AUTH' : 'FAIL';
+                vis.style.color = success ? 'var(--neon-green)' : 'var(--neon-red)';
+                await delay(300);
+            }
+
+            mod.classList.remove('mod-req');
+            if (success) {
+                mod.classList.add('mod-unlocked');
+                stat.textContent = '✅';
+            } else {
+                mod.classList.add('mod-failed');
+                stat.textContent = '❌';
+            }
+        }
+
+        function openVault(isHacker) {
+            els.lockPanel.classList.add('hidden');
+            if (isHacker) {
+                els.vaultInside.style.background = 'linear-gradient(135deg, #7f1d1d, #450a0a)';
+                els.vaultStatus.textContent = 'CRITICALLY COMPROMISED';
+                els.vaultStatus.style.color = '#fca5a5';
+                els.vaultStatus.style.textShadow = '0 0 15px rgba(239,68,68,0.8)';
+            } else {
+                els.vaultInside.style.background = 'linear-gradient(135deg, #166534, #14532d)';
+                els.vaultStatus.textContent = 'AUTHORIZED ACCESS';
+                els.vaultStatus.style.color = '#4ade80';
+                els.vaultStatus.style.textShadow = '0 0 10px rgba(74,222,128,0.5)';
+            }
+            els.doorL.classList.add('open');
+            els.doorR.classList.add('open');
+        }
+
+        function onSelectionChange() {
+            const v = els.sel.value;
+            if (!v) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${SCENARIOS[v].icon} ${SCENARIOS[v].name}</span>`;
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = `▶ Run Architecture Sim`; els.btnGo.disabled = false;
+            clearLogs(); resetStage();
+            addStory(SCENARIOS[v].icon, `Ready to simulate <strong>${SCENARIOS[v].name}</strong> protocol.`, 'type-info');
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            clearLogs(); resetStage();
+
+            const v = els.sel.value;
+            if (v === '1fa') await demo1FA();
+            if (v === '2fa') await demo2FA();
+            if (v === '3fa') await demo3FA();
+
+            animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+
+        // ══════════ 1FA ══════════
+        async function demo1FA() {
+            addStory('⚙️', '<strong>1-Factor System: Knowledge Only.</strong> Standard passwords.', 'type-info');
+            els.modHave.classList.add('mod-dimmed');
+            els.modAre.classList.add('mod-dimmed');
+            els.modKnow.classList.add('mod-active');
+            await delay(1200);
+
+            addStory('🦹‍♂️', '<strong>THE ATTACK:</strong> A hacker on the other side of the planet purchases Alice\'s leaked password from a darknet dump.', 'type-err');
+
+            await activateFactor('Know', true, true);
+
+            await delay(800);
+            addStory('💥', '<strong>Breached instantly!</strong> Because the system indiscriminately assumes anyone who "knows the secret" is the genuine user, entry is granted.', 'type-err');
+            openVault(true);
+        }
+
+        // ══════════ 2FA ══════════
+        async function demo2FA() {
+            addStory('⚙️', '<strong>2-Factor System: Knowledge + Possession.</strong> Passwords paired directly with explicit physically-held hardware.', 'type-info');
+            els.modAre.classList.add('mod-dimmed');
+            els.modKnow.classList.add('mod-active');
+            els.modHave.classList.add('mod-active');
+            await delay(1200);
+
+            addStory('🦹‍♂️', '<strong>THE ATTACK:</strong> The hacker explicitly steals Alice\'s password globally and tries to log in from overseas.', 'type-err');
+
+            await activateFactor('Know', true, true);
+            addStory('🔓', 'Knowledge factor bypassed. However, the vault halts. It demands the Possession factor authentication.', 'type-warn');
+            await delay(1200);
+
+            addStory('📱', 'The hacker completely fails to yield Alice\'s physical hardware key (which is geographically isolated in Alice\'s pocket in reality).');
+            await activateFactor('Have', true, false);
+
+            addStory('🛡️', '<strong>Access Denied!</strong> Virtual theft is neutralized forcefully by biological physics.', 'type-success');
+            await delay(3000);
+
+            await flashReset();
+            els.modAre.classList.add('mod-dimmed');
+            els.modKnow.classList.add('mod-active');
+            els.modHave.classList.add('mod-active');
+
+            addStory('🙎‍♀️', '<strong>NORMAL LOGIN:</strong> Alice logs in natively from her desk.', 'type-info');
+            await activateFactor('Know', false, true);
+            await delay(500);
+            addStory('📱', 'Alice physically taps her YubiKey.');
+            await activateFactor('Have', false, true);
+
+            addStory('✅', 'Alice successfully proved Knowledge and Possession.', 'type-success');
+            openVault(false);
+        }
+
+        // ══════════ 3FA ══════════
+        async function demo3FA() {
+            addStory('⚙️', '<strong>3-Factor System: Know + Have + Are.</strong> The apex, absolute highest civilian grade authentication. Enforces physical Biometrics natively.', 'type-info');
+            els.modKnow.classList.add('mod-active');
+            els.modHave.classList.add('mod-active');
+            els.modAre.classList.add('mod-active');
+            await delay(1200);
+
+            addStory('🦹‍♂️', '<strong>THE EXTREME ATTACK:</strong> A massive physical threat model. The attacker steals Alice\'s password virtually AND literally pickpockets her phone physically!', 'type-err');
+
+            await activateFactor('Know', true, true);
+            await delay(300);
+            await activateFactor('Have', true, true);
+
+            addStory('🔓', 'Two complete factors bypassed! The situation is dire. But the vault demands the final absolute factor.', 'type-warn');
+            await delay(1500);
+
+            addStory('👁️', 'The attacker completely lacks Alice\'s literal biological traits (retina/DNA pattern) and attempts to spoof the scanner.');
+            await activateFactor('Are', true, false);
+
+            addStory('🛡️', '<strong>Access Terminated!</strong> Your deeply inherent biological traits cannot be remotely hijacked, guessed, or stolen from your pocket!', 'type-success');
+            await delay(3500);
+
+            await flashReset();
+            els.modKnow.classList.add('mod-active');
+            els.modHave.classList.add('mod-active');
+            els.modAre.classList.add('mod-active');
+
+            addStory('🙎‍♀️', '<strong>NORMAL LOGIN:</strong> Alice requests explicitly authorized access natively.', 'type-info');
+            await activateFactor('Know', false, true);
+            await activateFactor('Have', false, true);
+            await activateFactor('Are', false, true);
+
+            addStory('✅', 'Perfect multilayered proof completely verified.', 'type-success');
+            openVault(false);
+        }
+    </script>
+
+</body>
+
+</html>

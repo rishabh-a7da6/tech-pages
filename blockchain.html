@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Blockchain Works — The Immutable Chain Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive blockchain visualization. Edit a block's data and watch the chain reaction as all subsequent hashes break. Mine new blocks and verify integrity in real-time.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --neon-amber: #f59e0b;
+            --text-muted: #94a3b8;
+            --valid: #4ade80;
+            --invalid: #f87171;
+            --mining: #facc15;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-amber), var(--neon-indigo));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 760px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 260px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(245, 158, 11, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-amber);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 880px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(245, 158, 11, .08);
+            border: 1px solid rgba(245, 158, 11, .25);
+            color: var(--neon-amber);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 22px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(245, 158, 11, .2), rgba(129, 140, 248, .2));
+            border-color: var(--neon-amber);
+            box-shadow: 0 0 15px rgba(245, 158, 11, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(245, 158, 11, .5);
+            border-color: #fff;
+        }
+
+        button.mine-btn {
+            border-color: var(--mining);
+            box-shadow: 0 0 10px rgba(250, 204, 21, .2);
+        }
+
+        button.verify-btn {
+            border-color: var(--neon-indigo);
+            box-shadow: 0 0 10px rgba(129, 140, 248, .2);
+        }
+
+        /* ═══════ MAIN ═══════ */
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1280px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ═══════ CHAIN ═══════ */
+        .chain-container {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            overflow-x: auto;
+            padding: 20px 10px 10px;
+            scroll-behavior: smooth;
+        }
+
+        .chain-link {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .link-arrow {
+            width: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .8rem;
+            color: rgba(255, 255, 255, .15);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .link-arrow::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(255, 255, 255, .08);
+            transform: translateY(-50%);
+        }
+
+        .link-arrow .arr {
+            position: relative;
+            z-index: 1;
+            background: var(--bg-start);
+            padding: 0 4px;
+            transition: all .4s;
+        }
+
+        .link-arrow.valid .arr {
+            color: var(--valid);
+        }
+
+        .link-arrow.valid::before {
+            background: rgba(74, 222, 128, .2);
+        }
+
+        .link-arrow.invalid .arr {
+            color: var(--invalid);
+        }
+
+        .link-arrow.invalid::before {
+            background: rgba(248, 113, 113, .2);
+        }
+
+        /* Block card */
+        .block-card {
+            width: 220px;
+            border-radius: 16px;
+            background: rgba(15, 23, 42, .95);
+            border: 2px solid #334155;
+            padding: 0;
+            flex-shrink: 0;
+            transition: all .5s ease;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .block-card.valid {
+            border-color: var(--valid);
+            box-shadow: 0 0 20px rgba(74, 222, 128, .12);
+        }
+
+        .block-card.invalid {
+            border-color: var(--invalid);
+            box-shadow: 0 0 20px rgba(248, 113, 113, .15);
+            animation: invalidShake .4s ease;
+        }
+
+        .block-card.mining {
+            border-color: var(--mining);
+            box-shadow: 0 0 25px rgba(250, 204, 21, .2);
+            animation: miningPulse 1s ease-in-out infinite;
+        }
+
+        .block-card.genesis {
+            border-color: var(--neon-indigo);
+            box-shadow: 0 0 15px rgba(129, 140, 248, .15);
+        }
+
+        @keyframes invalidShake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20%,
+            60% {
+                transform: translateX(-3px);
+            }
+
+            40%,
+            80% {
+                transform: translateX(3px);
+            }
+        }
+
+        @keyframes miningPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(250, 204, 21, .1);
+            }
+
+            50% {
+                box-shadow: 0 0 35px rgba(250, 204, 21, .3);
+            }
+        }
+
+        .block-header {
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, .06);
+        }
+
+        .block-num {
+            font-weight: 700;
+            font-size: .85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .block-badge {
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: .58rem;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .badge-valid {
+            background: rgba(74, 222, 128, .15);
+            color: var(--valid);
+            border: 1px solid rgba(74, 222, 128, .3);
+        }
+
+        .badge-invalid {
+            background: rgba(248, 113, 113, .15);
+            color: var(--invalid);
+            border: 1px solid rgba(248, 113, 113, .3);
+        }
+
+        .badge-genesis {
+            background: rgba(129, 140, 248, .15);
+            color: var(--neon-indigo);
+            border: 1px solid rgba(129, 140, 248, .3);
+        }
+
+        .badge-mining {
+            background: rgba(250, 204, 21, .15);
+            color: var(--mining);
+            border: 1px solid rgba(250, 204, 21, .3);
+        }
+
+        .block-body {
+            padding: 10px 14px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field-label {
+            font-size: .58rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--text-muted);
+        }
+
+        .field-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .62rem;
+            color: var(--neon-cyan);
+            word-break: break-all;
+            line-height: 1.4;
+            transition: color .3s;
+        }
+
+        .field-value.hash-invalid {
+            color: var(--invalid);
+        }
+
+        .field-value.hash-valid {
+            color: var(--valid);
+        }
+
+        .block-data-input {
+            width: 100%;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            font-size: .78rem;
+            resize: vertical;
+            min-height: 50px;
+            max-height: 100px;
+            transition: all .3s;
+            line-height: 1.4;
+        }
+
+        .block-data-input:focus {
+            outline: none;
+            border-color: var(--neon-amber);
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, .15);
+        }
+
+        .block-data-input.readonly {
+            opacity: .6;
+            cursor: default;
+        }
+
+        .nonce-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nonce-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .72rem;
+            color: var(--neon-amber);
+            font-weight: 600;
+        }
+
+        .block-footer {
+            padding: 8px 14px;
+            border-top: 1px solid rgba(255, 255, 255, .06);
+            background: rgba(0, 0, 0, .2);
+        }
+
+        .hash-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            word-break: break-all;
+            line-height: 1.3;
+            transition: color .3s;
+        }
+
+        /* ═══════ INFO PANELS ═══════ */
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .info-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-card .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: .82rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .val-amber {
+            color: var(--neon-amber);
+            font-weight: 600;
+        }
+
+        .val-indigo {
+            color: var(--neon-indigo);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .76rem;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .mini-header {
+            color: var(--text-muted);
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        /* ═══════ FEED ═══════ */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 440px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-hash {
+            border-left-color: var(--neon-cyan);
+        }
+
+        .type-valid {
+            border-left-color: var(--valid);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        .type-invalid {
+            border-left-color: var(--invalid);
+            background: rgba(248, 113, 113, .04);
+        }
+
+        .type-mine {
+            border-left-color: var(--mining);
+            background: rgba(250, 204, 21, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-indigo);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+            .chain-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .link-arrow {
+                width: auto;
+                height: 30px;
+                transform: rotate(90deg);
+            }
+
+            .block-card {
+                width: 90%;
+                max-width: 280px;
+            }
+
+            .info-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How Blockchain Works</h1>
+    <p class="subtitle">A blockchain is a chain of blocks where each block contains data and a <strong>hash</strong> — a
+        digital fingerprint. Every block's hash depends on the <strong>previous block's hash</strong>, creating an
+        unbreakable chain. <strong>Edit any block below</strong> and watch the entire chain shatter.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Blockchain Use Case</label>
+            <select id="select-usecase" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a use case —</option>
+                <option value="crypto">₿ Cryptocurrency (Bitcoin)</option>
+                <option value="supply">📦 Supply Chain Tracking</option>
+                <option value="medical">🏥 Medical Records</option>
+                <option value="voting">🗳️ Digital Voting</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a use case to build your blockchain.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none;">
+        <button class="primary" onclick="resetChain()">🔗 Reset Chain</button>
+        <button class="mine-btn" id="btn-mine" onclick="mineNewBlock()">⛏️ Mine New Block</button>
+        <button class="verify-btn" onclick="verifyChain()">🔍 Verify Entire Chain</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none;">
+        <div class="chain-container" id="chain-container"></div>
+
+        <div class="info-row">
+            <div class="info-card">
+                <div class="panel-title">🔗 How It Works</div>
+                <div class="mini-box">
+                    <div class="mini-header">The Hash Fingerprint</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">Each block's hash is computed
+                        from: <strong>Block #</strong> + <strong>Data</strong> + <strong>Previous Hash</strong> +
+                        <strong>Nonce</strong>. Change any single character and the hash becomes completely different.
+                    </div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">The Chain Rule</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">Each block stores the
+                        previous block's hash. If Block 2's "Prev Hash" doesn't match Block 1's actual hash, the chain
+                        is <span class="val-red">BROKEN</span>.</div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">Try It!</div>
+                    <div style="font-size:.82rem;color:var(--neon-amber);line-height:1.5;">✏️ Edit the data inside any
+                        block and watch every block after it turn red. This is why blockchains are
+                        <strong>tamper-proof</strong>.
+                    </div>
+                </div>
+            </div>
+            <div class="info-card">
+                <div class="panel-title">📊 Chain Status</div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Total Blocks:</span><span id="s-blocks" class="val-indigo">0</span>
+                    </div>
+                    <div class="data-row"><span>Valid Blocks:</span><span id="s-valid" class="val-green">0</span></div>
+                    <div class="data-row"><span>Invalid Blocks:</span><span id="s-invalid" class="val-red">0</span>
+                    </div>
+                    <div class="data-row"><span>Chain Integrity:</span><span id="s-integrity">—</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Difficulty:</span><span id="s-diff" class="mono val-amber">—</span>
+                    </div>
+                    <div class="data-row"><span>Hash Prefix:</span><span id="s-prefix" class="mono">—</span></div>
+                    <div class="data-row"><span>Last Mined Nonce:</span><span id="s-nonce" class="mono">—</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">⛏️ Mining</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">Mining = finding a
+                        <strong>nonce</strong> that makes the hash start with "<span class="mono val-amber">00</span>".
+                        This requires brute-force guessing — the computer tries thousands of numbers until one works.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a use case to build your blockchain. Then try editing block
+                        data to see it break!</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═════════════════════════════════════════
+           SIMPLE HASH FUNCTION (Educational SHA-like)
+           ═════════════════════════════════════════ */
+        function simpleHash(str) {
+            let h1 = 0xdeadbeef, h2 = 0x41c6ce57, h3 = 0x9e3779b9, h4 = 0x85ebca6b;
+            for (let i = 0; i < str.length; i++) {
+                const ch = str.charCodeAt(i);
+                h1 = Math.imul(h1 ^ ch, 2654435761);
+                h2 = Math.imul(h2 ^ ch, 1597334677);
+                h3 = Math.imul(h3 ^ ch, 2246822507);
+                h4 = Math.imul(h4 ^ ch, 3266489909);
+            }
+            h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+            h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h3 ^ (h3 >>> 13), 3266489909);
+            h3 = Math.imul(h3 ^ (h3 >>> 16), 2246822507) ^ Math.imul(h4 ^ (h4 >>> 13), 3266489909);
+            h4 = Math.imul(h4 ^ (h4 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+            const hex = (n) => (n >>> 0).toString(16).padStart(8, '0');
+            return hex(h1) + hex(h2) + hex(h3) + hex(h4);
+        }
+
+        function mineHash(blockIdx, data, prevHash, difficulty) {
+            const prefix = '0'.repeat(difficulty);
+            let nonce = 0;
+            let hash;
+            do {
+                hash = simpleHash(`${blockIdx}${data}${prevHash}${nonce}`);
+                nonce++;
+                if (nonce > 100000) break; // safety
+            } while (!hash.startsWith(prefix));
+            return { hash, nonce: nonce - 1 };
+        }
+
+        /* ═════════════════════════════════════════
+           USE CASES
+           ═════════════════════════════════════════ */
+        const USECASES = {
+            crypto: {
+                name: 'Bitcoin', icon: '₿', difficulty: 2,
+                blocks: [
+                    { data: 'Genesis Block\nReward: 50 BTC → Satoshi' },
+                    { data: 'Alice → Bob: 2.5 BTC\nFee: 0.0001 BTC' },
+                    { data: 'Bob → Carol: 1.0 BTC\nCarol → Dave: 0.5 BTC' },
+                    { data: 'Dave → Alice: 3.0 BTC\nFee: 0.0002 BTC' },
+                ],
+            },
+            supply: {
+                name: 'Supply Chain', icon: '📦', difficulty: 2,
+                blocks: [
+                    { data: 'Genesis: ChainTrack v1.0\nOrg: Global Logistics Inc.' },
+                    { data: 'Order #4821 Created\nOrigin: Shanghai, CN\nProduct: Electronics' },
+                    { data: 'Shipment Departed\nPort: Shanghai → Rotterdam\nContainer: MSKU-281947' },
+                    { data: 'Customs Cleared\nLocation: Rotterdam, NL\nStatus: Delivered' },
+                ],
+            },
+            medical: {
+                name: 'Medical Records', icon: '🏥', difficulty: 2,
+                blocks: [
+                    { data: 'Genesis: MedChain v2.1\nHospital: City General' },
+                    { data: 'Patient #8192\nDiagnosis: Annual Checkup\nDoctor: Dr. Smith' },
+                    { data: 'Lab Results Added\nBlood Work: Normal\nCholesterol: 180 mg/dL' },
+                    { data: 'Prescription Updated\nMedication: Vitamin D\nRefills: 3' },
+                ],
+            },
+            voting: {
+                name: 'Digital Voting', icon: '🗳️', difficulty: 2,
+                blocks: [
+                    { data: 'Genesis: VoteChain 2024\nElection: City Council' },
+                    { data: 'Ballot #00001\nVoter: [anon-hash-a7f2]\nCandidate: Alice Johnson' },
+                    { data: 'Ballot #00002\nVoter: [anon-hash-c3b1]\nCandidate: Bob Martinez' },
+                    { data: 'Ballot #00003\nVoter: [anon-hash-e9d4]\nCandidate: Alice Johnson' },
+                ],
+            },
+        };
+
+        /* ═════════════════════════════════════════
+           STATE
+           ═════════════════════════════════════════ */
+        let chain = []; // {index, data, prevHash, hash, nonce, valid}
+        let difficulty = 2;
+        let currentUseCase = null;
+
+        const els = {
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compat: document.getElementById('compat-status'),
+            chainContainer: document.getElementById('chain-container'),
+            feed: document.getElementById('feed'),
+        };
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function setField(id, t, c) { const el = document.getElementById(id); if (el) { el.innerText = t; if (c) el.className = c; } }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+
+        /* ═════════════════════════════════════════
+           BUILD CHAIN
+           ═════════════════════════════════════════ */
+        function buildInitialChain(uc) {
+            chain = [];
+            const prefix = '0'.repeat(uc.difficulty);
+            difficulty = uc.difficulty;
+
+            uc.blocks.forEach((b, i) => {
+                const prevHash = i === 0 ? '0'.repeat(32) : chain[i - 1].hash;
+                const { hash, nonce } = mineHash(i, b.data, prevHash, uc.difficulty);
+                chain.push({ index: i, data: b.data, prevHash, hash, nonce, valid: true });
+            });
+        }
+
+        function renderChain() {
+            let html = '';
+            chain.forEach((block, i) => {
+                const isGenesis = i === 0;
+                const statusCls = block.valid ? (isGenesis ? 'genesis' : 'valid') : 'invalid';
+                const badgeCls = block.valid ? (isGenesis ? 'badge-genesis' : 'badge-valid') : 'badge-invalid';
+                const badgeText = block.valid ? (isGenesis ? 'GENESIS' : '✅ VALID') : '❌ INVALID';
+
+                if (i > 0) {
+                    const linkCls = block.valid ? 'valid' : 'invalid';
+                    html += `<div class="chain-link"><div class="link-arrow ${linkCls}"><span class="arr">⟶</span></div></div>`;
+                }
+
+                html += `<div class="block-card ${statusCls}" id="block-${i}">
+            <div class="block-header">
+                <div class="block-num">🧊 Block #${i}</div>
+                <div class="block-badge ${badgeCls}" id="badge-${i}">${badgeText}</div>
+            </div>
+            <div class="block-body">
+                <div class="field-label">Data ${isGenesis ? '' : '(editable ✏️)'}</div>
+                <textarea class="block-data-input ${isGenesis ? 'readonly' : ''}" id="data-${i}"
+                    ${isGenesis ? 'readonly' : ''} oninput="onDataChanged(${i})">${block.data}</textarea>
+                <div class="field-label">Nonce</div>
+                <div class="nonce-row"><span class="nonce-val" id="nonce-${i}">${block.nonce}</span></div>
+                <div class="field-label">Previous Hash</div>
+                <div class="field-value ${i > 0 && !block.valid ? 'hash-invalid' : ''}" id="prevhash-${i}" style="font-size:.55rem;">${block.prevHash}</div>
+            </div>
+            <div class="block-footer">
+                <div class="field-label">Hash</div>
+                <div class="hash-display ${block.valid ? 'hash-valid' : 'hash-invalid'}" id="hash-${i}">${block.hash}</div>
+            </div>
+        </div>`;
+            });
+
+            els.chainContainer.innerHTML = html;
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = chain.length;
+            const valid = chain.filter(b => b.valid).length;
+            const invalid = total - valid;
+            setField('s-blocks', total, 'val-indigo');
+            setField('s-valid', valid, 'val-green');
+            setField('s-invalid', invalid, invalid > 0 ? 'val-red' : 'val-green');
+            setField('s-integrity', invalid === 0 ? '✅ Intact' : '❌ BROKEN', invalid === 0 ? 'val-green' : 'val-red');
+            setField('s-diff', difficulty, 'mono val-amber');
+            setField('s-prefix', '0'.repeat(difficulty) + '...', 'mono');
+            setField('s-nonce', chain.length > 0 ? chain[chain.length - 1].nonce : '—', 'mono');
+        }
+
+        /* ═════════════════════════════════════════
+           EDIT HANDLING — THE CHAIN REACTION
+           ═════════════════════════════════════════ */
+        function onDataChanged(blockIdx) {
+            const textarea = document.getElementById('data-' + blockIdx);
+            chain[blockIdx].data = textarea.value;
+
+            // Recompute hash for this block (without mining — it will be invalid)
+            const rawHash = simpleHash(`${blockIdx}${chain[blockIdx].data}${chain[blockIdx].prevHash}${chain[blockIdx].nonce}`);
+            chain[blockIdx].hash = rawHash;
+
+            // Check if hash still starts with prefix
+            const prefix = '0'.repeat(difficulty);
+            chain[blockIdx].valid = rawHash.startsWith(prefix);
+
+            // Cascade: all subsequent blocks are now invalid because prevHash doesn't match
+            for (let i = blockIdx + 1; i < chain.length; i++) {
+                chain[i].prevHash = chain[i - 1].hash;
+                const h = simpleHash(`${i}${chain[i].data}${chain[i].prevHash}${chain[i].nonce}`);
+                chain[i].hash = h;
+                chain[i].valid = h.startsWith(prefix) && chain[i].prevHash === chain[i - 1].hash;
+            }
+
+            // Also mark invalid if previous hash doesn't match
+            for (let i = 1; i < chain.length; i++) {
+                if (chain[i].prevHash !== chain[i - 1].hash) chain[i].valid = false;
+            }
+
+            renderChain();
+
+            // Re-set the focus back on the textarea
+            const newTextarea = document.getElementById('data-' + blockIdx);
+            if (newTextarea) {
+                newTextarea.focus();
+                newTextarea.selectionStart = newTextarea.selectionEnd = newTextarea.value.length;
+            }
+
+            // Log the tampering
+            const invalidCount = chain.filter(b => !b.valid).length;
+            if (invalidCount > 0) {
+                addStory('🔴', `<strong>TAMPERING DETECTED!</strong> Block #${blockIdx} was modified. Its hash changed, causing a <strong>chain reaction</strong> — ${invalidCount} block(s) are now <span class="val-red">INVALID</span>. The "Previous Hash" in Block #${blockIdx + 1} no longer matches Block #${blockIdx}'s actual hash.`, 'type-invalid');
+            }
+        }
+
+        /* ═════════════════════════════════════════
+           MINING
+           ═════════════════════════════════════════ */
+        async function mineNewBlock() {
+            const uc = currentUseCase;
+            if (!uc) return;
+
+            const btnMine = document.getElementById('btn-mine');
+            btnMine.disabled = true;
+            btnMine.textContent = '⛏️ Mining...';
+
+            const prevBlock = chain[chain.length - 1];
+            const newIdx = chain.length;
+            const newData = uc.icon === '₿'
+                ? `Miner → Reward: 6.25 BTC\nTx: ${Math.floor(Math.random() * 9000) + 1000} transactions`
+                : uc.icon === '📦'
+                    ? `Shipment Update\nLocation: ${['Berlin', 'Paris', 'London', 'Madrid'][Math.floor(Math.random() * 4)]}\nStatus: In Transit`
+                    : uc.icon === '🏥'
+                        ? `Follow-up Visit\nDoctor: Dr. ${['Patel', 'Lee', 'Garcia', 'Kim'][Math.floor(Math.random() * 4)]}\nDate: ${new Date().toLocaleDateString()}`
+                        : `Ballot #${String(newIdx + 1).padStart(5, '0')}\nVoter: [anon-hash-${simpleHash(Date.now().toString()).substring(0, 4)}]\nCandidate: ${['Alice Johnson', 'Bob Martinez', 'Carol Chen'][Math.floor(Math.random() * 3)]}`;
+
+            addStory('⛏️', `<strong>Mining Block #${newIdx}...</strong> Searching for a nonce that makes the hash start with "<span class="mono val-amber">${'0'.repeat(difficulty)}</span>"`, 'type-mine');
+
+            // Animate mining delay
+            await new Promise(r => setTimeout(r, 800));
+
+            const { hash, nonce } = mineHash(newIdx, newData, prevBlock.hash, difficulty);
+            chain.push({ index: newIdx, data: newData, prevHash: prevBlock.hash, hash, nonce, valid: true });
+
+            renderChain();
+
+            addStory('✅', `<strong>Block #${newIdx} mined!</strong><br>
+        Nonce found: <span class="mono val-amber">${nonce}</span> (tried ${nonce + 1} combinations)<br>
+        Hash: <span class="mono val-green">${hash.substring(0, 16)}...</span> (starts with "${'0'.repeat(difficulty)}" ✅)`, 'type-valid');
+
+            btnMine.disabled = false;
+            btnMine.textContent = '⛏️ Mine New Block';
+
+            // Scroll to end
+            els.chainContainer.scrollLeft = els.chainContainer.scrollWidth;
+        }
+
+        /* ═════════════════════════════════════════
+           VERIFY
+           ═════════════════════════════════════════ */
+        function verifyChain() {
+            let allValid = true;
+            const prefix = '0'.repeat(difficulty);
+            const results = [];
+
+            for (let i = 0; i < chain.length; i++) {
+                const b = chain[i];
+                const expectedHash = simpleHash(`${i}${b.data}${b.prevHash}${b.nonce}`);
+                const hashMatch = expectedHash === b.hash;
+                const prefixMatch = b.hash.startsWith(prefix);
+                const prevMatch = i === 0 || b.prevHash === chain[i - 1].hash;
+                const valid = hashMatch && prefixMatch && prevMatch;
+
+                if (!valid) allValid = false;
+                results.push({ index: i, hashMatch, prefixMatch, prevMatch, valid });
+
+                // Flash animation
+                const cardEl = document.getElementById('block-' + i);
+                if (cardEl) {
+                    cardEl.style.transition = 'none';
+                    cardEl.style.transform = 'scale(1.05)';
+                    setTimeout(() => { cardEl.style.transition = 'all .3s'; cardEl.style.transform = 'scale(1)'; }, 200 + i * 150);
+                }
+            }
+
+            if (allValid) {
+                addStory('✅', `<strong>CHAIN VERIFIED — ALL ${chain.length} BLOCKS VALID!</strong><br>
+            Every block's hash matches its content, every "Previous Hash" links correctly, and all hashes meet the difficulty requirement. This chain has not been tampered with.`, 'type-valid');
+            } else {
+                const broken = results.filter(r => !r.valid);
+                addStory('🚨', `<strong>CHAIN VERIFICATION FAILED!</strong><br>
+            ${broken.map(b => `Block #${b.index}: ${!b.hashMatch ? 'Hash mismatch ❌' : ''} ${!b.prevMatch ? 'Previous hash broken ❌' : ''} ${!b.prefixMatch ? 'Doesn\'t meet difficulty ❌' : ''}`).join('<br>')}<br>
+            <br>To fix: each broken block must be <strong>re-mined</strong> — finding a new nonce. In Bitcoin, this would require more computing power than the rest of the network combined.`, 'type-invalid');
+            }
+        }
+
+        /* ═════════════════════════════════════════
+           RESET
+           ═════════════════════════════════════════ */
+        function resetChain() {
+            if (!currentUseCase) return;
+            buildInitialChain(currentUseCase);
+            renderChain();
+            addStory('🔗', `Chain reset to ${chain.length} valid blocks. Try editing a block's data!`, 'type-info');
+        }
+
+        /* ═════════════════════════════════════════
+           SELECTION
+           ═════════════════════════════════════════ */
+        function onSelectionChange() {
+            const ucId = document.getElementById('select-usecase').value;
+            if (!ucId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select a use case to build your blockchain.</span>';
+                els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return;
+            }
+            const uc = USECASES[ucId];
+            currentUseCase = uc;
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${uc.icon} ${uc.name} Blockchain — Edit a block to break the chain!</span>`;
+
+            buildInitialChain(uc);
+            renderChain();
+
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+
+            els.feed.innerHTML = '';
+            addStory('🔗', `<strong>${uc.icon} ${uc.name} blockchain created</strong> with ${chain.length} blocks. Each block's hash starts with "<span class="mono val-amber">${'0'.repeat(uc.difficulty)}</span>" (difficulty: ${uc.difficulty}).`, 'type-info');
+            addStory('✏️', `<strong>Try it:</strong> Click inside any non-genesis block's data field and change something. Watch all blocks after it turn <span class="val-red">red</span> — that's the chain reaction!`, 'type-info');
+            addStory('🧠', `<strong>Why it works:</strong> Each block's hash is computed from:<br>
+        <span class="mono">hash = SHA( Block# + Data + PrevHash + Nonce )</span><br>
+        Change the data → hash changes → next block's "Prev Hash" no longer matches → cascade failure. To "fix" a fraudulent change, you'd need to re-mine <em>every subsequent block</em> — computationally infeasible on a real blockchain.`, 'type-hash');
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Database Indexing Works — The Library Catalog Analogy</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of database indexing. Watch a full table scan vs B-Tree index lookup side-by-side on 100 books.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-amber: #f59e0b;
+            --neon-teal: #2dd4bf;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-amber), var(--neon-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 760px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 220px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(245, 158, 11, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-amber);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 800px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(245, 158, 11, .08);
+            border: 1px solid rgba(245, 158, 11, .25);
+            color: var(--neon-amber);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .95rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(245, 158, 11, .2), rgba(45, 212, 191, .2));
+            border-color: var(--neon-amber);
+            box-shadow: 0 0 15px rgba(245, 158, 11, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(245, 158, 11, .5);
+            border-color: #fff;
+        }
+
+        button.secondary {
+            border-color: var(--neon-teal);
+            box-shadow: 0 0 10px rgba(45, 212, 191, .2);
+        }
+
+        button.secondary:hover:not(:disabled) {
+            box-shadow: 0 0 20px rgba(45, 212, 191, .4);
+        }
+
+        /* ══════════ MAIN LAYOUT ══════════ */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            width: 100%;
+            max-width: 1200px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ══════════ SQL BOX ══════════ */
+        .sql-box {
+            background: rgba(0, 0, 0, .5);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .sql-label {
+            font-size: .72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .sql-query {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .95rem;
+            color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .06);
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(34, 211, 238, .15);
+        }
+
+        .sql-query .kw {
+            color: var(--neon-purple);
+        }
+
+        .sql-query .tbl {
+            color: var(--neon-amber);
+        }
+
+        .sql-query .val {
+            color: var(--neon-green);
+        }
+
+        /* ══════════ SPLIT COMPARISON ══════════ */
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .method-col {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .method-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        .method-header.scan {
+            background: rgba(248, 113, 113, .06);
+            border: 1px solid rgba(248, 113, 113, .2);
+        }
+
+        .method-header.index {
+            background: rgba(74, 222, 128, .06);
+            border: 1px solid rgba(74, 222, 128, .2);
+        }
+
+        .method-icon {
+            font-size: 1.6rem;
+        }
+
+        .method-info {
+            flex: 1;
+        }
+
+        .method-name {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .method-name.scan-c {
+            color: var(--neon-red);
+        }
+
+        .method-name.idx-c {
+            color: var(--neon-green);
+        }
+
+        .method-desc {
+            font-size: .75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Bookshelf */
+        .shelf-wrap {
+            background: rgba(0, 0, 0, .35);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            padding: 14px;
+            position: relative;
+            min-height: 240px;
+        }
+
+        .shelf-label {
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: .65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            z-index: 2;
+        }
+
+        .shelf-counter {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: .72rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            z-index: 2;
+            transition: all .3s;
+        }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: 3px;
+            margin-top: 24px;
+        }
+
+        .book {
+            width: 100%;
+            aspect-ratio: .55;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .5rem;
+            font-weight: 700;
+            transition: all .12s;
+            cursor: default;
+            border: 1px solid transparent;
+            position: relative;
+        }
+
+        .book.idle {
+            background: rgba(255, 255, 255, .04);
+            color: rgba(255, 255, 255, .2);
+            border-color: rgba(255, 255, 255, .04);
+        }
+
+        .book.scanning {
+            background: rgba(248, 113, 113, .2);
+            border-color: rgba(248, 113, 113, .5);
+            color: var(--neon-red);
+            box-shadow: 0 0 6px rgba(248, 113, 113, .3);
+        }
+
+        .book.scanned {
+            background: rgba(255, 255, 255, .02);
+            color: rgba(255, 255, 255, .12);
+            border-color: rgba(255, 255, 255, .03);
+        }
+
+        .book.found {
+            background: rgba(74, 222, 128, .25);
+            border-color: rgba(74, 222, 128, .6);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(74, 222, 128, .4);
+            transform: scale(1.3);
+            z-index: 3;
+        }
+
+        .book.idx-check {
+            background: rgba(167, 139, 250, .2);
+            border-color: rgba(167, 139, 250, .5);
+            color: var(--neon-purple);
+            box-shadow: 0 0 6px rgba(167, 139, 250, .3);
+        }
+
+        .book.idx-path {
+            background: rgba(45, 212, 191, .12);
+            border-color: rgba(45, 212, 191, .3);
+            color: var(--neon-teal);
+        }
+
+        /* Index panel */
+        .index-panel {
+            background: rgba(0, 0, 0, .35);
+            border: 1px solid rgba(74, 222, 128, .15);
+            border-radius: 14px;
+            padding: 14px;
+            position: relative;
+        }
+
+        .index-label {
+            font-size: .65rem;
+            font-weight: 600;
+            color: var(--neon-green);
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btree-level {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btree-node {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .65rem;
+            font-weight: 700;
+            border: 1px solid rgba(255, 255, 255, .1);
+            background: rgba(255, 255, 255, .04);
+            color: var(--text-muted);
+            transition: all .3s;
+            cursor: default;
+            white-space: nowrap;
+        }
+
+        .btree-node.active {
+            border-color: var(--neon-green);
+            background: rgba(74, 222, 128, .15);
+            color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(74, 222, 128, .2);
+        }
+
+        .btree-node.visited {
+            border-color: rgba(45, 212, 191, .3);
+            background: rgba(45, 212, 191, .08);
+            color: var(--neon-teal);
+        }
+
+        .btree-arrow {
+            color: rgba(255, 255, 255, .15);
+            font-size: .6rem;
+            margin: 0 2px;
+        }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            padding: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card .panel-title {
+            font-size: .9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: .82rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .val-amber {
+            color: var(--neon-amber);
+            font-weight: 600;
+        }
+
+        .val-teal {
+            color: var(--neon-teal);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .76rem;
+        }
+
+        /* Progress bar */
+        .progress-wrap {
+            height: 6px;
+            background: rgba(255, 255, 255, .05);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width .1s;
+            width: 0%;
+        }
+
+        .progress-bar.scan-bar {
+            background: var(--neon-red);
+        }
+
+        .progress-bar.idx-bar {
+            background: var(--neon-green);
+        }
+
+        /* Feed */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 420px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-scan {
+            border-left-color: var(--neon-red);
+        }
+
+        .type-index {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-amber);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+
+            .split-view,
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+
+            .book-grid {
+                grid-template-columns: repeat(10, 1fr);
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .book-grid {
+                grid-template-columns: repeat(10, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>Database Indexing Explained</h1>
+    <p class="subtitle">Imagine a library with <strong>100 unsorted books</strong>. To find Book #82, you'd check every
+        single one — that's a <strong>full table scan</strong>.
+        Now imagine a sorted catalog card that says "#82 → Shelf 4, Position 2" — that's an <strong>index</strong>.
+        Watch the difference in real-time.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Search Query</label>
+            <select id="select-query" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a query —</option>
+                <option value="exact">🔍 Find Book #82 (Exact Match)</option>
+                <option value="exact2">🔍 Find Book #17 (Exact Match)</option>
+                <option value="range">📚 Find Books #40 to #50 (Range)</option>
+                <option value="name">🏷️ Find "The Great Gatsby" (Text)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a query to see how indexing transforms search speed.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-scan" class="primary" onclick="runScan()">🐢 Full Table Scan (No Index)</button>
+        <button id="btn-index" class="secondary" onclick="runIndex()">⚡ Index Lookup (B-Tree)</button>
+        <button id="btn-both" onclick="runBoth()"
+            style="border-color:var(--neon-purple);box-shadow:0 0 10px rgba(167,139,250,.2);">🏁 Race! (Side by
+            Side)</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- SQL -->
+        <div class="sql-box" id="sql-box"></div>
+
+        <!-- Side by side shelves -->
+        <div class="split-view" id="split-view">
+            <div class="method-col">
+                <div class="method-header scan">
+                    <div class="method-icon">🐢</div>
+                    <div class="method-info">
+                        <div class="method-name scan-c">Full Table Scan</div>
+                        <div class="method-desc">Check every row, one by one — O(n)</div>
+                    </div>
+                </div>
+                <div class="shelf-wrap" id="shelf-scan">
+                    <div class="shelf-label">📚 Unsorted Table (100 rows)</div>
+                    <div class="shelf-counter" id="scan-counter" style="color:var(--neon-red);">0 / 100 checked</div>
+                    <div class="book-grid" id="grid-scan"></div>
+                    <div class="progress-wrap">
+                        <div class="progress-bar scan-bar" id="scan-progress"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="method-col">
+                <div class="method-header index">
+                    <div class="method-icon">⚡</div>
+                    <div class="method-info">
+                        <div class="method-name idx-c">B-Tree Index Lookup</div>
+                        <div class="method-desc">Binary search the index — O(log n)</div>
+                    </div>
+                </div>
+                <div class="index-panel" id="index-panel">
+                    <div class="index-label">🌳 B-Tree Index on <span class="mono">book_id</span></div>
+                    <div class="btree" id="btree"></div>
+                </div>
+                <div class="shelf-wrap" id="shelf-index">
+                    <div class="shelf-label">📚 Same Table (accessed via index)</div>
+                    <div class="shelf-counter" id="idx-counter" style="color:var(--neon-green);">0 steps</div>
+                    <div class="book-grid" id="grid-index"></div>
+                    <div class="progress-wrap">
+                        <div class="progress-bar idx-bar" id="idx-progress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="panel-title"><span style="color:var(--neon-red);">🐢</span> Full Scan Stats</div>
+                <div class="data-row"><span>Rows Checked:</span><span id="s-checked" class="val-red">0</span></div>
+                <div class="data-row"><span>Disk Reads:</span><span id="s-reads">0</span></div>
+                <div class="data-row"><span>Time:</span><span id="s-time">—</span></div>
+                <div class="data-row"><span>Complexity:</span><span class="mono val-red">O(n)</span></div>
+                <div class="data-row"><span>At 1M rows:</span><span id="s-million" class="val-red">—</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="panel-title"><span style="color:var(--neon-green);">⚡</span> Index Stats</div>
+                <div class="data-row"><span>Index Nodes:</span><span id="i-nodes" class="val-green">0</span></div>
+                <div class="data-row"><span>Disk Reads:</span><span id="i-reads">0</span></div>
+                <div class="data-row"><span>Time:</span><span id="i-time">—</span></div>
+                <div class="data-row"><span>Complexity:</span><span class="mono val-green">O(log n)</span></div>
+                <div class="data-row"><span>At 1M rows:</span><span id="i-million" class="val-green">—</span></div>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Choose a query above, then click "Full Table Scan" or "Index Lookup" —
+                        or race them side-by-side.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DATA
+           ═══════════════════════════════════════════ */
+        const BOOK_TITLES = [
+            "1984", "To Kill a Mockingbird", "The Great Gatsby", "Moby Dick", "Pride and Prejudice",
+            "War and Peace", "The Odyssey", "Crime and Punishment", "Don Quixote", "Brave New World",
+            "The Catcher in the Rye", "Jane Eyre", "Wuthering Heights", "Great Expectations", "Les Misérables",
+            "Anna Karenina", "The Brothers Karamazov", "Madame Bovary", "Ulysses", "Lolita",
+            "Catch-22", "The Grapes of Wrath", "Slaughterhouse-Five", "Beloved", "Invisible Man",
+            "The Sound and the Fury", "One Hundred Years of Solitude", "A Tale of Two Cities", "Lord of the Flies", "Of Mice and Men",
+            "The Old Man and the Sea", "Fahrenheit 451", "A Clockwork Orange", "Dracula", "Frankenstein",
+            "The Picture of Dorian Gray", "Heart of Darkness", "The Sun Also Rises", "For Whom the Bell Tolls", "East of Eden",
+            "Siddhartha", "Steppenwolf", "Dune", "Foundation", "Neuromancer",
+            "Snow Crash", "The Hitchhiker's Guide", "Ender's Game", "Contact", "Solaris",
+            "The Left Hand of Darkness", "Do Androids Dream?", "Flowers for Algernon", "The Martian", "Ready Player One",
+            "The Handmaid's Tale", "Never Let Me Go", "Station Eleven", "Annihilation", "Piranesi",
+            "Project Hail Mary", "Klara and the Sun", "The Road", "Blood Meridian", "No Country for Old Men",
+            "Suttree", "Outer Dark", "The Crossing", "All the Pretty Horses", "Cities of the Plain",
+            "Child of God", "Lonesome Dove", "True Grit", "The Sisters Brothers", "News of the World",
+            "Educated", "The Glass Castle", "Wild", "Into the Wild", "Into Thin Air",
+            "Endurance", "The Right Stuff", "Sapiens", "Thinking Fast and Slow", "Outliers",
+            "Freakonomics", "The Tipping Point", "Quiet", "Atomic Habits", "Deep Work",
+            "Digital Minimalism", "Range", "Factfulness", "Bad Blood", "Flash Boys",
+            "The Big Short", "Too Big to Fail", "Liar's Poker", "Barbarians at the Gate", "When Genius Failed",
+            "Moneyball", "The Undoing Project", "Shoe Dog", "Creativity Inc", "Principles"
+        ];
+
+        // Shelf order is shuffled — books are NOT sorted on the shelf
+        let shelfOrder = [];
+        function shuffleShelf() {
+            shelfOrder = Array.from({ length: 100 }, (_, i) => i);
+            for (let i = 99; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shelfOrder[i], shelfOrder[j]] = [shelfOrder[j], shelfOrder[i]];
+            }
+        }
+        shuffleShelf();
+
+        const QUERIES = {
+            exact: { type: 'exact', target: 82, sql: `<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">books</span> <span class="kw">WHERE</span> id = <span class="val">82</span>`, label: 'Find Book #82' },
+            exact2: { type: 'exact', target: 17, sql: `<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">books</span> <span class="kw">WHERE</span> id = <span class="val">17</span>`, label: 'Find Book #17' },
+            range: { type: 'range', from: 40, to: 50, sql: `<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">books</span> <span class="kw">WHERE</span> id <span class="kw">BETWEEN</span> <span class="val">40</span> <span class="kw">AND</span> <span class="val">50</span>`, label: 'Find Books #40–50' },
+            name: { type: 'exact', target: 2, sql: `<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">books</span> <span class="kw">WHERE</span> title = <span class="val">'The Great Gatsby'</span>`, label: 'Find "The Great Gatsby"' },
+        };
+
+        /* ═══════════════════════════════════════════
+           STATE & ELEMENTS
+           ═══════════════════════════════════════════ */
+        let animating = false;
+        const selQuery = document.getElementById('select-query');
+        const els = {
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compat: document.getElementById('compat-status'),
+            sqlBox: document.getElementById('sql-box'),
+            gridScan: document.getElementById('grid-scan'),
+            gridIndex: document.getElementById('grid-index'),
+            btree: document.getElementById('btree'),
+            feed: document.getElementById('feed'),
+            scanCounter: document.getElementById('scan-counter'),
+            idxCounter: document.getElementById('idx-counter'),
+            scanProgress: document.getElementById('scan-progress'),
+            idxProgress: document.getElementById('idx-progress'),
+        };
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function setField(id, t, c) { const el = document.getElementById(id); if (el) { el.innerText = t; if (c) el.className = c; } }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+
+        /* ═══════════════════════════════════════════
+           BUILD GRIDS
+           ═══════════════════════════════════════════ */
+        function buildGrids() {
+            shuffleShelf();
+            let html = '';
+            for (let i = 0; i < 100; i++) {
+                const bookId = shelfOrder[i];
+                html += `<div class="book idle" id="scan-${i}" title="#${bookId}: ${BOOK_TITLES[bookId]}">${bookId}</div>`;
+            }
+            els.gridScan.innerHTML = html;
+
+            html = '';
+            for (let i = 0; i < 100; i++) {
+                const bookId = shelfOrder[i];
+                html += `<div class="book idle" id="idx-${i}" title="#${bookId}: ${BOOK_TITLES[bookId]}">${bookId}</div>`;
+            }
+            els.gridIndex.innerHTML = html;
+        }
+
+        function buildBTree(target) {
+            // Simplified B-tree visualization: root → branches → leaves
+            const sorted = Array.from({ length: 100 }, (_, i) => i).sort((a, b) => a - b);
+            // Level 0: root (show major pivots)
+            const root = [25, 50, 75];
+            // Level 1: branches
+            const branches = [[10, 20], [30, 40], [60, 70], [80, 90]];
+            // Level 2: leaf ranges
+            const leaves = [];
+            for (let i = 0; i < 100; i += 5) leaves.push(`${i}-${Math.min(i + 4, 99)}`);
+
+            let html = '';
+            // Root
+            html += `<div class="btree-level"><div class="btree-node" id="bt-root">[${root.join(' | ')}]</div></div>`;
+            // Branches
+            html += `<div class="btree-level">`;
+            branches.forEach((b, i) => {
+                html += `<div class="btree-node" id="bt-br-${i}">[${b.join(' | ')}]</div>`;
+            });
+            html += `</div>`;
+            // Leaves
+            html += `<div class="btree-level" style="gap:3px;">`;
+            leaves.forEach((l, i) => {
+                html += `<div class="btree-node" id="bt-lf-${i}" style="font-size:.55rem;padding:3px 6px;">${l}</div>`;
+            });
+            html += `</div>`;
+
+            els.btree.innerHTML = html;
+        }
+
+        function resetGrids() {
+            document.querySelectorAll('.book').forEach(b => b.className = 'book idle');
+            document.querySelectorAll('.btree-node').forEach(n => n.className = 'btree-node');
+            els.scanProgress.style.width = '0%';
+            els.idxProgress.style.width = '0%';
+            els.scanCounter.textContent = '0 / 100 checked';
+            els.idxCounter.textContent = '0 steps';
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const qId = selQuery.value;
+            if (!qId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select a query to begin.</span>';
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
+            const q = QUERIES[qId];
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${q.label} — Compare Full Scan vs Index Lookup</span>`;
+
+            els.sqlBox.innerHTML = `<div class="sql-label">SQL Query:</div><div class="sql-query">${q.sql}</div>`;
+
+            buildGrids();
+            buildBTree(q.target || q.from);
+            resetGrids();
+
+            ['s-checked', 's-reads', 'i-nodes', 'i-reads'].forEach(id => setField(id, '0', ''));
+            ['s-time', 'i-time', 's-million', 'i-million'].forEach(id => setField(id, '—', ''));
+
+            els.controls.style.display = 'flex';
+            els.dashboard.style.display = 'grid';
+
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🎯</span><span class="log-text"><strong>${q.label}</strong> — Click a button to run the search. Watch how many books the database must check!</span></div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           FULL TABLE SCAN
+           ═══════════════════════════════════════════ */
+        async function runScan() {
+            if (animating) return;
+            animating = true;
+            disableButtons();
+            resetGrids();
+            const q = QUERIES[selQuery.value];
+            const targets = q.type === 'range' ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : [q.target];
+            let checked = 0, found = 0;
+            const startTime = performance.now();
+
+            addStory('🐢', `<strong>Full Table Scan</strong> — No index exists. The database must check <em>every single row</em> sequentially until it finds ${q.type === 'range' ? 'all matches' : 'the match'}.`, 'type-scan');
+            addStory('📖', `Analogy: Walking down the library shelf, pulling out every book, reading the spine, and putting it back. One. By. One.`, 'type-scan');
+            await sleep(400);
+
+            for (let i = 0; i < 100; i++) {
+                const bookId = shelfOrder[i];
+                const el = document.getElementById('scan-' + i);
+                el.className = 'book scanning';
+                checked++;
+                els.scanCounter.textContent = `${checked} / 100 checked`;
+                els.scanProgress.style.width = checked + '%';
+                setField('s-checked', checked, 'val-red');
+                setField('s-reads', checked, '');
+
+                await sleep(30);
+
+                if (targets.includes(bookId)) {
+                    el.className = 'book found';
+                    found++;
+                    if (q.type !== 'range') {
+                        // Found exact match — but scan must continue for potential duplicates or we'd miss them
+                        // For exact match on PK, we could stop, but let's show worst case
+                    }
+                } else {
+                    el.className = 'book scanned';
+                }
+
+                if (q.type === 'exact' && found > 0 && bookId === q.target) {
+                    // Can stop for primary key match
+                    await sleep(200);
+                    break;
+                }
+            }
+
+            const elapsed = Math.round(performance.now() - startTime);
+            setField('s-time', elapsed + 'ms', 'val-red');
+            setField('s-million', '~' + Math.round(checked * 10000) + 'ms', 'val-red');
+
+            addStory('🏁', `<strong>Scan complete!</strong> Checked <span class="val-red">${checked} rows</span> to find ${found} result(s). At this rate, a 1-million-row table would take <span class="val-red">${Math.round(checked * 10000)}ms</span>.`, 'type-scan');
+
+            animating = false;
+            enableButtons();
+        }
+
+        /* ═══════════════════════════════════════════
+           INDEX LOOKUP
+           ═══════════════════════════════════════════ */
+        async function runIndex() {
+            if (animating) return;
+            animating = true;
+            disableButtons();
+            resetGrids();
+            const q = QUERIES[selQuery.value];
+            const target = q.type === 'range' ? q.from : q.target;
+            let steps = 0;
+            const startTime = performance.now();
+
+            addStory('⚡', `<strong>B-Tree Index Lookup</strong> — The database uses a sorted B-Tree index. Instead of checking every row, it navigates the tree: root → branch → leaf → exact row.`, 'type-index');
+            addStory('📖', `Analogy: Walking to the library catalog, looking up "#${target}" in the sorted card index, reading "Shelf 4, Position 2", and walking directly to it.`, 'type-index');
+            await sleep(400);
+
+            // Navigate B-Tree
+            const rootEl = document.getElementById('bt-root');
+            rootEl.className = 'btree-node active';
+            steps++;
+            els.idxCounter.textContent = `${steps} steps`;
+            setField('i-nodes', steps, 'val-green');
+            addStory('🌳', `<strong>Step 1: Root node</strong> — [25 | 50 | 75]. Target ${target} → ${target < 25 ? 'go LEFT (< 25)' : target < 50 ? 'go to branch 2 (25-49)' : target < 75 ? 'go to branch 3 (50-74)' : 'go RIGHT (≥ 75)'}`, 'type-index');
+            await sleep(500);
+            rootEl.className = 'btree-node visited';
+
+            // Branch
+            const brIdx = target < 25 ? 0 : target < 50 ? 1 : target < 75 ? 2 : 3;
+            const brEl = document.getElementById('bt-br-' + brIdx);
+            brEl.className = 'btree-node active';
+            steps++;
+            els.idxCounter.textContent = `${steps} steps`;
+            setField('i-nodes', steps, 'val-green');
+            await sleep(500);
+            brEl.className = 'btree-node visited';
+
+            // Leaf
+            const lfIdx = Math.floor(target / 5);
+            const lfEl = document.getElementById('bt-lf-' + lfIdx);
+            if (lfEl) {
+                lfEl.className = 'btree-node active';
+                steps++;
+                els.idxCounter.textContent = `${steps} steps`;
+                setField('i-nodes', steps, 'val-green');
+                addStory('🍃', `<strong>Step ${steps}: Leaf node</strong> — Found pointer to row(s)! The leaf contains the disk address of book #${target}.`, 'type-index');
+                await sleep(500);
+                lfEl.className = 'btree-node visited';
+            }
+
+            // Direct jump to the book
+            const targets = q.type === 'range' ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : [q.target];
+
+            for (const t of targets) {
+                const shelfPos = shelfOrder.indexOf(t);
+                if (shelfPos >= 0) {
+                    const el = document.getElementById('idx-' + shelfPos);
+                    el.className = 'book found';
+                    steps++;
+                }
+            }
+
+            els.idxCounter.textContent = `${steps} steps`;
+            setField('i-nodes', steps, 'val-green');
+            setField('i-reads', steps, 'val-green');
+            els.idxProgress.style.width = '100%';
+
+            const elapsed = Math.round(performance.now() - startTime);
+            setField('i-time', elapsed + 'ms', 'val-green');
+            setField('i-million', '~' + Math.ceil(Math.log2(1000000)) + ' steps (~0.02ms)', 'val-green');
+
+            addStory('🏁', `<strong>Found in just ${steps} steps!</strong> The B-Tree went: Root → Branch → Leaf → Direct Row Access. At 1 million rows, this would still take only <span class="val-green">~20 steps</span> (log₂ 1,000,000 ≈ 20).`, 'type-index');
+
+            animating = false;
+            enableButtons();
+        }
+
+        /* ═══════════════════════════════════════════
+           RACE (BOTH)
+           ═══════════════════════════════════════════ */
+        async function runBoth() {
+            if (animating) return;
+            animating = true;
+            disableButtons();
+            resetGrids();
+            const q = QUERIES[selQuery.value];
+            const target = q.type === 'range' ? q.from : q.target;
+            const targets = q.type === 'range' ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : [q.target];
+
+            addStory('🏁', `<strong>RACE MODE!</strong> Full Table Scan vs B-Tree Index — searching simultaneously. Watch the left shelf scan one-by-one while the right side jumps straight there.`, 'type-compare');
+            await sleep(300);
+
+            let scanDone = false, idxDone = false;
+            let scanChecked = 0, idxSteps = 0;
+
+            // Run index first (it's so fast)
+            const idxPromise = (async () => {
+                await sleep(200);
+                const rootEl = document.getElementById('bt-root');
+                rootEl.className = 'btree-node active';
+                idxSteps++;
+                els.idxCounter.textContent = `${idxSteps} steps`;
+                await sleep(350);
+                rootEl.className = 'btree-node visited';
+
+                const brIdx = target < 25 ? 0 : target < 50 ? 1 : target < 75 ? 2 : 3;
+                document.getElementById('bt-br-' + brIdx).className = 'btree-node active';
+                idxSteps++;
+                els.idxCounter.textContent = `${idxSteps} steps`;
+                await sleep(350);
+                document.getElementById('bt-br-' + brIdx).className = 'btree-node visited';
+
+                const lfIdx = Math.floor(target / 5);
+                const lfEl = document.getElementById('bt-lf-' + lfIdx);
+                if (lfEl) { lfEl.className = 'btree-node active'; idxSteps++; els.idxCounter.textContent = `${idxSteps} steps`; await sleep(350); lfEl.className = 'btree-node visited'; }
+
+                for (const t of targets) {
+                    const pos = shelfOrder.indexOf(t);
+                    if (pos >= 0) document.getElementById('idx-' + pos).className = 'book found';
+                    idxSteps++;
+                }
+                els.idxCounter.textContent = `${idxSteps} steps ✅`;
+                els.idxProgress.style.width = '100%';
+                setField('i-nodes', idxSteps, 'val-green');
+                setField('i-reads', idxSteps, 'val-green');
+                setField('i-time', '~1ms', 'val-green');
+                setField('i-million', '~20 steps', 'val-green');
+                idxDone = true;
+            })();
+
+            // Scan (slower)
+            const scanPromise = (async () => {
+                let found = 0;
+                for (let i = 0; i < 100; i++) {
+                    const bookId = shelfOrder[i];
+                    const el = document.getElementById('scan-' + i);
+                    el.className = 'book scanning';
+                    scanChecked++;
+                    els.scanCounter.textContent = `${scanChecked} / 100 checked`;
+                    els.scanProgress.style.width = scanChecked + '%';
+                    setField('s-checked', scanChecked, 'val-red');
+                    setField('s-reads', scanChecked, '');
+                    await sleep(25);
+                    if (targets.includes(bookId)) {
+                        el.className = 'book found';
+                        found++;
+                        if (q.type === 'exact' && found >= targets.length) { await sleep(100); break; }
+                    } else {
+                        el.className = 'book scanned';
+                    }
+                }
+                setField('s-time', (scanChecked * 25) + 'ms', 'val-red');
+                setField('s-million', '~' + Math.round(scanChecked * 10000) + 'ms', 'val-red');
+                scanDone = true;
+            })();
+
+            await Promise.all([idxPromise, scanPromise]);
+            await sleep(400);
+
+            const speedup = Math.round(scanChecked / idxSteps);
+            addStory('📊', `<strong>Results:</strong><br>
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:.85rem;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:6px;color:var(--text-muted);">Metric</td><td style="padding:6px;color:var(--neon-red);font-weight:600;">🐢 Full Scan</td><td style="padding:6px;color:var(--neon-green);font-weight:600;">⚡ B-Tree</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">Rows Checked</td><td style="padding:6px;font-family:'JetBrains Mono',monospace;">${scanChecked}</td><td style="padding:6px;font-family:'JetBrains Mono',monospace;">${idxSteps}</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">At 100 rows</td><td style="padding:6px;">~${scanChecked} reads</td><td style="padding:6px;color:var(--neon-green);">~${idxSteps} reads</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">At 1,000,000 rows</td><td style="padding:6px;color:var(--neon-red);">1,000,000 reads</td><td style="padding:6px;color:var(--neon-green);">~20 reads</td></tr>
+        <tr><td style="padding:6px;">Speedup</td><td colspan="2" style="padding:6px;color:var(--neon-amber);font-weight:700;font-size:1.1rem;">${speedup}× faster at 100 rows · 50,000× faster at 1M rows</td></tr>
+        </table>`, 'type-compare');
+            await sleep(600);
+
+            addStory('🌳', `<strong>Why B-Tree?</strong><br>
+        • <strong>B-Tree</strong> = "Balanced Tree" — stays balanced no matter how much data you add<br>
+        • Each node holds multiple keys (not just 2 like a binary tree) — optimized for disk reads<br>
+        • Leaf nodes are linked, making range queries (<span class="mono">BETWEEN 40 AND 50</span>) efficient<br>
+        • Most databases use <strong>B+ Trees</strong> — all data pointers live in leaves, internal nodes are just signposts`, 'type-info');
+            await sleep(400);
+
+            addStory('⚠️', `<strong>When NOT to index:</strong><br>
+        • <strong>Small tables</strong> (< 1,000 rows) — full scan is fast enough<br>
+        • <strong>Columns with low cardinality</strong> (e.g., boolean "active" = true/false) — index doesn't help much<br>
+        • <strong>Write-heavy tables</strong> — every INSERT/UPDATE must also update the index, slowing writes<br>
+        • <strong>Columns rarely searched</strong> — indexes take disk space and memory`, 'type-scan');
+            await sleep(400);
+
+            addStory('💡', `<strong>Real-world impact:</strong> Adding the right index to a slow query can turn a <span class="val-red">30-second query</span> into a <span class="val-green">3-millisecond query</span>. This is often the single biggest performance win in any application. Run <span class="mono">EXPLAIN ANALYZE</span> on your slow queries to see what's missing!`, 'type-secure');
+
+            animating = false;
+            enableButtons();
+        }
+
+        function disableButtons() {
+            document.getElementById('btn-scan').disabled = true;
+            document.getElementById('btn-index').disabled = true;
+            document.getElementById('btn-both').disabled = true;
+        }
+        function enableButtons() {
+            document.getElementById('btn-scan').disabled = false;
+            document.getElementById('btn-index').disabled = false;
+            document.getElementById('btn-both').disabled = false;
+        }
+    </script>
+
+</body>
+
+</html>

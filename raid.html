@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How RAID Storage Works — Mirroring, Striping & Parity Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of RAID 0, 1, 5, 6 and 10. Watch data being striped, mirrored, and protected with parity across multiple disks.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-pink: #f472b6;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --neon-teal: #2dd4bf;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-teal), var(--neon-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 750px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 230px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s ease;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(45, 212, 191, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-teal);
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, .15);
+        }
+
+        .toggle-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .toggle-group-label {
+            font-size: .7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+        }
+
+        .toggle-bar {
+            display: flex;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            background: rgba(15, 23, 42, .8);
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 9px 16px;
+            font-family: 'Inter', sans-serif;
+            font-size: .78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .3s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .toggle-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, .05);
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, rgba(45, 212, 191, .15), rgba(251, 146, 60, .15));
+            color: var(--neon-teal);
+        }
+
+        .toggle-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: var(--neon-teal);
+            border-radius: 2px;
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s ease;
+            max-width: 820px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(45, 212, 191, .08);
+            border: 1px solid rgba(45, 212, 191, .25);
+            color: var(--neon-teal);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all .3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(45, 212, 191, .2), rgba(251, 146, 60, .2));
+            border-color: var(--neon-teal);
+            box-shadow: 0 0 15px rgba(45, 212, 191, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(45, 212, 191, .5);
+            border-color: #fff;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 260px 1fr 260px;
+            gap: 28px;
+            width: 100%;
+            max-width: 1340px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+        }
+
+        .status-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 12px;
+            padding: 11px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .status-header {
+            color: var(--text-muted);
+            font-size: .7rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: .82rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-orange {
+            color: var(--neon-orange);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .val-teal {
+            color: var(--neon-teal);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .76rem;
+        }
+
+        /* ══════════════ STAGE ══════════════ */
+        .stage {
+            position: relative;
+            width: 100%;
+            min-height: 440px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 10px;
+        }
+
+        .step-badge {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, .7);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 5px 16px;
+            font-size: .72rem;
+            font-weight: 600;
+            color: var(--neon-teal);
+            z-index: 6;
+            white-space: nowrap;
+        }
+
+        /* Source data block */
+        .source-data {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            z-index: 5;
+        }
+
+        .source-label {
+            font-size: .72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .data-chunk {
+            width: 48px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .7rem;
+            font-weight: 700;
+            border: 2px solid;
+            transition: all .5s ease;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, .4);
+        }
+
+        .chunk-a {
+            background: rgba(56, 189, 248, .15);
+            border-color: rgba(56, 189, 248, .4);
+            color: var(--neon-blue);
+        }
+
+        .chunk-b {
+            background: rgba(74, 222, 128, .15);
+            border-color: rgba(74, 222, 128, .4);
+            color: var(--neon-green);
+        }
+
+        .chunk-c {
+            background: rgba(167, 139, 250, .15);
+            border-color: rgba(167, 139, 250, .4);
+            color: var(--neon-purple);
+        }
+
+        .chunk-d {
+            background: rgba(251, 146, 60, .15);
+            border-color: rgba(251, 146, 60, .4);
+            color: var(--neon-orange);
+        }
+
+        .chunk-p {
+            background: rgba(250, 204, 21, .15);
+            border-color: rgba(250, 204, 21, .4);
+            color: var(--neon-yellow);
+        }
+
+        .chunk-empty {
+            background: rgba(255, 255, 255, .03);
+            border-color: rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .2);
+        }
+
+        .chunk-dead {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .4);
+            color: var(--neon-red);
+            animation: deadPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes deadPulse {
+
+            0%,
+            100% {
+                opacity: .5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Arrow */
+        .write-arrow {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin: 6px 0;
+            animation: arrowDown 1.5s ease-in-out infinite;
+            z-index: 5;
+        }
+
+        @keyframes arrowDown {
+
+            0%,
+            100% {
+                transform: translateY(0);
+                opacity: .5;
+            }
+
+            50% {
+                transform: translateY(4px);
+                opacity: 1;
+            }
+        }
+
+        /* Disk array */
+        .disk-array {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            z-index: 5;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .disk {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            transition: all .5s ease;
+        }
+
+        .disk-body {
+            width: 80px;
+            min-height: 180px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, .95);
+            border: 2px solid #334155;
+            padding: 8px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all .5s ease;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .5);
+            position: relative;
+        }
+
+        .disk-head {
+            font-size: .65rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, .06);
+            width: 100%;
+            text-align: center;
+        }
+
+        .disk-spinner {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, .08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 4px 0;
+            font-size: .9rem;
+            position: relative;
+            transition: all .5s ease;
+        }
+
+        .disk-spinner::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .15);
+            top: 4px;
+            right: 6px;
+        }
+
+        .disk-spinner.spinning {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .disk-slots {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .disk-slot {
+            width: 100%;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .6rem;
+            font-weight: 700;
+            border: 1px dashed rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .15);
+            transition: all .5s ease;
+        }
+
+        .disk-slot.filled {
+            border-style: solid;
+        }
+
+        .disk-label {
+            font-size: .72rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .disk-status {
+            font-size: .6rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .disk.healthy .disk-body {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 12px rgba(74, 222, 128, .1);
+        }
+
+        .disk.active .disk-body {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 18px rgba(34, 211, 238, .2);
+        }
+
+        .disk.failed .disk-body {
+            border-color: var(--neon-red);
+            box-shadow: 0 0 15px rgba(248, 113, 113, .2);
+            opacity: .6;
+        }
+
+        .disk.rebuilding .disk-body {
+            border-color: var(--neon-yellow);
+            box-shadow: 0 0 15px rgba(250, 204, 21, .2);
+            animation: rebuildPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes rebuildPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px rgba(250, 204, 21, .1);
+            }
+
+            50% {
+                box-shadow: 0 0 25px rgba(250, 204, 21, .3);
+            }
+        }
+
+        /* flying block */
+        .fly-block {
+            position: absolute;
+            width: 36px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .55rem;
+            font-weight: 700;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: all .6s cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        .fly-block.visible {
+            opacity: 1;
+        }
+
+        /* feed */
+        .feed-wrapper {
+            grid-column: 1/-1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 480px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s ease;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-write {
+            border-left-color: var(--neon-cyan);
+        }
+
+        .type-read {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        .type-parity {
+            border-left-color: var(--neon-yellow);
+            background: rgba(250, 204, 21, .04);
+        }
+
+        .type-fail {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .04);
+        }
+
+        .type-rebuild {
+            border-left-color: var(--neon-orange);
+            background: rgba(251, 146, 60, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-teal);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:1100px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                max-width: 540px;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row,
+            .toggle-row {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .disk-array {
+                gap: 8px;
+            }
+
+            .disk-body {
+                width: 60px;
+                min-height: 140px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How RAID Storage Works</h1>
+    <p class="subtitle">Your data is too important for a single hard drive. <strong>RAID</strong> spreads data across
+        multiple disks — <strong>striping</strong> for speed, <strong>mirroring</strong> for safety, or
+        <strong>parity</strong> for both. Watch how each level writes, reads, and survives disk failures.
+    </p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>RAID Level</label>
+            <select id="select-raid" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a RAID level —</option>
+                <option value="raid0">⚡ RAID 0 — Striping (Speed)</option>
+                <option value="raid1">🪞 RAID 1 — Mirroring (Safety)</option>
+                <option value="raid5">🛡️ RAID 5 — Striped + Parity</option>
+                <option value="raid6">🛡️🛡️ RAID 6 — Double Parity</option>
+                <option value="raid10">⚡🪞 RAID 10 — Mirror + Stripe</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="toggle-row">
+        <div class="toggle-group">
+            <span class="toggle-group-label">Scenario</span>
+            <div class="toggle-bar" id="scenario-toggle">
+                <button class="toggle-btn active" data-sc="write" onclick="setScenario('write')">💾 Write Data</button>
+                <button class="toggle-btn" data-sc="fail" onclick="setScenario('fail')">💥 Disk Failure</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a RAID level to begin the visualization.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">💾 Start Simulation</button>
+    </div>
+
+    <div class="dashboard" id="dashboard" style="display:none">
+        <div class="panel" id="panel-left"></div>
+
+        <div class="stage" id="stage">
+            <div class="step-badge" id="step-badge">Ready</div>
+            <div class="source-data" id="source-data"></div>
+            <div class="write-arrow" id="write-arrow" style="display:none;">⬇️</div>
+            <div class="disk-array" id="disk-array"></div>
+        </div>
+
+        <div class="panel" id="panel-right"></div>
+
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a RAID level and scenario to watch how data is distributed
+                        across disks.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        const RAIDS = {
+            raid0: {
+                id: 'raid0', name: 'RAID 0', icon: '⚡', subtitle: 'Striping',
+                disks: 4, minDisks: 2,
+                usable: '100%', speed: '4× Read / 4× Write', redundancy: 'None ❌',
+                canLose: 0,
+                desc: 'Data is split into blocks and spread across all disks simultaneously. Maximum speed, zero protection.',
+                analogy: 'Like splitting a book into 4 sections and giving each to a different person to read aloud simultaneously — 4× faster, but if one person loses their pages, the whole book is gone.',
+                writePattern: [ // which disk gets which chunk
+                    [{ disk: 0, chunk: 'A1' }, { disk: 1, chunk: 'A2' }, { disk: 2, chunk: 'A3' }, { disk: 3, chunk: 'A4' }],
+                ],
+                chunkColors: ['chunk-a', 'chunk-b', 'chunk-c', 'chunk-d'],
+            },
+            raid1: {
+                id: 'raid1', name: 'RAID 1', icon: '🪞', subtitle: 'Mirroring',
+                disks: 2, minDisks: 2,
+                usable: '50%', speed: '1× Write / 2× Read', redundancy: '1 disk',
+                canLose: 1,
+                desc: 'Every block is written to BOTH disks simultaneously — an exact mirror. 50% capacity, 100% safety.',
+                analogy: 'Like writing your essay by hand AND photocopying it. If one copy burns, you still have the other.',
+                writePattern: [
+                    [{ disk: 0, chunk: 'A1' }, { disk: 1, chunk: 'A1' }],
+                    [{ disk: 0, chunk: 'A2' }, { disk: 1, chunk: 'A2' }],
+                    [{ disk: 0, chunk: 'A3' }, { disk: 1, chunk: 'A3' }],
+                    [{ disk: 0, chunk: 'A4' }, { disk: 1, chunk: 'A4' }],
+                ],
+                chunkColors: ['chunk-a', 'chunk-a'],
+            },
+            raid5: {
+                id: 'raid5', name: 'RAID 5', icon: '🛡️', subtitle: 'Striped + Distributed Parity',
+                disks: 4, minDisks: 3,
+                usable: '75% (N-1)', speed: '~3× Read / ~2× Write', redundancy: '1 disk',
+                canLose: 1,
+                desc: 'Data is striped across all disks with a rotating parity block. Any one disk can fail and data is reconstructed from the others using XOR math.',
+                analogy: 'Like giving 3 friends a number each, plus a checksum. If one friend forgets, you can calculate their number from the others.',
+                writePattern: [
+                    [{ disk: 0, chunk: 'A1' }, { disk: 1, chunk: 'A2' }, { disk: 2, chunk: 'A3' }, { disk: 3, chunk: 'P₁', parity: true }],
+                    [{ disk: 0, chunk: 'B1' }, { disk: 1, chunk: 'B2' }, { disk: 2, chunk: 'P₂', parity: true }, { disk: 3, chunk: 'B3' }],
+                    [{ disk: 0, chunk: 'C1' }, { disk: 1, chunk: 'P₃', parity: true }, { disk: 2, chunk: 'C2' }, { disk: 3, chunk: 'C3' }],
+                ],
+                chunkColors: ['chunk-a', 'chunk-b', 'chunk-c', 'chunk-p'],
+            },
+            raid6: {
+                id: 'raid6', name: 'RAID 6', icon: '🛡️🛡️', subtitle: 'Double Parity',
+                disks: 5, minDisks: 4,
+                usable: '60% (N-2)', speed: '~3× Read / ~2× Write', redundancy: '2 disks',
+                canLose: 2,
+                desc: 'Like RAID 5, but with TWO parity blocks per stripe. Can survive two simultaneous disk failures.',
+                analogy: 'Like RAID 5 with a backup plan for the backup plan. Two friends can forget their numbers and you can still reconstruct everything.',
+                writePattern: [
+                    [{ disk: 0, chunk: 'A1' }, { disk: 1, chunk: 'A2' }, { disk: 2, chunk: 'A3' }, { disk: 3, chunk: 'P₁', parity: true }, { disk: 4, chunk: 'Q₁', parity: true }],
+                    [{ disk: 0, chunk: 'B1' }, { disk: 1, chunk: 'B2' }, { disk: 2, chunk: 'P₂', parity: true }, { disk: 3, chunk: 'Q₂', parity: true }, { disk: 4, chunk: 'B3' }],
+                ],
+                chunkColors: ['chunk-a', 'chunk-b', 'chunk-c', 'chunk-p', 'chunk-p'],
+            },
+            raid10: {
+                id: 'raid10', name: 'RAID 10', icon: '⚡🪞', subtitle: 'Mirror + Stripe',
+                disks: 4, minDisks: 4,
+                usable: '50%', speed: '~4× Read / ~2× Write', redundancy: '1 per mirror pair',
+                canLose: 1,// 1 per pair
+                desc: 'First mirrors pairs of disks (RAID 1), then stripes across the pairs (RAID 0). Best of both worlds: speed AND redundancy.',
+                analogy: 'Like having 2 teams of 2 scribes. Each team writes the same copy (mirror), but different teams write different chapters (stripe). Fast AND safe.',
+                writePattern: [
+                    [{ disk: 0, chunk: 'A1' }, { disk: 1, chunk: 'A1' }, { disk: 2, chunk: 'A2' }, { disk: 3, chunk: 'A2' }],
+                    [{ disk: 0, chunk: 'A3' }, { disk: 1, chunk: 'A3' }, { disk: 2, chunk: 'A4' }, { disk: 3, chunk: 'A4' }],
+                ],
+                chunkColors: ['chunk-a', 'chunk-a', 'chunk-b', 'chunk-b'],
+            },
+        };
+
+        let scenario = 'write';
+        function setScenario(s) { scenario = s; document.querySelectorAll('#scenario-toggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.sc === s)); onSelectionChange(); }
+
+        const state = { animating: false };
+        const selRaid = document.getElementById('select-raid');
+        const els = { btnGo: document.getElementById('btn-go'), controls: document.getElementById('controls'), dashboard: document.getElementById('dashboard'), compat: document.getElementById('compat-status'), panelL: document.getElementById('panel-left'), panelR: document.getElementById('panel-right'), feed: document.getElementById('feed'), stage: document.getElementById('stage'), stepBadge: document.getElementById('step-badge'), sourceData: document.getElementById('source-data'), writeArrow: document.getElementById('write-arrow'), diskArray: document.getElementById('disk-array') };
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function setField(id, t, c) { const el = document.getElementById(id); if (el) { el.innerText = t; if (c) el.className = c; } }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+        function setStep(l) { els.stepBadge.textContent = l; }
+
+        function buildDisks(raid) {
+            const labels = [];
+            for (let i = 0; i < raid.disks; i++) {
+                let lab = `Disk ${i}`;
+                if (raid.id === 'raid10') { lab = i % 2 === 0 ? `Mirror ${Math.floor(i / 2)}A` : `Mirror ${Math.floor(i / 2)}B`; }
+                labels.push(lab);
+            }
+            let html = '';
+            for (let i = 0; i < raid.disks; i++) {
+                const slots = raid.writePattern.length;
+                let slotsHtml = '';
+                for (let s = 0; s < slots; s++) slotsHtml += `<div class="disk-slot chunk-empty" id="slot-${i}-${s}">—</div>`;
+                html += `<div class="disk" id="disk-${i}">
+            <div class="disk-body">
+                <div class="disk-head">${labels[i]}</div>
+                <div class="disk-spinner" id="spin-${i}">💿</div>
+                <div class="disk-slots">${slotsHtml}</div>
+            </div>
+            <div class="disk-label">${labels[i]}</div>
+            <div class="disk-status" id="dstat-${i}">✅ Online</div>
+        </div>`;
+            }
+            els.diskArray.innerHTML = html;
+        }
+
+        function buildSource(raid) {
+            const chunks = ['A1', 'A2', 'A3', 'A4'];
+            const colors = ['chunk-a', 'chunk-b', 'chunk-c', 'chunk-d'];
+            let html = '<div class="source-label">📄 Your Data:</div>';
+            for (let i = 0; i < 4; i++) html += `<div class="data-chunk ${colors[i]}" id="src-${i}">${chunks[i]}</div>`;
+            els.sourceData.innerHTML = html;
+        }
+
+        function onSelectionChange() {
+            const rId = selRaid.value;
+            if (!rId) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a RAID level to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            const raid = RAIDS[rId];
+            const scLabel = scenario === 'write' ? '💾 Write Data' : '💥 Disk Failure';
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${raid.icon} ${raid.name} (${raid.subtitle}) — ${scLabel}</span>`;
+            buildDisks(raid); buildSource(raid);
+            els.writeArrow.style.display = 'block';
+            els.panelL.innerHTML = renderLeftPanel(raid);
+            els.panelR.innerHTML = renderRightPanel(raid);
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'grid';
+            els.btnGo.innerHTML = '💾 Start Simulation'; els.btnGo.className = 'primary'; els.btnGo.disabled = false;
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span class="log-text">Ready! Click <strong>"Start"</strong> to watch ${raid.icon} ${raid.name} in action with ${raid.disks} disks.</span></div>`;
+        }
+
+        function renderLeftPanel(r) {
+            return `<div class="panel-title">${r.icon} ${r.name}</div>
+    <div class="status-box"><div class="status-header">Configuration</div>
+        <div class="data-row"><span>Level:</span><span class="val-teal">${r.name}</span></div>
+        <div class="data-row"><span>Strategy:</span><span>${r.subtitle}</span></div>
+        <div class="data-row"><span>Disks:</span><span>${r.disks}</span></div>
+        <div class="data-row"><span>Min Disks:</span><span>${r.minDisks}</span></div></div>
+    <div class="status-box"><div class="status-header">Capacity & Speed</div>
+        <div class="data-row"><span>Usable Space:</span><span class="val-cyan">${r.usable}</span></div>
+        <div class="data-row"><span>Speed Boost:</span><span class="val-green">${r.speed}</span></div>
+        <div class="data-row"><span>Redundancy:</span><span class="${r.canLose > 0 ? 'val-green' : 'val-red'}">${r.redundancy}</span></div>
+        <div class="data-row"><span>Can Lose:</span><span class="${r.canLose > 0 ? 'val-green' : 'val-red'}">${r.canLose} disk(s)</span></div></div>
+    <div class="status-box"><div class="status-header">Status</div>
+        <div class="data-row"><span>Phase:</span><span id="l-phase">Idle</span></div>
+        <div class="data-row"><span>Written:</span><span id="l-written">0 blocks</span></div>
+        <div class="data-row"><span>Health:</span><span id="l-health" class="val-green">All Online</span></div></div>`;
+        }
+
+        function renderRightPanel(r) {
+            return `<div class="panel-title">📖 How It Works</div>
+    <div class="status-box"><div class="status-header">Description</div>
+        <div style="font-size:.82rem;line-height:1.5;color:var(--text-muted);">${r.desc}</div></div>
+    <div class="status-box"><div class="status-header">📦 Analogy</div>
+        <div style="font-size:.82rem;line-height:1.5;color:var(--neon-yellow);">${r.analogy}</div></div>
+    <div class="status-box"><div class="status-header">Ideal For</div>
+        <div style="font-size:.82rem;line-height:1.5;color:var(--text-muted);" id="r-idealfor">—</div></div>`;
+        }
+
+        async function startDemo() {
+            if (state.animating) return;
+            state.animating = true; els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            const raid = RAIDS[selRaid.value];
+            buildDisks(raid); buildSource(raid);
+
+            // Set ideal-for
+            const idealFor = { raid0: 'Video editing, temp files, scratch disks — anywhere speed matters more than data safety.', raid1: 'OS drives, small databases, boot drives — critical data that must survive.', raid5: 'File servers, NAS devices, web servers — good balance of speed, capacity, and safety.', raid6: 'Enterprise storage, large arrays — when losing 2 disks simultaneously is a real risk.', raid10: 'Databases (MySQL, PostgreSQL), high-performance apps — need both speed AND safety.' };
+            setField('r-idealfor', idealFor[raid.id] || '', '');
+
+            if (scenario === 'write') await demoWrite(raid);
+            else await demoFailure(raid);
+
+            state.animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.className = 'primary'; els.btnGo.disabled = false;
+        }
+
+        async function demoWrite(raid) {
+            const patterns = raid.writePattern;
+            let totalBlocks = 0;
+
+            addStory('📄', `<strong>Writing data to ${raid.icon} ${raid.name} (${raid.disks} disks)</strong><br>Your file is split into 4 data blocks: <span class="val-blue">A1</span>, <span class="val-green">A2</span>, <span class="val-purple">A3</span>, <span class="val-orange">A4</span>. Let's see how ${raid.name} distributes them...`, 'type-write');
+            await sleep(600);
+
+            if (raid.id === 'raid0') {
+                setStep('Striping — All Disks Simultaneously');
+                addStory('⚡', `<strong>RAID 0: Striping</strong> — All 4 blocks are written to different disks <em>at the same time</em>. This is why RAID 0 is so fast: 4 disks writing simultaneously = 4× the throughput.`, 'type-write');
+                await sleep(400);
+                for (let i = 0; i < 4; i++) {
+                    const slot = document.getElementById('slot-' + i + '-0');
+                    const spin = document.getElementById('spin-' + i);
+                    document.getElementById('disk-' + i).className = 'disk active';
+                    spin.classList.add('spinning');
+                    slot.textContent = patterns[0][i].chunk;
+                    slot.className = 'disk-slot filled ' + ['chunk-a', 'chunk-b', 'chunk-c', 'chunk-d'][i];
+                    totalBlocks++;
+                }
+                setField('l-written', totalBlocks + ' blocks', ''); setField('l-phase', 'Writing...', 'val-cyan');
+                await sleep(1000);
+                for (let i = 0; i < 4; i++) { document.getElementById('disk-' + i).className = 'disk healthy'; document.getElementById('spin-' + i).classList.remove('spinning'); }
+                setField('l-phase', '✅ Complete', 'val-green');
+                addStory('✅', `All 4 blocks written simultaneously in <strong>1 operation</strong>. 4× the speed of a single disk!<br>⚠️ But if <em>any</em> disk fails, ALL data is lost — there's no copy.`, 'type-write');
+            }
+            else if (raid.id === 'raid1') {
+                setStep('Mirroring — Every Block Copied');
+                addStory('🪞', `<strong>RAID 1: Mirroring</strong> — Every block is written to BOTH disks simultaneously. Disk 0 and Disk 1 become exact copies.`, 'type-write');
+                await sleep(400);
+                for (let s = 0; s < patterns.length; s++) {
+                    for (let d = 0; d < 2; d++) {
+                        const slot = document.getElementById('slot-' + d + '-' + s);
+                        document.getElementById('disk-' + d).className = 'disk active';
+                        document.getElementById('spin-' + d).classList.add('spinning');
+                        slot.textContent = patterns[s][d].chunk;
+                        slot.className = 'disk-slot filled chunk-a';
+                        totalBlocks++;
+                    }
+                    setField('l-written', totalBlocks + ' blocks', ''); setField('l-phase', 'Mirroring...', 'val-cyan');
+                    await sleep(600);
+                    for (let d = 0; d < 2; d++) { document.getElementById('disk-' + d).className = 'disk healthy'; document.getElementById('spin-' + d).classList.remove('spinning'); }
+                }
+                setField('l-phase', '✅ Complete', 'val-green');
+                addStory('✅', `All blocks mirrored! Disk 0 = Disk 1 (identical). You can lose either disk and lose nothing.<br>⚠️ Trade-off: You only get 50% of total capacity.`, 'type-write');
+            }
+            else if (raid.id === 'raid5') {
+                setStep('Striping + Distributed Parity');
+                addStory('🛡️', `<strong>RAID 5: Striped with Parity</strong> — Data is striped across 3 disks, plus a <span class="val-yellow">parity block</span> on the 4th. The parity disk <em>rotates</em> to avoid bottlenecks.`, 'type-write');
+                await sleep(400);
+                for (let s = 0; s < patterns.length; s++) {
+                    const stripe = patterns[s];
+                    const parityIdx = stripe.findIndex(b => b.parity);
+                    addStory(s === 0 ? '📝' : '', `<strong>Stripe ${s + 1}:</strong> Data → ${stripe.filter(b => !b.parity).map(b => `<span class="val-cyan">${b.chunk}</span>`).join(', ')} | Parity → <span class="val-yellow">${stripe[parityIdx].chunk}</span> (on Disk ${parityIdx})<br><span style="font-size:.85rem;color:var(--text-muted);">Parity = XOR of all data blocks = recovers any missing block</span>`, 'type-parity');
+                    for (let d = 0; d < stripe.length; d++) {
+                        const b = stripe[d];
+                        const slot = document.getElementById('slot-' + b.disk + '-' + s);
+                        document.getElementById('disk-' + b.disk).className = 'disk active';
+                        document.getElementById('spin-' + b.disk).classList.add('spinning');
+                        slot.textContent = b.chunk;
+                        slot.className = 'disk-slot filled ' + (b.parity ? 'chunk-p' : ['chunk-a', 'chunk-b', 'chunk-c'][d % 3]);
+                        totalBlocks++;
+                    }
+                    setField('l-written', totalBlocks + ' blocks', ''); setField('l-phase', 'Writing stripe ' + (s + 1), 'val-cyan');
+                    await sleep(700);
+                    for (let d = 0; d < raid.disks; d++) { document.getElementById('disk-' + d).className = 'disk healthy'; document.getElementById('spin-' + d).classList.remove('spinning'); }
+                    await sleep(300);
+                }
+                setField('l-phase', '✅ Complete', 'val-green');
+                addStory('✅', `All stripes + parity written! Notice how the parity block <span class="val-yellow">P</span> rotates across disks — this prevents any single disk from becoming a write bottleneck.<br>Usable capacity: 75% (3 of 4 disks for data).`, 'type-write');
+            }
+            else if (raid.id === 'raid6') {
+                setStep('Striping + Double Parity');
+                addStory('🛡️🛡️', `<strong>RAID 6: Double Parity</strong> — Like RAID 5, but with <em>two</em> parity blocks per stripe (<span class="val-yellow">P</span> = XOR parity, <span class="val-yellow">Q</span> = Reed-Solomon). Can survive 2 simultaneous failures.`, 'type-write');
+                await sleep(400);
+                for (let s = 0; s < patterns.length; s++) {
+                    const stripe = patterns[s];
+                    for (let d = 0; d < stripe.length; d++) {
+                        const b = stripe[d];
+                        const slot = document.getElementById('slot-' + b.disk + '-' + s);
+                        document.getElementById('disk-' + b.disk).className = 'disk active';
+                        document.getElementById('spin-' + b.disk).classList.add('spinning');
+                        slot.textContent = b.chunk;
+                        slot.className = 'disk-slot filled ' + (b.parity ? 'chunk-p' : ['chunk-a', 'chunk-b', 'chunk-c'][d % 3]);
+                        totalBlocks++;
+                    }
+                    setField('l-written', totalBlocks + ' blocks', ''); setField('l-phase', 'Writing stripe ' + (s + 1), 'val-cyan');
+                    await sleep(700);
+                    for (let d = 0; d < raid.disks; d++) { document.getElementById('disk-' + d).className = 'disk healthy'; document.getElementById('spin-' + d).classList.remove('spinning'); }
+                    await sleep(200);
+                }
+                setField('l-phase', '✅ Complete', 'val-green');
+                addStory('✅', `Double parity written! Each stripe has 2 error-correction blocks — enterprise-grade protection.`, 'type-write');
+            }
+            else if (raid.id === 'raid10') {
+                setStep('Mirror First, Then Stripe');
+                addStory('⚡🪞', `<strong>RAID 10: Mirror + Stripe</strong> — First, disks are paired into mirrors (0+1, 2+3). Then data is striped across mirror pairs. You get RAID 1's safety with RAID 0's speed.`, 'type-write');
+                await sleep(400);
+                for (let s = 0; s < patterns.length; s++) {
+                    const stripe = patterns[s];
+                    addStory('📝', `<strong>${stripe[0].chunk}:</strong> Written to Mirror Pair ${Math.floor(s * 2 / raid.disks)} (Disk ${stripe[0].disk} & ${stripe[1].disk}) AND <strong>${stripe[2].chunk}:</strong> to Mirror Pair ${Math.floor(s * 2 / raid.disks) + 1 > 1 ? 1 : 1} (Disk ${stripe[2].disk} & ${stripe[3].disk})`, 'type-write');
+                    for (let d = 0; d < stripe.length; d++) {
+                        const b = stripe[d];
+                        const slot = document.getElementById('slot-' + b.disk + '-' + s);
+                        document.getElementById('disk-' + b.disk).className = 'disk active';
+                        document.getElementById('spin-' + b.disk).classList.add('spinning');
+                        slot.textContent = b.chunk;
+                        slot.className = 'disk-slot filled ' + (d < 2 ? 'chunk-a' : 'chunk-b');
+                        totalBlocks++;
+                    }
+                    setField('l-written', totalBlocks + ' blocks', ''); setField('l-phase', 'Mirror+Stripe', 'val-cyan');
+                    await sleep(700);
+                    for (let d = 0; d < raid.disks; d++) { document.getElementById('disk-' + d).className = 'disk healthy'; document.getElementById('spin-' + d).classList.remove('spinning'); }
+                    await sleep(200);
+                }
+                setField('l-phase', '✅ Complete', 'val-green');
+                addStory('✅', `Data mirrored AND striped! Each block exists on 2 disks. You can lose one disk from each mirror pair and still have everything.`, 'type-write');
+            }
+
+            await sleep(500);
+            const comparison = `<strong>RAID Level Comparison:</strong><br>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:.82rem;">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">Level</td><td style="padding:5px;">Usable</td><td style="padding:5px;">Speed</td><td style="padding:5px;">Survives</td><td style="padding:5px;">Min Disks</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">RAID 0</td><td style="padding:5px;color:var(--neon-green);">100%</td><td style="padding:5px;color:var(--neon-green);">N×</td><td style="padding:5px;color:var(--neon-red);">0 fails</td><td style="padding:5px;">2</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">RAID 1</td><td style="padding:5px;color:var(--neon-orange);">50%</td><td style="padding:5px;">1× / 2×R</td><td style="padding:5px;color:var(--neon-green);">1 fail</td><td style="padding:5px;">2</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">RAID 5</td><td style="padding:5px;color:var(--neon-cyan);">75%</td><td style="padding:5px;color:var(--neon-cyan);">~3×</td><td style="padding:5px;color:var(--neon-green);">1 fail</td><td style="padding:5px;">3</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">RAID 6</td><td style="padding:5px;">60%</td><td style="padding:5px;">~3×</td><td style="padding:5px;color:var(--neon-green);">2 fails</td><td style="padding:5px;">4</td></tr>
+    <tr><td style="padding:5px;">RAID 10</td><td style="padding:5px;color:var(--neon-orange);">50%</td><td style="padding:5px;color:var(--neon-green);">~4×</td><td style="padding:5px;color:var(--neon-green);">1/pair</td><td style="padding:5px;">4</td></tr>
+    </table>`;
+            addStory('📊', comparison, 'type-info');
+        }
+
+        async function demoFailure(raid) {
+            // First write data
+            const patterns = raid.writePattern;
+            addStory('💾', `First, writing data to ${raid.icon} ${raid.name} across ${raid.disks} disks...`, 'type-write');
+            for (let s = 0; s < patterns.length; s++) {
+                const stripe = patterns[s];
+                for (let d = 0; d < stripe.length; d++) {
+                    const b = stripe[d];
+                    const slot = document.getElementById('slot-' + b.disk + '-' + s);
+                    slot.textContent = b.chunk;
+                    slot.className = 'disk-slot filled ' + (b.parity ? 'chunk-p' : raid.chunkColors[b.disk] || 'chunk-a');
+                }
+            }
+            for (let i = 0; i < raid.disks; i++) document.getElementById('disk-' + i).className = 'disk healthy';
+            setField('l-phase', 'Data Written', 'val-green'); setField('l-health', 'All Online', 'val-green');
+            await sleep(800);
+
+            if (raid.canLose === 0) {
+                // RAID 0 — catastrophic failure
+                setStep('💥 Disk 2 Fails!');
+                addStory('💥', `<strong>DISK 2 HAS FAILED!</strong> In RAID 0, there is NO redundancy. Block <span class="val-purple">A3</span> existed ONLY on Disk 2.`, 'type-fail');
+                document.getElementById('disk-2').className = 'disk failed';
+                document.getElementById('spin-2').classList.remove('spinning');
+                document.getElementById('dstat-2').textContent = '❌ FAILED';
+                document.getElementById('dstat-2').style.color = 'var(--neon-red)';
+                const slots = document.querySelectorAll('#disk-2 .disk-slot');
+                slots.forEach(s => { s.className = 'disk-slot chunk-dead'; s.textContent = '💀'; });
+                setField('l-health', '⚠️ DISK FAILED', 'val-red'); setField('l-phase', '❌ DATA LOST', 'val-red');
+                await sleep(800);
+
+                addStory('☠️', `<strong>TOTAL DATA LOSS!</strong> Without block A3, the entire file is unrecoverable. RAID 0 offers zero protection — this is the catastrophic trade-off for its speed.<br>
+            <br>Your only option: restore from backup (you <em>did</em> make one... right?)`, 'type-fail');
+                await sleep(500);
+                addStory('⚠️', `<strong>Lesson:</strong> RAID 0 is for temporary/replaceable data only — scratch disks, video rendering caches, game installs. Never use RAID 0 for data you can't afford to lose.`, 'type-fail');
+            }
+            else {
+                // RAID 1/5/6/10 — survives
+                const failDisk = raid.id === 'raid1' ? 0 : raid.id === 'raid10' ? 1 : 2;
+                setStep(`💥 Disk ${failDisk} Fails!`);
+                document.getElementById('disk-' + failDisk).className = 'disk failed';
+                document.getElementById('spin-' + failDisk).classList.remove('spinning');
+                document.getElementById('dstat-' + failDisk).textContent = '❌ FAILED';
+                document.getElementById('dstat-' + failDisk).style.color = 'var(--neon-red)';
+                const failSlots = document.querySelectorAll(`#disk-${failDisk} .disk-slot`);
+                failSlots.forEach(s => { s.className = 'disk-slot chunk-dead'; s.textContent = '💀'; });
+                setField('l-health', '⚠️ DEGRADED', 'val-orange'); setField('l-phase', 'Degraded Mode', 'val-orange');
+
+                if (raid.id === 'raid1') {
+                    addStory('💥', `<strong>Disk 0 has FAILED!</strong> But in RAID 1, Disk 1 is an exact mirror. ALL data is still accessible from the surviving disk!`, 'type-fail');
+                    await sleep(600);
+                    addStory('🪞', `<strong>Mirror saves the day!</strong> The RAID controller seamlessly redirects all reads to Disk 1. The user doesn't even notice — no downtime, no data loss.`, 'type-rebuild');
+                }
+                else if (raid.id === 'raid5') {
+                    addStory('💥', `<strong>Disk 2 has FAILED!</strong> Blocks <span class="val-purple">A3</span>, <span class="val-yellow">P₂</span>, <span class="val-cyan">C2</span> are lost. But RAID 5 can <strong>rebuild them using parity (XOR)</strong>.`, 'type-fail');
+                    await sleep(600);
+                    addStory('🧮', `<strong>Parity Math (XOR):</strong><br>
+                Lost block A3 = A1 ⊕ A2 ⊕ P₁ (XOR of surviving blocks)<br>
+                <span class="mono">01101 ⊕ 10011 ⊕ 11001 = 00111</span> → A3 is reconstructed!<br>
+                The RAID controller does this in real-time for every read.`, 'type-parity');
+                }
+                else if (raid.id === 'raid6') {
+                    addStory('💥', `<strong>Disk 2 has FAILED!</strong> But RAID 6 has <em>two</em> parity blocks per stripe. Even with one disk down, there's still full parity protection.`, 'type-fail');
+                    await sleep(600);
+                    addStory('🛡️', `<strong>Still protected!</strong> RAID 6 can lose one MORE disk and still recover. This is critical for large arrays where a second disk might fail during rebuild (which can take hours).`, 'type-parity');
+                }
+                else if (raid.id === 'raid10') {
+                    addStory('💥', `<strong>Disk 1 (Mirror 0B) has FAILED!</strong> But its mirror partner (Disk 0 / Mirror 0A) has an identical copy. Data is safe.`, 'type-fail');
+                    await sleep(600);
+                    addStory('🪞', `<strong>Mirror pair intact!</strong> Disk 0 serves all requests for Mirror Pair 0. The stripe across pairs continues to work at full speed.`, 'type-rebuild');
+                }
+
+                await sleep(600);
+
+                // Rebuild
+                setStep('🔧 Rebuilding...');
+                addStory('🔧', `<strong>Hot-swap a new disk and REBUILD!</strong> The RAID controller automatically reconstructs the failed disk's data onto the replacement.`, 'type-rebuild');
+                document.getElementById('disk-' + failDisk).className = 'disk rebuilding';
+                document.getElementById('dstat-' + failDisk).textContent = '🔄 Rebuilding...';
+                document.getElementById('dstat-' + failDisk).style.color = 'var(--neon-yellow)';
+                setField('l-phase', 'Rebuilding...', 'val-yellow');
+                await sleep(1500);
+
+                // Restore slots
+                for (let s = 0; s < patterns.length; s++) {
+                    const b = patterns[s].find(b => b.disk === failDisk);
+                    if (b) {
+                        const slot = document.getElementById('slot-' + failDisk + '-' + s);
+                        slot.textContent = b.chunk;
+                        slot.className = 'disk-slot filled ' + (b.parity ? 'chunk-p' : raid.chunkColors[failDisk] || 'chunk-a');
+                    }
+                    await sleep(400);
+                }
+
+                document.getElementById('disk-' + failDisk).className = 'disk healthy';
+                document.getElementById('dstat-' + failDisk).textContent = '✅ Rebuilt';
+                document.getElementById('dstat-' + failDisk).style.color = 'var(--neon-green)';
+                setField('l-health', '✅ All Online', 'val-green'); setField('l-phase', '✅ Rebuilt', 'val-green');
+                setStep('✅ Rebuild Complete');
+                await sleep(400);
+
+                addStory('✅', `<strong>Rebuild complete!</strong> The new disk is fully synchronized. The array is back to full redundancy — ready to survive another failure.`, 'type-secure');
+            }
+
+            await sleep(500);
+            addStory('💡', `<strong>Real-world note:</strong> RAID is NOT a backup! RAID protects against <em>hardware failure</em>, but not against accidental deletion, ransomware, fire, or theft. Always keep separate offline backups — the 3-2-1 rule: 3 copies, 2 media types, 1 offsite.`, 'type-info');
+        }
+    </script>
+
+</body>
+
+</html>

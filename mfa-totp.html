@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFA Time-based (TOTP) — Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualizer explaining Time-Based One-Time Passwords (TOTP). Learn how Google Authenticator syncs with a server entirely offline using math and time.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-cyan: #22d3ee;
+            --neon-purple: #d946ef;
+            --neon-red: #ef4444;
+            --neon-yellow: #facc15;
+            --neon-green: #4ade80;
+            --neon-blue: #0ea5e9;
+            --neon-orange: #fb923c;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-cyan), var(--neon-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 850px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 0 3px rgba(217, 70, 239, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 860px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(217, 70, 239, .08);
+            border: 1px solid rgba(217, 70, 239, .25);
+            color: var(--neon-purple);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(217, 70, 239, .2), rgba(34, 211, 238, .2));
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 15px rgba(217, 70, 239, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(217, 70, 239, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1100px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            height: 100%;
+        }
+
+        .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ══════════ THE STAGE (TOTP DEVICES) ══════════ */
+        .stage {
+            position: relative;
+            background: transparent;
+        }
+
+        .device {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            position: relative;
+        }
+
+        .srv-dev {
+            border-top: 4px solid var(--neon-cyan);
+        }
+
+        .phn-dev {
+            border-top: 4px solid var(--neon-yellow);
+        }
+
+        .dev-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .vault-box {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: .75rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .vault-box .mono {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--neon-purple);
+            letter-spacing: 1px;
+            margin-top: 6px;
+            height: 1.2rem;
+        }
+
+        .clock-sync {
+            margin-top: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .time-label {
+            font-size: .7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+
+        .time-val {
+            font-family: 'JetBrains Mono', monospace;
+            color: #fff;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, .1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            background: var(--neon-green);
+            width: 100%;
+            transition: width 0.1s linear, background 0.2s;
+        }
+
+        .code-box {
+            font-size: 2.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            text-align: center;
+            color: #f8fafc;
+            letter-spacing: 6px;
+            margin: 10px 0;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            transition: color .3s, text-shadow .3s;
+        }
+
+        .code-box.danger {
+            color: var(--neon-red);
+            text-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+        }
+
+        /* OVERLAYS */
+        .qr-anim {
+            position: absolute;
+            top: 30%;
+            left: 25%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            background: #fff;
+            padding: 8px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            z-index: 50;
+            transition: left 1.5s ease-in-out, opacity 0.3s;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(74, 222, 128, 0.9);
+            box-shadow: 0 0 12px var(--neon-green);
+            animation: scan 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes scan {
+            from {
+                top: 0;
+            }
+
+            to {
+                top: 100%;
+            }
+        }
+
+        .auth-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.98);
+            border: 2px solid var(--neon-purple);
+            padding: 24px 30px;
+            border-radius: 16px;
+            z-index: 100;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            transition: border-color .3s;
+        }
+
+        .auth-input {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 5px;
+            border-bottom: 2px solid #fff;
+            padding: 5px 10px;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .auth-status {
+            font-size: .9rem;
+            font-weight: 600;
+        }
+
+        /* ══════════ DATA TABLE ══════════ */
+        .k-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+        }
+
+        .k-table td {
+            padding: 14px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+            line-height: 1.5;
+            vertical-align: top;
+        }
+
+        .k-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .k-table .mono {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: .8rem;
+        }
+
+        /* Feed */
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 22px;
+            height: 420px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 10px 24px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .92rem;
+            line-height: 1.5;
+        }
+
+        .type-info {
+            border-left-color: var(--neon-purple);
+        }
+
+        .type-feat {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .05);
+        }
+
+        .type-err {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .08);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-orange);
+            background: rgba(251, 146, 60, .08);
+        }
+
+        .type-success {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .05);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:950px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            .code-box {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>MFA Time-based (TOTP) Mechanics</h1>
+    <p class="subtitle">Multi-Factor Authentication apps (like Google Auth or Authy) operate completely offline. Watch
+        how physical isolation stays in perfect synchronization by combining a shared secret seed with universally
+        matching clocks.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Authentication Scenario</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Select a scenario —</option>
+                <option value="setup">📱 1. Setup (The QR Code Share)</option>
+                <option value="auth">🔑 2. Authentication (Offline Sync)</option>
+                <option value="drift">⏰ 3. Clock Drift (The Vulnerability)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to start the clock synchronization protocol.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">▶ Run Visualization</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- THE STAGE -->
+        <div class="stage" id="stage">
+            <div class="split-view">
+                <!-- SERVER DEV -->
+                <div class="device srv-dev">
+                    <div class="dev-title">☁️ Bank Web Server</div>
+                    <div class="vault-box">
+                        <div>Stored Secret Seed</div>
+                        <div class="mono" id="srv-secret">---</div>
+                    </div>
+                    <div class="clock-sync">
+                        <div class="time-label">Network Epoch Time <span class="time-val" id="srv-time">---</span></div>
+                        <div class="progress-bar">
+                            <div class="fill" id="srv-fill"></div>
+                        </div>
+                    </div>
+                    <div class="code-box" id="srv-code">--- ---</div>
+                </div>
+
+                <!-- PHONE DEV -->
+                <div class="device phn-dev">
+                    <div class="dev-title">📱 Authenticator App</div>
+                    <div class="vault-box">
+                        <div>Scanned Secret Seed</div>
+                        <div class="mono" id="phn-secret" style="color:var(--neon-yellow);">---</div>
+                    </div>
+                    <div class="clock-sync">
+                        <div class="time-label">Device Epoch Time <span class="time-val" id="phn-time"
+                                style="color:var(--neon-yellow);">---</span></div>
+                        <div class="progress-bar">
+                            <div class="fill" id="phn-fill"></div>
+                        </div>
+                    </div>
+                    <div class="code-box" id="phn-code">--- ---</div>
+                </div>
+            </div>
+
+            <!-- OVERLAYS -->
+            <div class="qr-anim" id="qr-anim" style="opacity:0;">
+                🔳<div class="scan-line"></div>
+            </div>
+
+            <div class="auth-modal" id="auth-modal" style="display:none;">
+                <div
+                    style="font-size:.85rem; margin-bottom:12px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">
+                    Enter MFA Code</div>
+                <div class="auth-input" id="auth-input">--- ---</div>
+                <div class="auth-status" id="auth-status">Awaiting Input...</div>
+            </div>
+        </div>
+
+        <div class="split-view">
+            <!-- DATA TABLE -->
+            <div class="detail-card">
+                <div class="panel-title">🧮 TOTP Algorithm Breakdown</div>
+                <table class="k-table">
+                    <tr>
+                        <td style="width: 40%;"><strong>The Cryptomath</strong></td>
+                        <td class="mono">HMAC(SecretKey, EpochTime)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SecretKey (Seed)</strong></td>
+                        <td style="color:var(--text-muted);">A base32 encoded string generated once securely during
+                            setup and stored internally on both hardware devices.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>EpochTime (The Counter)</strong></td>
+                        <td style="color:var(--text-muted);">The current Unix Unix timestamp divided strictly by 30.
+                            This ensures a brand new, discrete matching integer is targeted exactly twice a minute.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>The Air Gap Advantage</strong></td>
+                        <td style="color:var(--text-muted);">Because the math completes entirely locally, hackers cannot
+                            intercept codes via SMS SIM-swapping or Wi-Fi sniffing.</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- FEED -->
+            <div style="display:flex;flex-direction:column;height:100%;">
+                <div class="story-feed" id="feed">
+                    <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                            class="log-text">Welcome! Explore offline Time-Based OTP.</span></div>
+                </div>
+                <button class="clear-logs-btn" onclick="clearLogs()" style="border-radius:0 0 16px 16px;">🗑️ Clear
+                    Logs</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            setup: { name: 'Setup (The QR Code Share)', icon: '📱' },
+            auth: { name: 'Authentication (Offline Sync)', icon: '🔑' },
+            drift: { name: 'Clock Drift (The Vulnerability)', icon: '⏰' }
+        };
+
+        let animating = false;
+        let driftSeconds = 0;
+        let srvSecret = '';
+        let phnSecret = '';
+
+        const els = {
+            sel: document.getElementById('select-scenario'),
+            compat: document.getElementById('compat-status'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            btnGo: document.getElementById('btn-go'),
+            feed: document.getElementById('feed'),
+
+            srvSecret: document.getElementById('srv-secret'),
+            phnSecret: document.getElementById('phn-secret'),
+            srvTime: document.getElementById('srv-time'),
+            phnTime: document.getElementById('phn-time'),
+            srvFill: document.getElementById('srv-fill'),
+            phnFill: document.getElementById('phn-fill'),
+            srvCode: document.getElementById('srv-code'),
+            phnCode: document.getElementById('phn-code'),
+
+            qrAnim: document.getElementById('qr-anim'),
+            authModal: document.getElementById('auth-modal'),
+            authInput: document.getElementById('auth-input'),
+            authStatus: document.getElementById('auth-status')
+        };
+
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function clearLogs() { els.feed.innerHTML = ''; }
+
+        // Realistic Pseudo-TOTP algorithmic simulation 
+        function generateMockTOTP(secret, step) {
+            if (!secret) return "--- ---";
+            // FNV-1a extremely sensitive avalanche pseudo-hash
+            let hash = 0x811c9dc5;
+            const str = secret + "::" + step;
+            for (let i = 0; i < str.length; i++) {
+                hash ^= str.charCodeAt(i);
+                hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+            }
+            const val = Math.abs(hash);
+            let code = String(val).padStart(6, '0').slice(-6);
+            return code.substr(0, 3) + ' ' + code.substr(3, 3);
+        }
+
+        // Global Ticking Clock
+        setInterval(() => {
+            const realTimeMS = Date.now();
+            const period = 30000;
+
+            // Server Clock Logic
+            const srvEpochStep = Math.floor(realTimeMS / period);
+            const srvRemaining = period - (realTimeMS % period);
+
+            // Phone Clock Logic (subject to drift)
+            const phnTimeMS = realTimeMS + (driftSeconds * 1000);
+            const phnEpochStep = Math.floor(phnTimeMS / period);
+            const phnRemaining = period - (phnTimeMS % period);
+
+            // Visual Updates
+            const sp = srvRemaining / period;
+            els.srvFill.style.width = `${sp * 100}%`;
+            els.srvFill.style.background = sp < 0.2 ? 'var(--neon-red)' : 'var(--neon-green)';
+            if (sp < 0.2) els.srvCode.classList.add('danger'); else els.srvCode.classList.remove('danger');
+
+            const pp = phnRemaining / period;
+            els.phnFill.style.width = `${pp * 100}%`;
+            els.phnFill.style.background = pp < 0.2 ? 'var(--neon-red)' : 'var(--neon-green)';
+            if (pp < 0.2) els.phnCode.classList.add('danger'); else els.phnCode.classList.remove('danger');
+
+            els.srvTime.textContent = srvEpochStep;
+            els.phnTime.textContent = phnEpochStep;
+
+            els.srvCode.textContent = srvSecret ? generateMockTOTP(srvSecret, srvEpochStep) : '--- ---';
+            els.phnCode.textContent = phnSecret ? generateMockTOTP(phnSecret, phnEpochStep) : '--- ---';
+
+        }, 100);
+
+        function onSelectionChange() {
+            const v = els.sel.value;
+            if (!v) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${SCENARIOS[v].icon} ${SCENARIOS[v].name}</span>`;
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = `▶ Run Architecture Sim`; els.btnGo.disabled = false;
+            clearLogs(); els.authModal.style.display = 'none';
+
+            addStory(SCENARIOS[v].icon, `Ready to run <strong>${SCENARIOS[v].name}</strong>.`, 'type-info');
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            clearLogs(); els.authModal.style.display = 'none';
+
+            const v = els.sel.value;
+            if (v === 'setup') await demoSetup();
+            if (v === 'auth') {
+                if (!srvSecret || driftSeconds !== 0) { addStory('💡', `Running Setup and synchronizing clocks rapidly first...`); driftSeconds = 0; await demoSetup(true); await delay(1000); clearLogs(); }
+                await demoAuth();
+            }
+            if (v === 'drift') {
+                if (!srvSecret) { addStory('💡', `Running Setup parameters rapidly first...`); await demoSetup(true); await delay(1000); clearLogs(); }
+                await demoDrift();
+            }
+
+            animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+
+        // ══════════ 1. THE SETUP ══════════
+        async function demoSetup(fast = false) {
+            driftSeconds = 0; srvSecret = ''; phnSecret = '';
+            els.srvSecret.textContent = '---'; els.phnSecret.textContent = '---';
+
+            if (!fast) addStory('🛠️', '<strong>1. MFA Initialization:</strong> The offline magic of TOTP only works if both devices share an identical secret mathematical seed.', 'type-info');
+            await delay(fast ? 10 : 1000);
+
+            if (!fast) addStory('🎲', `The Server securely generates a 16-character random Secret Key.`);
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            let newSec = '';
+            for (let i = 0; i < 16; i++) newSec += chars.charAt(Math.floor(Math.random() * chars.length));
+
+            srvSecret = newSec;
+            els.srvSecret.textContent = srvSecret;
+            await delay(fast ? 10 : 1200);
+
+            if (!fast) addStory('🔳', `To transfer this quickly to the user without typos, the Server embeds the secret string into a QR Code pattern.`, 'type-feat');
+
+            els.qrAnim.style.opacity = '1'; els.qrAnim.style.left = '25%';
+            await delay(400);
+            els.qrAnim.style.left = '75%'; // visual scan
+            await delay(fast ? 10 : 1500);
+
+            phnSecret = newSec;
+            els.phnSecret.textContent = phnSecret;
+            els.qrAnim.style.opacity = '0';
+            setTimeout(() => els.qrAnim.style.left = '25%', 500);
+
+            await delay(fast ? 10 : 1000);
+            if (!fast) addStory('✅', `<strong>Setup Complete!</strong> Both devices now permanently share the exact same seed. The math formulas begin running in parallel forever.`, 'type-success');
+        }
+
+        // ══════════ 2. AUTHENTICATION ══════════
+        async function demoAuth() {
+            addStory('🔑', 'Alice tries to log into the website. The server pauses the login and requests her active 6-digit MFA code.');
+
+            els.authModal.style.borderColor = 'var(--neon-purple)';
+            els.authModal.style.display = 'block';
+            els.authInput.textContent = '--- ---';
+            els.authStatus.textContent = 'Awaiting Input...';
+            els.authStatus.style.color = 'var(--text-muted)';
+            await delay(1200);
+
+            addStory('📱', `She checks her Authenticator App. It calculates the code entirely offline based purely on the current time step. She types what she sees.`, 'type-feat');
+            const currentPhoneCode = els.phnCode.textContent;
+            els.authInput.textContent = currentPhoneCode;
+            await delay(1200);
+
+            els.authStatus.textContent = 'Server Verifying...';
+            await delay(1000);
+
+            const currentServerCode = els.srvCode.textContent;
+            if (currentPhoneCode === currentServerCode) {
+                els.authStatus.textContent = '✅ Access Granted';
+                els.authStatus.style.color = 'var(--neon-green)';
+                els.authModal.style.borderColor = 'var(--neon-green)';
+                addStory('✅', `<strong>Success!</strong> Because both the Server and Phone plugged the exact same Secret Key and exact same Time Epoch into the HMAC formula, they spit out the exact same 6 digits!`, 'type-success');
+            } else {
+                els.authStatus.textContent = '❌ Invalid Code!';
+                els.authStatus.style.color = 'var(--neon-red)';
+                els.authModal.style.borderColor = 'var(--neon-red)';
+                addStory('❌', `<strong>Access Denied!</strong> The typed code (${currentPhoneCode}) did not match the server's actively generated code (${currentServerCode}).`, 'type-err');
+            }
+
+            await delay(4000);
+            els.authModal.style.display = 'none';
+        }
+
+        // ══════════ 3. CLOCK DRIFT ══════════
+        async function demoDrift() {
+            addStory('⚠️', `<strong>The Vulnerability: Time Desync</strong>. Because TOTP relies utterly on the universal clock, device synchronization is mission-critical!`, 'type-warn');
+            await delay(1500);
+
+            addStory('✈️', `Alice flies across timezones and manually changes her phone's clock setting, accidentally setting it exactly <strong>4 minutes fast</strong> (an offset of 8 epochs).`);
+
+            // Animate severe logical drift realistically
+            for (let i = 0; i <= 240; i += 10) {
+                driftSeconds = i;
+                await delay(50);
+            }
+
+            addStory('⏰', `Notice the Local Time Epoch on the Phone relies on its system clock and is now totally out of sync natively with the Server's Epoch!`, 'type-err');
+            await delay(1500);
+
+            addStory('📱', `As a result, the phone's mathematical hash function produces an entirely different string of digits.`);
+            await delay(1000);
+
+            await demoAuth(); // Triggers the fail state automatically due to live math
+
+            addStory('💡', `<strong>Fix:</strong> This is why authenticator apps have a "Time Sync" feature in their settings! Correcting drift...`, 'type-info');
+
+            for (let i = 240; i >= 0; i -= 10) {
+                driftSeconds = i;
+                await delay(40);
+            }
+            addStory('✅', `Time synchronized perfectly again.`, 'type-success');
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Containers vs Virtual Machines — Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive side-by-side comparison of containers and VMs. Watch the apartment vs house analogy come to life with animated deployments, resource usage, and startup races.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --text-muted: #94a3b8;
+            --vm-color: #f97316;
+            --dk-color: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--vm-color), var(--dk-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 780px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 260px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(56, 189, 248, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--dk-color);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 840px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(56, 189, 248, .08);
+            border: 1px solid rgba(56, 189, 248, .25);
+            color: var(--dk-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 26px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .95rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(249, 115, 22, .2), rgba(56, 189, 248, .2));
+            border-color: var(--dk-color);
+            box-shadow: 0 0 15px rgba(56, 189, 248, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(56, 189, 248, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1280px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ══════════ SPLIT VIEW ══════════ */
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .col-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        .col-header.vm {
+            background: rgba(249, 115, 22, .06);
+            border: 1px solid rgba(249, 115, 22, .2);
+        }
+
+        .col-header.dk {
+            background: rgba(56, 189, 248, .06);
+            border: 1px solid rgba(56, 189, 248, .2);
+        }
+
+        .ch-icon {
+            font-size: 1.6rem;
+        }
+
+        .ch-info {
+            flex: 1;
+        }
+
+        .ch-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .ch-name.vm-c {
+            color: var(--vm-color);
+        }
+
+        .ch-name.dk-c {
+            color: var(--dk-color);
+        }
+
+        .ch-desc {
+            font-size: .75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .ch-badge {
+            padding: 5px 14px;
+            border-radius: 8px;
+            font-size: .68rem;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .badge-vm {
+            background: rgba(249, 115, 22, .15);
+            color: var(--vm-color);
+            border: 1px solid rgba(249, 115, 22, .3);
+        }
+
+        .badge-dk {
+            background: rgba(56, 189, 248, .15);
+            color: var(--dk-color);
+            border: 1px solid rgba(56, 189, 248, .3);
+        }
+
+        /* ══════════ ARCHITECTURE DIAGRAM ══════════ */
+        .arch-wrap {
+            background: rgba(0, 0, 0, .35);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: relative;
+        }
+
+        .arch-label {
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: .6rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 2;
+        }
+
+        /* Layer stack */
+        .layer {
+            border-radius: 10px;
+            padding: 8px 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: .72rem;
+            transition: all .5s;
+            position: relative;
+            margin-bottom: 4px;
+        }
+
+        .layer-label {
+            font-size: .55rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: rgba(255, 255, 255, .4);
+            margin-bottom: 3px;
+        }
+
+        .layer-hw {
+            background: rgba(100, 116, 139, .15);
+            border: 1px solid rgba(100, 116, 139, .25);
+            color: var(--text-muted);
+        }
+
+        .layer-hypervisor {
+            background: rgba(249, 115, 22, .1);
+            border: 1px solid rgba(249, 115, 22, .25);
+            color: var(--vm-color);
+        }
+
+        .layer-hostos {
+            background: rgba(129, 140, 248, .1);
+            border: 1px solid rgba(129, 140, 248, .25);
+            color: var(--neon-indigo);
+        }
+
+        .layer-docker {
+            background: rgba(56, 189, 248, .1);
+            border: 1px solid rgba(56, 189, 248, .25);
+            color: var(--dk-color);
+        }
+
+        .layer-guestos {
+            background: rgba(249, 115, 22, .08);
+            border: 1px solid rgba(249, 115, 22, .15);
+            color: var(--vm-color);
+        }
+
+        .layer-app {
+            background: rgba(74, 222, 128, .08);
+            border: 1px solid rgba(74, 222, 128, .2);
+            color: var(--neon-green);
+        }
+
+        .layer-kernel {
+            background: rgba(167, 139, 250, .08);
+            border: 1px solid rgba(167, 139, 250, .2);
+            color: var(--neon-purple);
+        }
+
+        /* VM/Container boxes inside layer */
+        .instances-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            justify-content: center;
+        }
+
+        .instance-box {
+            border-radius: 8px;
+            padding: 6px 8px;
+            min-width: 60px;
+            text-align: center;
+            flex: 1;
+            max-width: 100px;
+            transition: all .5s;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .instance-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .inst-vm {
+            background: rgba(249, 115, 22, .1);
+            border: 1px solid rgba(249, 115, 22, .25);
+        }
+
+        .inst-dk {
+            background: rgba(56, 189, 248, .1);
+            border: 1px solid rgba(56, 189, 248, .25);
+        }
+
+        .inst-icon {
+            font-size: 1rem;
+            margin-bottom: 2px;
+        }
+
+        .inst-label {
+            font-size: .5rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        /* Resource bars */
+        .res-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .res-label {
+            font-size: .7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            width: 55px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .res-track {
+            flex: 1;
+            height: 14px;
+            background: rgba(255, 255, 255, .04);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .res-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 6px;
+            font-size: .55rem;
+            font-weight: 700;
+        }
+
+        .res-fill.vm-fill {
+            background: linear-gradient(90deg, rgba(249, 115, 22, .4), rgba(249, 115, 22, .7));
+            color: #fff;
+        }
+
+        .res-fill.dk-fill {
+            background: linear-gradient(90deg, rgba(56, 189, 248, .4), rgba(56, 189, 248, .7));
+            color: #fff;
+        }
+
+        .res-val {
+            font-size: .65rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            width: 52px;
+            text-align: left;
+            flex-shrink: 0;
+        }
+
+        /* Analogy boxes */
+        .analogy {
+            padding: 14px 16px;
+            border-radius: 14px;
+            font-size: .85rem;
+            line-height: 1.6;
+            backdrop-filter: blur(10px);
+        }
+
+        .analogy.vm-a {
+            background: rgba(249, 115, 22, .05);
+            border: 1px solid rgba(249, 115, 22, .15);
+            color: var(--vm-color);
+        }
+
+        .analogy.dk-a {
+            background: rgba(56, 189, 248, .05);
+            border: 1px solid rgba(56, 189, 248, .15);
+            color: var(--dk-color);
+        }
+
+        .analogy-title {
+            font-weight: 700;
+            font-size: .78rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Stats */
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .detail-card .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .mini-header {
+            color: var(--text-muted);
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: .82rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .val-orange {
+            color: var(--vm-color);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--dk-color);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .76rem;
+        }
+
+        /* Startup race */
+        .race-wrap {
+            background: rgba(0, 0, 0, .35);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .race-title {
+            font-size: .9rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .race-lane {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .race-tag {
+            font-size: .72rem;
+            font-weight: 700;
+            width: 80px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .race-track {
+            flex: 1;
+            height: 28px;
+            background: rgba(255, 255, 255, .04);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .race-car {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .75rem;
+            transition: width 1.5s ease;
+            width: 0%;
+        }
+
+        .race-car.vm-car {
+            background: linear-gradient(90deg, rgba(249, 115, 22, .3), rgba(249, 115, 22, .6));
+        }
+
+        .race-car.dk-car {
+            background: linear-gradient(90deg, rgba(56, 189, 248, .3), rgba(56, 189, 248, .6));
+        }
+
+        .race-time {
+            font-size: .7rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            width: 60px;
+            flex-shrink: 0;
+        }
+
+        /* Feed */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 460px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-vm {
+            border-left-color: var(--vm-color);
+        }
+
+        .type-dk {
+            border-left-color: var(--dk-color);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-indigo);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>Containers vs Virtual Machines</h1>
+    <p class="subtitle">A <strong>Virtual Machine</strong> is like building a whole house — with its own plumbing,
+        wiring, and foundation.
+        A <strong>Container</strong> is like renting an apartment — you get your own private room, but everyone shares
+        the
+        building's plumbing (the OS kernel). Watch the difference in action.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Scenario</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a scenario —</option>
+                <option value="deploy">🚀 Deploy a Web App</option>
+                <option value="scale">📈 Scale to 5 Instances</option>
+                <option value="dev">🛠️ Dev Environment Setup</option>
+                <option value="micro">🧩 Microservices Architecture</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to compare Containers and VMs side-by-side.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">🚀 Run Comparison</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- Headers -->
+        <div class="split-view">
+            <div>
+                <div class="col-header vm">
+                    <div class="ch-icon">🏠</div>
+                    <div class="ch-info">
+                        <div class="ch-name vm-c">Virtual Machine</div>
+                        <div class="ch-desc">Full OS per instance — heavy isolation</div>
+                    </div>
+                    <div class="ch-badge badge-vm">HEAVYWEIGHT</div>
+                </div>
+            </div>
+            <div>
+                <div class="col-header dk">
+                    <div class="ch-icon">🐳</div>
+                    <div class="ch-info">
+                        <div class="ch-name dk-c">Docker Container</div>
+                        <div class="ch-desc">Shared kernel — lightweight isolation</div>
+                    </div>
+                    <div class="ch-badge badge-dk">LIGHTWEIGHT</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Architecture Diagrams -->
+        <div class="split-view">
+            <div class="arch-wrap" id="arch-vm">
+                <div class="arch-label">🏠 VM Architecture (Each house)</div>
+                <div style="margin-top:22px;" id="vm-stack"></div>
+            </div>
+            <div class="arch-wrap" id="arch-dk">
+                <div class="arch-label">🐳 Container Architecture (Apartment building)</div>
+                <div style="margin-top:22px;" id="dk-stack"></div>
+            </div>
+        </div>
+
+        <!-- Analogies -->
+        <div class="split-view">
+            <div class="analogy vm-a">
+                <div class="analogy-title">🏠 The House Analogy</div>
+                Each VM is a separate house. Every house has its own foundation (hardware emulation), plumbing (OS),
+                electrical (drivers), and rooms (apps). Safe — if one house burns, others are fine. But building a house
+                takes <strong>time and resources</strong>.
+            </div>
+            <div class="analogy dk-a">
+                <div class="analogy-title">🏢 The Apartment Analogy</div>
+                Each container is an apartment in a shared building. The building provides plumbing (OS kernel),
+                electrical (drivers), and structure. Each tenant gets their own <strong>private room</strong> with a
+                locked door (namespace isolation), but shares the infrastructure. <strong>Faster and cheaper</strong> to
+                move in.
+            </div>
+        </div>
+
+        <!-- Resource Comparison -->
+        <div class="split-view">
+            <div class="detail-card">
+                <div class="panel-title" style="color:var(--vm-color);">🏠 VM Resources</div>
+                <div class="res-bar-wrap">
+                    <span class="res-label">RAM</span>
+                    <div class="res-track">
+                        <div class="res-fill vm-fill" id="vm-ram" style="width:0%"></div>
+                    </div>
+                    <span class="res-val" id="vm-ram-val" style="color:var(--vm-color);">—</span>
+                </div>
+                <div class="res-bar-wrap">
+                    <span class="res-label">Disk</span>
+                    <div class="res-track">
+                        <div class="res-fill vm-fill" id="vm-disk" style="width:0%"></div>
+                    </div>
+                    <span class="res-val" id="vm-disk-val" style="color:var(--vm-color);">—</span>
+                </div>
+                <div class="res-bar-wrap">
+                    <span class="res-label">CPU</span>
+                    <div class="res-track">
+                        <div class="res-fill vm-fill" id="vm-cpu" style="width:0%"></div>
+                    </div>
+                    <span class="res-val" id="vm-cpu-val" style="color:var(--vm-color);">—</span>
+                </div>
+                <div class="mini-box" style="margin-top:8px;">
+                    <div class="data-row"><span>Boot Time:</span><span id="vm-boot" class="val-orange">—</span></div>
+                    <div class="data-row"><span>Image Size:</span><span id="vm-img" class="val-orange">—</span></div>
+                    <div class="data-row"><span>Isolation:</span><span id="vm-iso" class="val-green">—</span></div>
+                </div>
+            </div>
+            <div class="detail-card">
+                <div class="panel-title" style="color:var(--dk-color);">🐳 Container Resources</div>
+                <div class="res-bar-wrap">
+                    <span class="res-label">RAM</span>
+                    <div class="res-track">
+                        <div class="res-fill dk-fill" id="dk-ram" style="width:0%"></div>
+                    </div>
+                    <span class="res-val" id="dk-ram-val" style="color:var(--dk-color);">—</span>
+                </div>
+                <div class="res-bar-wrap">
+                    <span class="res-label">Disk</span>
+                    <div class="res-track">
+                        <div class="res-fill dk-fill" id="dk-disk" style="width:0%"></div>
+                    </div>
+                    <span class="res-val" id="dk-disk-val" style="color:var(--dk-color);">—</span>
+                </div>
+                <div class="res-bar-wrap">
+                    <span class="res-label">CPU</span>
+                    <div class="res-track">
+                        <div class="res-fill dk-fill" id="dk-cpu" style="width:0%"></div>
+                    </div>
+                    <span class="res-val" id="dk-cpu-val" style="color:var(--dk-color);">—</span>
+                </div>
+                <div class="mini-box" style="margin-top:8px;">
+                    <div class="data-row"><span>Boot Time:</span><span id="dk-boot" class="val-blue">—</span></div>
+                    <div class="data-row"><span>Image Size:</span><span id="dk-img" class="val-blue">—</span></div>
+                    <div class="data-row"><span>Isolation:</span><span id="dk-iso" class="val-yellow">—</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Startup Race -->
+        <div class="race-wrap" id="race-wrap">
+            <div class="race-title">🏁 Startup Race</div>
+            <div class="race-lane">
+                <span class="race-tag" style="color:var(--vm-color);">🏠 VM</span>
+                <div class="race-track">
+                    <div class="race-car vm-car" id="race-vm"></div>
+                </div>
+                <span class="race-time" id="race-vm-time" style="color:var(--vm-color);">—</span>
+            </div>
+            <div class="race-lane">
+                <span class="race-tag" style="color:var(--dk-color);">🐳 Docker</span>
+                <div class="race-track">
+                    <div class="race-car dk-car" id="race-dk"></div>
+                </div>
+                <span class="race-time" id="race-dk-time" style="color:var(--dk-color);">—</span>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a scenario and click "Run" to see Containers vs VMs in
+                        action.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            deploy: {
+                name: 'Deploy a Web App', icon: '🚀', instances: 1,
+                vmRam: 2048, vmDisk: 20, vmCpu: 25, vmBoot: '45 sec', vmImg: '2.1 GB',
+                dkRam: 128, dkDisk: 0.18, dkCpu: 5, dkBoot: '0.3 sec', dkImg: '180 MB',
+                vmApps: ['🌐 Node.js App'], dkApps: ['🌐 Node.js App'],
+            },
+            scale: {
+                name: 'Scale to 5 Instances', icon: '📈', instances: 5,
+                vmRam: 2048 * 5, vmDisk: 20 * 5, vmCpu: 80, vmBoot: '45 sec × 5', vmImg: '10.5 GB total',
+                dkRam: 128 * 5, dkDisk: 0.18, dkCpu: 15, dkBoot: '0.3 sec × 5', dkImg: '180 MB (shared layers)',
+                vmApps: ['🌐', '🌐', '🌐', '🌐', '🌐'], dkApps: ['🌐', '🌐', '🌐', '🌐', '🌐'],
+            },
+            dev: {
+                name: 'Dev Environment Setup', icon: '🛠️', instances: 1,
+                vmRam: 4096, vmDisk: 40, vmCpu: 30, vmBoot: '60 sec', vmImg: '4.5 GB (Vagrant)',
+                dkRam: 256, dkDisk: 0.5, dkCpu: 8, dkBoot: '0.5 sec', dkImg: '350 MB',
+                vmApps: ['🛠️ Dev Env'], dkApps: ['🛠️ Dev Env'],
+            },
+            micro: {
+                name: 'Microservices (5 services)', icon: '🧩', instances: 5,
+                vmRam: 2048 * 5, vmDisk: 20 * 5, vmCpu: 85, vmBoot: '45 sec each', vmImg: '10+ GB',
+                dkRam: 64 * 5, dkDisk: 0.8, dkCpu: 12, dkBoot: '0.2 sec each', dkImg: '500 MB total',
+                vmApps: ['🔐Auth', '📡API', '💾DB', '📊Analytics', '📧Email'],
+                dkApps: ['🔐Auth', '📡API', '💾DB', '📊Analytics', '📧Email'],
+            },
+        };
+
+        let animating = false;
+        const selScenario = document.getElementById('select-scenario');
+        const els = { btnGo: document.getElementById('btn-go'), controls: document.getElementById('controls'), dashboard: document.getElementById('dashboard'), compat: document.getElementById('compat-status'), feed: document.getElementById('feed') };
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function setField(id, t, c) { const el = document.getElementById(id); if (el) { el.innerText = t; if (c) el.className = c; } }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+
+        function buildArchVM(sc) {
+            const apps = sc.vmApps;
+            let instBoxes = apps.map((a, i) => `<div class="instance-box inst-vm" id="vm-inst-${i}"><div class="inst-icon">${typeof a === 'string' && a.length > 2 ? a : '🖥️'}</div><div class="inst-label">${typeof a === 'string' && a.length > 2 ? '' : 'VM ' + (i + 1)}</div></div>`).join('');
+            return `
+        <div class="layer layer-app" id="vm-layer-app"><div class="layer-label">Apps + Libs</div>Your Application<div class="instances-row">${instBoxes}</div></div>
+        <div class="layer layer-guestos" id="vm-layer-guestos"><div class="layer-label">Guest OS (each VM)</div>🐧 Full Linux / Windows (2 GB each)</div>
+        <div class="layer layer-hypervisor" id="vm-layer-hyp"><div class="layer-label">Hypervisor</div>VMware / VirtualBox / KVM</div>
+        <div class="layer layer-hw" id="vm-layer-hw"><div class="layer-label">Hardware</div>🖥️ Physical Server</div>`;
+        }
+
+        function buildArchDK(sc) {
+            const apps = sc.dkApps;
+            let instBoxes = apps.map((a, i) => `<div class="instance-box inst-dk" id="dk-inst-${i}"><div class="inst-icon">${typeof a === 'string' && a.length > 2 ? a : '🐳'}</div><div class="inst-label">${typeof a === 'string' && a.length > 2 ? '' : 'Container ' + (i + 1)}</div></div>`).join('');
+            return `
+        <div class="layer layer-app" id="dk-layer-app"><div class="layer-label">Apps (isolated)</div>Your Application<div class="instances-row">${instBoxes}</div></div>
+        <div class="layer layer-docker" id="dk-layer-docker"><div class="layer-label">Docker Engine</div>🐳 Container Runtime (shares kernel)</div>
+        <div class="layer layer-hostos" id="dk-layer-hostos"><div class="layer-label">Host OS (shared)</div>🐧 One Linux Kernel for ALL containers</div>
+        <div class="layer layer-hw" id="dk-layer-hw"><div class="layer-label">Hardware</div>🖥️ Physical Server</div>`;
+        }
+
+        function onSelectionChange() {
+            const sId = selScenario.value;
+            if (!sId) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            const sc = SCENARIOS[sId];
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${sc.icon} ${sc.name} — Container vs VM</span>`;
+
+            document.getElementById('vm-stack').innerHTML = buildArchVM(sc);
+            document.getElementById('dk-stack').innerHTML = buildArchDK(sc);
+
+            // Reset resources
+            ['vm-ram', 'vm-disk', 'vm-cpu', 'dk-ram', 'dk-disk', 'dk-cpu'].forEach(id => { document.getElementById(id).style.width = '0%'; });
+            ['vm-ram-val', 'vm-disk-val', 'vm-cpu-val', 'dk-ram-val', 'dk-disk-val', 'dk-cpu-val', 'vm-boot', 'vm-img', 'vm-iso', 'dk-boot', 'dk-img', 'dk-iso'].forEach(id => setField(id, '—', ''));
+            document.getElementById('race-vm').style.width = '0%'; document.getElementById('race-dk').style.width = '0%';
+            setField('race-vm-time', '—', ''); setField('race-dk-time', '—', '');
+
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = '🚀 Run Comparison'; els.btnGo.disabled = false;
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🎯</span><span class="log-text">Ready! Click "Run" to deploy <strong>${sc.icon} ${sc.name}</strong> on both VM and Container — watch the difference.</span></div>`;
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            const sc = SCENARIOS[selScenario.value];
+
+            /* ── Step 1: Architecture ── */
+            addStory('📐', `<strong>Step 1: Architecture comparison — what gets built?</strong>`, 'type-info');
+            await sleep(300);
+
+            addStory('🏠', `<strong>VM approach:</strong> Each VM bundles a <em>complete operating system</em>:<br>
+        App → Libraries → <span class="val-orange">Guest OS (Linux/Windows, ~2 GB)</span> → Hypervisor → Hardware<br>
+        ${sc.instances > 1 ? `Deploying ${sc.instances} instances = ${sc.instances} full OS copies = <span class="val-orange">${(sc.instances * 2).toFixed(0)} GB</span> of OS overhead alone!` : 'Each VM is fully independent — like building a whole new house with its own plumbing.'}`, 'type-vm');
+            await sleep(400);
+
+            addStory('🐳', `<strong>Container approach:</strong> All containers share the host's Linux kernel:<br>
+        App → Libraries → <span class="val-blue">Docker Engine</span> → <span class="val-purple">Shared Host OS kernel</span> → Hardware<br>
+        ${sc.instances > 1 ? `Deploying ${sc.instances} instances = ${sc.instances} tiny isolated processes sharing <span class="val-blue">ONE kernel</span>. Docker image layers are shared — total disk usage is just <span class="val-blue">${sc.dkImg}</span>!` : 'No guest OS needed. The container is just your app + its dependencies in an isolated process.'}`, 'type-dk');
+            await sleep(500);
+
+            // Animate instances appearing
+            for (let i = 0; i < sc.instances; i++) {
+                const vmEl = document.getElementById('vm-inst-' + i);
+                const dkEl = document.getElementById('dk-inst-' + i);
+                if (vmEl) { vmEl.classList.add('visible'); }
+                if (dkEl) { dkEl.classList.add('visible'); }
+                await sleep(200);
+            }
+            await sleep(300);
+
+            /* ── Step 2: Boot Race ── */
+            addStory('🏁', `<strong>Step 2: Startup Race!</strong>`, 'type-compare');
+            await sleep(200);
+
+            addStory('🏠', `<strong>VM booting:</strong> Power-on → BIOS → Bootloader → Kernel init → systemd → Services → Your app<br>
+        This takes <span class="val-orange">${sc.vmBoot}</span> — it's literally booting an entire computer.`, 'type-vm');
+
+            addStory('🐳', `<strong>Container starting:</strong> Docker → Create namespace → Mount filesystem → <span class="val-blue">Run your app</span><br>
+        This takes <span class="val-blue">${sc.dkBoot}</span> — it's just starting a process.`, 'type-dk');
+
+            // Animate race
+            const vmRaceEl = document.getElementById('race-vm');
+            const dkRaceEl = document.getElementById('race-dk');
+
+            // Docker finishes almost instantly
+            setTimeout(() => {
+                dkRaceEl.style.width = '100%';
+                dkRaceEl.textContent = '✅ DONE';
+                setField('race-dk-time', sc.dkBoot, '');
+            }, 300);
+
+            // VM takes much longer
+            setTimeout(() => {
+                vmRaceEl.style.width = '100%';
+                vmRaceEl.textContent = '✅ DONE';
+                setField('race-vm-time', sc.vmBoot, '');
+            }, 2200);
+
+            await sleep(2800);
+
+            /* ── Step 3: Resources ── */
+            addStory('📊', `<strong>Step 3: Resource consumption</strong>`, 'type-compare');
+            await sleep(200);
+
+            // Animate bars
+            const maxRam = Math.max(sc.vmRam, sc.dkRam);
+            const maxDisk = Math.max(sc.vmDisk, sc.dkDisk);
+
+            document.getElementById('vm-ram').style.width = Math.min((sc.vmRam / 16384) * 100, 95) + '%';
+            document.getElementById('dk-ram').style.width = Math.max((sc.dkRam / 16384) * 100, 3) + '%';
+            document.getElementById('vm-disk').style.width = Math.min((sc.vmDisk / 100) * 100, 95) + '%';
+            document.getElementById('dk-disk').style.width = Math.max((sc.dkDisk / 100) * 100, 3) + '%';
+            document.getElementById('vm-cpu').style.width = sc.vmCpu + '%';
+            document.getElementById('dk-cpu').style.width = sc.dkCpu + '%';
+
+            setField('vm-ram-val', sc.vmRam >= 1024 ? (sc.vmRam / 1024).toFixed(1) + ' GB' : sc.vmRam + ' MB', '');
+            setField('dk-ram-val', sc.dkRam >= 1024 ? (sc.dkRam / 1024).toFixed(1) + ' GB' : sc.dkRam + ' MB', '');
+            setField('vm-disk-val', sc.vmDisk + ' GB', '');
+            setField('dk-disk-val', sc.dkDisk >= 1 ? sc.dkDisk + ' GB' : (sc.dkDisk * 1024).toFixed(0) + ' MB', '');
+            setField('vm-cpu-val', sc.vmCpu + '%', '');
+            setField('dk-cpu-val', sc.dkCpu + '%', '');
+            setField('vm-boot', sc.vmBoot, 'val-orange');
+            setField('vm-img', sc.vmImg, 'val-orange');
+            setField('vm-iso', 'Hardware-level ✅', 'val-green');
+            setField('dk-boot', sc.dkBoot, 'val-blue');
+            setField('dk-img', sc.dkImg, 'val-blue');
+            setField('dk-iso', 'Process-level ⚡', 'val-yellow');
+
+            const ramSavings = Math.round((1 - sc.dkRam * sc.instances / (sc.vmRam * sc.instances)) * 100);
+            await sleep(600);
+
+            addStory('📊', `<strong>Resources — side by side for ${sc.instances} instance(s):</strong><br>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:.85rem;">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">Metric</td><td style="padding:5px;color:var(--vm-color);font-weight:600;">🏠 VM</td><td style="padding:5px;color:var(--dk-color);font-weight:600;">🐳 Container</td><td style="padding:5px;">Savings</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">RAM</td><td style="padding:5px;">${sc.vmRam >= 1024 ? (sc.vmRam / 1024).toFixed(1) + ' GB' : sc.vmRam + ' MB'}</td><td style="padding:5px;color:var(--neon-green);">${sc.dkRam >= 1024 ? (sc.dkRam / 1024).toFixed(1) + ' GB' : sc.dkRam + ' MB'}</td><td style="padding:5px;color:var(--neon-green);font-weight:700;">${ramSavings}% less</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Disk</td><td style="padding:5px;">${sc.vmDisk} GB</td><td style="padding:5px;color:var(--neon-green);">${sc.dkDisk >= 1 ? sc.dkDisk + ' GB' : (sc.dkDisk * 1024).toFixed(0) + ' MB'}</td><td style="padding:5px;color:var(--neon-green);font-weight:700;">${Math.round((1 - sc.dkDisk / sc.vmDisk) * 100)}% less</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">CPU Overhead</td><td style="padding:5px;">${sc.vmCpu}%</td><td style="padding:5px;color:var(--neon-green);">${sc.dkCpu}%</td><td style="padding:5px;color:var(--neon-green);font-weight:700;">${Math.round((1 - sc.dkCpu / sc.vmCpu) * 100)}% less</td></tr>
+    <tr><td style="padding:5px;">Boot Time</td><td style="padding:5px;">${sc.vmBoot}</td><td style="padding:5px;color:var(--neon-green);">${sc.dkBoot}</td><td style="padding:5px;color:var(--neon-green);font-weight:700;">~100× faster</td></tr>
+    </table>`, 'type-compare');
+            await sleep(500);
+
+            /* ── Dockerfile ── */
+            addStory('📄', `<strong>How simple is a container?</strong> This is a complete Dockerfile:<br>
+        <span class="mono" style="font-size:.78rem;">
+        FROM node:18-alpine<br>
+        WORKDIR /app<br>
+        COPY package.json .<br>
+        RUN npm install<br>
+        COPY . .<br>
+        CMD ["node", "server.js"]
+        </span><br>
+        <br><span class="mono">docker build -t myapp .</span> → <span class="mono">docker run myapp</span> — done in seconds!<br>
+        <br>Compare to a VM: Download ISO → Install OS → Configure network → Install runtime → Deploy app → 30+ minutes.`, 'type-dk');
+            await sleep(500);
+
+            /* ── When to use which ── */
+            addStory('🤔', `<strong>When to use which?</strong><br>
+        <br>🏠 <strong>Use VMs when:</strong><br>
+        • Running <strong>different OSes</strong> (Windows + Linux on same host)<br>
+        • Need <strong>strongest isolation</strong> (multi-tenant cloud, untrusted code)<br>
+        • Running <strong>legacy applications</strong> that need a specific OS config<br>
+        • Compliance requires <strong>hardware-level separation</strong><br>
+        <br>🐳 <strong>Use Containers when:</strong><br>
+        • <strong>Microservices</strong> — each service in its own container<br>
+        • <strong>CI/CD pipelines</strong> — identical dev/test/prod environments<br>
+        • <strong>Scaling</strong> — spin up 100 instances in seconds<br>
+        • <strong>Cloud-native apps</strong> — Kubernetes orchestration<br>
+        • <strong>"Works on my machine"</strong> → "Works everywhere"`, 'type-info');
+            await sleep(400);
+
+            addStory('💡', `<strong>Fun fact:</strong> You can run containers INSIDE a VM! This is actually what most cloud providers do. AWS EC2 gives you a VM, then you run Docker containers inside it. Best of both worlds: VM isolation between tenants, container efficiency within your workload.`, 'type-secure');
+
+            animating = false;
+            els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+    </script>
+
+</body>
+
+</html>

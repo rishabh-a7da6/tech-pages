@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How HTTPS Works — SSL/TLS Handshake Visualizer</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of the SSL/TLS handshake that secures every HTTPS connection. Watch step-by-step how your browser and a server establish encrypted communication.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #c084fc;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-green), var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 680px;
+            line-height: 1.6;
+        }
+
+        /* ── Selectors Row ── */
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 220px;
+        }
+
+        .select-card label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(74, 222, 128, 0.4);
+            box-shadow: 0 4px 25px rgba(74, 222, 128, 0.1);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-green);
+            box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.15);
+        }
+
+        .arrow-icon {
+            padding-top: 22px;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes arrowPulse {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* ── TLS Version Toggle ── */
+        .tls-toggle {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .tls-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 10px 24px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 0;
+            position: relative;
+        }
+
+        .tls-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tls-btn.active {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(56, 189, 248, 0.15));
+            color: var(--neon-green);
+        }
+
+        .tls-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: var(--neon-green);
+            border-radius: 2px;
+        }
+
+        /* ── Status Badge ── */
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.4s ease;
+            max-width: 700px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(74, 222, 128, 0.08);
+            border: 1px solid rgba(74, 222, 128, 0.25);
+            color: var(--neon-green);
+        }
+
+        /* ── Controls ── */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.2), rgba(56, 189, 248, 0.2));
+            border-color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(74, 222, 128, 0.3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(74, 222, 128, 0.5);
+            border-color: #fff;
+        }
+
+        /* ── Dashboard ── */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1250px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 14px;
+        }
+
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-header {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.92rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* ── Animation Stage ── */
+        .stage {
+            position: relative;
+            width: 100%;
+            min-height: 300px;
+        }
+
+        .endpoint-group {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 5;
+        }
+
+        .endpoint-group.left {
+            left: 2%;
+        }
+
+        .endpoint-group.right {
+            right: 2%;
+        }
+
+        .net-endpoint {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            transition: all 0.6s ease;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .net-endpoint.handshaking {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
+        }
+
+        .net-endpoint.secure {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 25px rgba(74, 222, 128, 0.3);
+        }
+
+        .endpoint-label {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            font-weight: 500;
+        }
+
+        .net-line {
+            position: absolute;
+            top: 50%;
+            left: calc(2% + 90px + 10px);
+            right: calc(2% + 90px + 10px);
+            height: 3px;
+            background: #1e293b;
+            transform: translateY(-50%);
+            transition: all 0.6s ease;
+            z-index: 1;
+            border-radius: 2px;
+        }
+
+        .net-line.handshaking {
+            background: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+        }
+
+        .net-line.encrypted {
+            background: rgba(74, 222, 128, 0.5);
+            box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
+        }
+
+        .net-lock {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.4rem;
+            z-index: 10;
+            transition: all 0.5s ease;
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+        }
+
+        .net-lock.locked {
+            filter: drop-shadow(0 0 12px rgba(74, 222, 128, 0.5));
+            animation: lockBounce 0.5s ease;
+        }
+
+        @keyframes lockBounce {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            40% {
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        /* ── Packets ── */
+        .packet {
+            position: absolute;
+            padding: 5px 14px;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #0f172a;
+            white-space: nowrap;
+            z-index: 8;
+            pointer-events: none;
+            letter-spacing: 0.3px;
+        }
+
+        .packet-right {
+            animation: flyRight 1.1s ease-in-out forwards;
+        }
+
+        .packet-left {
+            animation: flyLeft 1.1s ease-in-out forwards;
+        }
+
+        @keyframes flyRight {
+            0% {
+                left: 12%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+
+            12% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            88% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            100% {
+                left: 82%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+        }
+
+        @keyframes flyLeft {
+            0% {
+                left: 82%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+
+            12% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            88% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            100% {
+                left: 12%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+        }
+
+        /* ── Story Feed ── */
+        .feed-wrapper {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, 0.1);
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp 0.4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: 0.98rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-client {
+            border-left-color: var(--neon-blue);
+        }
+
+        .type-server {
+            border-left-color: var(--neon-purple);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, 0.04);
+        }
+
+        .type-crypto {
+            border-left-color: var(--neon-yellow);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1100px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                max-width: 520px;
+            }
+
+            .stage {
+                min-height: 240px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .arrow-icon {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How HTTPS Actually Works</h1>
+    <p class="subtitle">Every time you see the 🔒 padlock in your browser, an invisible handshake just happened. Pick a
+        client and server below, then watch the TLS protocol negotiate encryption in real-time.</p>
+
+    <!-- ── Selectors ── -->
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Client Device</label>
+            <select id="select-client" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a client —</option>
+                <option value="laptop">💻 Laptop (Chrome)</option>
+                <option value="smartphone">📱 Smartphone (Safari)</option>
+                <option value="tablet">📲 Tablet (Firefox)</option>
+            </select>
+        </div>
+
+        <div class="arrow-icon">→</div>
+
+        <div class="select-card">
+            <label>Server / Website</label>
+            <select id="select-server" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a server —</option>
+                <option value="ecommerce">🛒 E-Commerce Store</option>
+                <option value="bank">🏦 Online Bank</option>
+                <option value="social">📸 Social Media</option>
+                <option value="blog">📰 News Blog</option>
+                <option value="api">⚙️ API Service</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ── TLS Version Toggle ── -->
+    <div class="tls-toggle" id="tls-toggle">
+        <button class="tls-btn active" data-ver="1.3" onclick="setTLS('1.3')">TLS 1.3 (Modern)</button>
+        <button class="tls-btn" data-ver="1.2" onclick="setTLS('1.2')">TLS 1.2 (Legacy)</button>
+    </div>
+
+    <!-- ── Status ── -->
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a client and server to begin the simulation.</span>
+    </div>
+
+    <!-- ── Controls ── -->
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-connect" class="primary" onclick="toggleConnection()">🔗 Initiate HTTPS Connection</button>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div class="dashboard" id="dashboard" style="display:none">
+
+        <!-- Client Panel -->
+        <div class="panel" id="panel-client"></div>
+
+        <!-- Animation Stage -->
+        <div class="stage" id="stage">
+            <div class="endpoint-group left">
+                <div class="net-endpoint" id="ep-client">💻</div>
+                <div class="endpoint-label" id="lbl-client">Your Device</div>
+            </div>
+
+            <div class="net-line" id="net-line"></div>
+            <div class="net-lock" id="net-lock">🔓</div>
+
+            <div class="endpoint-group right">
+                <div class="net-endpoint" id="ep-server">🖥️</div>
+                <div class="endpoint-label" id="lbl-server">Web Server</div>
+            </div>
+        </div>
+
+        <!-- Server Panel -->
+        <div class="panel" id="panel-server"></div>
+
+        <!-- Story Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;">
+                    <span class="log-icon">👋</span>
+                    <span class="log-text">Welcome! Select a client and server above, then initiate an HTTPS connection
+                        to watch the TLS handshake unfold.</span>
+                </div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const CLIENTS = {
+            laptop: {
+                id: 'laptop', name: 'Laptop', icon: '💻',
+                browser: 'Chrome 124', os: 'Windows 11',
+                trustedCAs: 147,
+                ciphers: ['TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256', 'TLS_AES_128_GCM_SHA256'],
+            },
+            smartphone: {
+                id: 'smartphone', name: 'Smartphone', icon: '📱',
+                browser: 'Safari 17', os: 'iOS 18',
+                trustedCAs: 152,
+                ciphers: ['TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256', 'TLS_AES_128_GCM_SHA256'],
+            },
+            tablet: {
+                id: 'tablet', name: 'Tablet', icon: '📲',
+                browser: 'Firefox 125', os: 'Android 15',
+                trustedCAs: 139,
+                ciphers: ['TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256', 'TLS_AES_128_GCM_SHA256'],
+            },
+        };
+
+        const SERVERS = {
+            ecommerce: {
+                id: 'ecommerce', name: 'E-Commerce Store', icon: '🛒',
+                domain: 'shop.example.com', software: 'nginx/1.26',
+                certType: 'EV (Extended Validation)',
+                certIssuer: 'DigiCert SHA2 Extended Validation Server CA',
+                rootCA: 'DigiCert Global Root G2',
+                keyType: 'RSA 2048-bit',
+                validUntil: 'Dec 2026',
+                org: 'Example Shop Inc.',
+                chosenCipher: 'TLS_AES_256_GCM_SHA384',
+                keyExchange: 'X25519',
+            },
+            bank: {
+                id: 'bank', name: 'Online Bank', icon: '🏦',
+                domain: 'secure.bank-example.com', software: 'Apache/2.4',
+                certType: 'EV (Extended Validation)',
+                certIssuer: 'GlobalSign Extended Validation CA - SHA256 - G3',
+                rootCA: 'GlobalSign Root CA - R3',
+                keyType: 'RSA 4096-bit',
+                validUntil: 'Jun 2026',
+                org: 'Example Bank Corp.',
+                chosenCipher: 'TLS_AES_256_GCM_SHA384',
+                keyExchange: 'X25519',
+            },
+            social: {
+                id: 'social', name: 'Social Media', icon: '📸',
+                domain: 'social.example.com', software: 'cloudflare',
+                certType: 'DV (Domain Validation)',
+                certIssuer: 'Cloudflare Inc ECC CA-3',
+                rootCA: 'Baltimore CyberTrust Root',
+                keyType: 'ECDSA P-256',
+                validUntil: 'Mar 2027',
+                org: 'N/A (DV Certificate)',
+                chosenCipher: 'TLS_CHACHA20_POLY1305_SHA256',
+                keyExchange: 'X25519',
+            },
+            blog: {
+                id: 'blog', name: 'News Blog', icon: '📰',
+                domain: 'blog.example.com', software: 'nginx/1.24',
+                certType: 'DV (Domain Validation)',
+                certIssuer: "Let's Encrypt Authority X3",
+                rootCA: 'ISRG Root X1',
+                keyType: 'RSA 2048-bit',
+                validUntil: 'Jul 2026',
+                org: "N/A (DV Certificate)",
+                chosenCipher: 'TLS_AES_128_GCM_SHA256',
+                keyExchange: 'X25519',
+            },
+            api: {
+                id: 'api', name: 'API Service', icon: '⚙️',
+                domain: 'api.example.com', software: 'Node.js/22',
+                certType: 'OV (Organization Validation)',
+                certIssuer: 'Amazon RSA 2048 M02',
+                rootCA: 'Starfield Services Root CA - G2',
+                keyType: 'RSA 2048-bit',
+                validUntil: 'Sep 2026',
+                org: 'Example API Services LLC',
+                chosenCipher: 'TLS_AES_256_GCM_SHA384',
+                keyExchange: 'X25519',
+            },
+        };
+
+        /* ═══════════════════════════════════════════
+           STATE & ELEMENTS
+           ═══════════════════════════════════════════ */
+        const state = { connected: false, animating: false, tlsVersion: '1.3' };
+
+        const selClient = document.getElementById('select-client');
+        const selServer = document.getElementById('select-server');
+
+        const els = {
+            btnConnect: document.getElementById('btn-connect'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compat: document.getElementById('compat-status'),
+            panelC: document.getElementById('panel-client'),
+            panelS: document.getElementById('panel-server'),
+            feed: document.getElementById('feed'),
+            stage: document.getElementById('stage'),
+            epClient: document.getElementById('ep-client'),
+            epServer: document.getElementById('ep-server'),
+            lblClient: document.getElementById('lbl-client'),
+            lblServer: document.getElementById('lbl-server'),
+            netLine: document.getElementById('net-line'),
+            netLock: document.getElementById('net-lock'),
+        };
+
+        /* ═══════════════════════════════════════════
+           TLS VERSION TOGGLE
+           ═══════════════════════════════════════════ */
+        function setTLS(ver) {
+            state.tlsVersion = ver;
+            document.querySelectorAll('.tls-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.ver === ver);
+            });
+            if (state.connected) {
+                disconnect();
+                addStory('🔄', `Switched to TLS ${ver}. Reconnect to see the updated handshake.`, '');
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION CHANGE
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const cId = selClient.value;
+            const sId = selServer.value;
+
+            if (state.connected) disconnect();
+
+            if (!cId || !sId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select a client and server to begin the simulation.</span>';
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
+
+            const client = CLIENTS[cId];
+            const server = SERVERS[sId];
+
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ Ready — ${client.icon} ${client.browser} on ${client.os} → ${server.icon} https://${server.domain}</span>`;
+
+            // Render panels
+            els.panelC.innerHTML = renderClientPanel(client);
+            els.panelS.innerHTML = renderServerPanel(server);
+
+            // Update stage labels
+            els.epClient.textContent = client.icon;
+            els.lblClient.innerHTML = `Your ${client.name}<br><span style="font-size:0.7rem;opacity:0.7;">${client.browser}</span>`;
+            els.epServer.textContent = server.icon;
+            els.lblServer.innerHTML = `${server.domain}<br><span style="font-size:0.7rem;opacity:0.7;">${server.software}</span>`;
+
+            // Reset visual state
+            els.epClient.className = 'net-endpoint';
+            els.epServer.className = 'net-endpoint';
+            els.netLine.className = 'net-line';
+            els.netLock.textContent = '🔓';
+            els.netLock.className = 'net-lock';
+
+            // Show
+            els.controls.style.display = 'flex';
+            els.dashboard.style.display = 'grid';
+            els.btnConnect.innerHTML = '🔗 Initiate HTTPS Connection';
+            els.btnConnect.className = 'primary';
+            els.btnConnect.disabled = false;
+
+            // Reset feed
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+        <span class="log-icon">👋</span>
+        <span class="log-text">Ready! Click <strong>"Initiate HTTPS Connection"</strong> to watch the TLS ${state.tlsVersion} handshake between ${client.icon} ${client.name} and ${server.icon} ${server.domain}.</span>
+    </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           PANEL RENDERERS
+           ═══════════════════════════════════════════ */
+        function renderClientPanel(c) {
+            return `
+    <div class="panel-title">${c.icon} ${c.name} — Client</div>
+
+    <div class="status-box">
+        <div class="status-header">Browser Info</div>
+        <div class="data-row"><span>Browser:</span> <span class="val-blue">${c.browser}</span></div>
+        <div class="data-row"><span>OS:</span> <span>${c.os}</span></div>
+        <div class="data-row"><span>Trusted CAs:</span> <span>${c.trustedCAs} certificates</span></div>
+    </div>
+
+    <div class="status-box">
+        <div class="status-header">TLS Status</div>
+        <div class="data-row"><span>Version:</span> <span id="c-tls-ver">—</span></div>
+        <div class="data-row"><span>Phase:</span> <span id="c-phase">Not started</span></div>
+    </div>
+
+    <div class="status-box">
+        <div class="status-header">Certificate Verification</div>
+        <div class="data-row"><span>Server Cert:</span> <span id="c-cert">Not received</span></div>
+        <div class="data-row"><span>Chain Valid:</span> <span id="c-chain">—</span></div>
+    </div>
+
+    <div class="status-box">
+        <div class="status-header">Encryption</div>
+        <div class="data-row"><span>Cipher:</span> <span id="c-cipher" class="mono">None</span></div>
+        <div class="data-row"><span>Key Exchange:</span> <span id="c-kex">—</span></div>
+        <div class="data-row"><span>Session Keys:</span> <span id="c-keys">Not derived</span></div>
+    </div>`;
+        }
+
+        function renderServerPanel(s) {
+            return `
+    <div class="panel-title">${s.icon} ${s.name} — Server</div>
+
+    <div class="status-box">
+        <div class="status-header">Server Identity</div>
+        <div class="data-row"><span>Domain:</span> <span class="val-blue">${s.domain}</span></div>
+        <div class="data-row"><span>Software:</span> <span>${s.software}</span></div>
+        <div class="data-row"><span>Organization:</span> <span style="font-size:0.85rem;">${s.org}</span></div>
+    </div>
+
+    <div class="status-box">
+        <div class="status-header">SSL Certificate</div>
+        <div class="data-row"><span>Type:</span> <span id="s-cert-type" class="val-yellow">${s.certType}</span></div>
+        <div class="data-row"><span>Issuer:</span> <span id="s-issuer" style="font-size:0.82rem;">${s.certIssuer}</span></div>
+        <div class="data-row"><span>Key:</span> <span>${s.keyType}</span></div>
+        <div class="data-row"><span>Valid Until:</span> <span>${s.validUntil}</span></div>
+    </div>
+
+    <div class="status-box">
+        <div class="status-header">Connection</div>
+        <div class="data-row"><span>Status:</span> <span id="s-status">Listening...</span></div>
+        <div class="data-row"><span>Cipher Suite:</span> <span id="s-cipher" class="mono">—</span></div>
+        <div class="data-row"><span>Key Exchange:</span> <span id="s-kex">—</span></div>
+    </div>
+
+    <div class="status-box">
+        <div class="status-header">Encryption</div>
+        <div class="data-row"><span>Session Keys:</span> <span id="s-keys">Not derived</span></div>
+        <div class="data-row"><span>Data Protected:</span> <span id="s-enc">No</span></div>
+    </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           HELPERS
+           ═══════════════════════════════════════════ */
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function addStory(icon, text, type = 'type-client') {
+            const el = document.createElement('div');
+            el.className = `log-msg ${type}`;
+            el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
+            els.feed.appendChild(el);
+            els.feed.scrollTop = els.feed.scrollHeight;
+        }
+
+        function setField(id, text, cls) {
+            const el = document.getElementById(id);
+            if (el) { el.innerText = text; if (cls) el.className = cls; }
+        }
+
+        function clearLogs() {
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+        <span class="log-icon">🧹</span>
+        <span class="log-text">Logs cleared.</span>
+    </div>`;
+        }
+
+        function sendPacket(direction, label, color) {
+            return new Promise(resolve => {
+                const pkt = document.createElement('div');
+                pkt.className = `packet packet-${direction}`;
+                pkt.textContent = label;
+
+                const colors = {
+                    blue: 'rgba(56, 189, 248, 0.92)',
+                    purple: 'rgba(192, 132, 252, 0.92)',
+                    green: 'rgba(74, 222, 128, 0.92)',
+                    yellow: 'rgba(250, 204, 21, 0.92)',
+                    red: 'rgba(248, 113, 113, 0.92)',
+                };
+                pkt.style.background = colors[color] || colors.blue;
+
+                const yOff = (Math.random() - 0.5) * 50;
+                pkt.style.top = `calc(50% + ${yOff}px)`;
+
+                els.stage.appendChild(pkt);
+                pkt.addEventListener('animationend', () => { pkt.remove(); resolve(); });
+            });
+        }
+
+        /* ═══════════════════════════════════════════
+           CONNECT / DISCONNECT
+           ═══════════════════════════════════════════ */
+        function toggleConnection() {
+            if (state.animating) return;
+            if (state.connected) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function disconnect() {
+            state.connected = false;
+            state.animating = false;
+
+            els.btnConnect.innerHTML = '🔗 Initiate HTTPS Connection';
+            els.btnConnect.className = 'primary';
+            els.btnConnect.disabled = false;
+
+            els.epClient.className = 'net-endpoint';
+            els.epServer.className = 'net-endpoint';
+            els.netLine.className = 'net-line';
+            els.netLock.textContent = '🔓';
+            els.netLock.className = 'net-lock';
+
+            // Reset panel fields
+            setField('c-tls-ver', '—', '');
+            setField('c-phase', 'Not started', '');
+            setField('c-cert', 'Not received', '');
+            setField('c-chain', '—', '');
+            setField('c-cipher', 'None', 'mono');
+            setField('c-kex', '—', '');
+            setField('c-keys', 'Not derived', '');
+            setField('s-status', 'Listening...', '');
+            setField('s-cipher', '—', 'mono');
+            setField('s-kex', '—', '');
+            setField('s-keys', 'Not derived', '');
+            setField('s-enc', 'No', '');
+
+            // Remove lingering packets
+            els.stage.querySelectorAll('.packet').forEach(p => p.remove());
+
+            addStory('🔌', 'Connection closed. TLS session terminated safely.', '');
+        }
+
+        async function connect() {
+            state.animating = true;
+            state.connected = true;
+
+            els.btnConnect.innerHTML = '⏳ Handshake in progress...';
+            els.btnConnect.disabled = true;
+
+            const client = CLIENTS[selClient.value];
+            const server = SERVERS[selServer.value];
+
+            if (state.tlsVersion === '1.3') {
+                await handshakeTLS13(client, server);
+            } else {
+                await handshakeTLS12(client, server);
+            }
+
+            if (!state.connected) return; // Disconnected mid-handshake
+
+            els.btnConnect.innerHTML = '🔌 Disconnect';
+            els.btnConnect.className = '';
+            els.btnConnect.disabled = false;
+            state.animating = false;
+        }
+
+        /* ═══════════════════════════════════════════
+           TLS 1.3 HANDSHAKE
+           ═══════════════════════════════════════════ */
+        async function handshakeTLS13(client, server) {
+            const cName = `${client.icon} ${client.browser}`;
+            const sName = `${server.icon} ${server.domain}`;
+
+            // — TCP Handshake —
+            addStory('🌐', `Before TLS can start, a TCP connection is needed. ${cName} begins the three-way handshake...`, '');
+            setField('c-phase', 'TCP Handshake', 'val-blue');
+            setField('s-status', 'SYN received', 'val-blue');
+            await sendPacket('right', 'SYN', 'blue');
+            await sendPacket('left', 'SYN-ACK', 'purple');
+            await sendPacket('right', 'ACK', 'blue');
+            addStory('✅', 'TCP connection established. Now the TLS handshake begins!', 'type-secure');
+            await sleep(500);
+
+            if (!state.connected) return;
+
+            // — Client Hello —
+            els.epClient.className = 'net-endpoint handshaking';
+            els.netLine.className = 'net-line handshaking';
+            setField('c-tls-ver', 'TLS 1.3', 'val-green');
+            setField('c-phase', 'Client Hello', 'val-blue');
+
+            addStory('📤', `<strong>Client Hello</strong> — ${cName} sends:<br>
+        • Supported TLS versions: 1.3, 1.2<br>
+        • Cipher suites: ${client.ciphers.map(c => '<span class="mono">' + c + '</span>').join(', ')}<br>
+        • Key share: X25519 public key (for key exchange)<br>
+        • Random: <span class="mono">${randomHex(16)}...</span>`, 'type-client');
+
+            await sendPacket('right', 'CLIENT HELLO', 'blue');
+            await sleep(300);
+            if (!state.connected) return;
+
+            // — Server Hello —
+            els.epServer.className = 'net-endpoint handshaking';
+            setField('c-phase', 'Server Hello', 'val-purple');
+            setField('s-status', 'Handshake in progress', 'val-blue');
+
+            addStory('📥', `<strong>Server Hello</strong> — ${sName} responds:<br>
+        • Chosen version: TLS 1.3<br>
+        • Chosen cipher: <span class="mono">${server.chosenCipher}</span><br>
+        • Key share: X25519 public key (server's half)<br>
+        • Random: <span class="mono">${randomHex(16)}...</span>`, 'type-server');
+
+            setField('s-cipher', server.chosenCipher, 'mono val-green');
+            setField('c-cipher', server.chosenCipher, 'mono val-green');
+            setField('s-kex', server.keyExchange, 'val-blue');
+            setField('c-kex', server.keyExchange, 'val-blue');
+
+            await sendPacket('left', 'SERVER HELLO', 'purple');
+            await sleep(300);
+            if (!state.connected) return;
+
+            // — In TLS 1.3 everything after Server Hello is encrypted —
+            addStory('🔐', `<strong>From this point on, all handshake messages are encrypted!</strong> TLS 1.3 derives handshake keys immediately after the key exchange.`, 'type-crypto');
+            await sleep(600);
+
+            // — Encrypted Extensions + Certificate + CertVerify + Finished —
+            setField('c-phase', 'Processing Certificate', 'val-yellow');
+
+            addStory('📥', `<strong>{Encrypted Extensions}</strong> — Server sends additional parameters (ALPN: h2, server name confirmation).`, 'type-server');
+            await sendPacket('left', '{ENC EXTENSIONS}', 'purple');
+            await sleep(200);
+
+            addStory('📜', `<strong>{Certificate}</strong> — Server presents its certificate chain:<br>
+        <span style="color:var(--neon-blue)">🌐 ${server.domain}</span> ← signed by<br>
+        <span style="color:var(--neon-purple)">🏛️ ${server.certIssuer}</span> ← signed by<br>
+        <span style="color:var(--neon-green)">🏢 ${server.rootCA}</span> (Root CA — pre-trusted in your ${client.os})`, 'type-server');
+
+            setField('c-cert', server.domain, 'val-blue');
+            await sendPacket('left', '{CERTIFICATE}', 'purple');
+            await sleep(300);
+
+            addStory('📥', `<strong>{Certificate Verify}</strong> — Server proves it owns the private key by signing the handshake transcript with its ${server.keyType} key.`, 'type-server');
+            await sendPacket('left', '{CERT VERIFY}', 'purple');
+            await sleep(200);
+            if (!state.connected) return;
+
+            // — Client verifies —
+            setField('c-phase', 'Verifying Certificate...', 'val-yellow');
+            addStory('🔍', `${cName} verifies the certificate chain...<br>
+        1️⃣ Is <strong>${server.rootCA}</strong> in my trusted store? → <span class="val-green">YES</span> (1 of ${client.trustedCAs} trusted CAs)<br>
+        2️⃣ Did the intermediate CA sign the server cert? → <span class="val-green">Valid signature</span><br>
+        3️⃣ Is the certificate expired? → <span class="val-green">No (valid until ${server.validUntil})</span><br>
+        4️⃣ Does the domain match? → <span class="val-green">${server.domain} ✓</span>`, 'type-client');
+
+            await sleep(1200);
+            setField('c-chain', '✅ Trusted', 'val-green');
+            setField('c-phase', 'Certificate Verified', 'val-green');
+            if (!state.connected) return;
+
+            // — Server Finished —
+            addStory('📥', `<strong>{Finished}</strong> — Server sends a MAC (message authentication code) over the entire handshake transcript to prove nothing was tampered.`, 'type-server');
+            await sendPacket('left', '{FINISHED}', 'purple');
+            await sleep(300);
+
+            // — Key derivation —
+            addStory('🔑', `<strong>Key Derivation</strong> — Both sides now independently derive the same session keys using HKDF:<br>
+        • <span class="mono">client_traffic_key</span> = <span class="mono">${randomHex(16)}...</span><br>
+        • <span class="mono">server_traffic_key</span> = <span class="mono">${randomHex(16)}...</span><br>
+        The magic: identical keys are derived independently — the shared secret never crosses the wire!`, 'type-crypto');
+
+            setField('c-keys', '✅ Derived', 'val-green');
+            setField('s-keys', '✅ Derived', 'val-green');
+            await sleep(800);
+            if (!state.connected) return;
+
+            // — Client Finished —
+            setField('c-phase', 'Sending Finished', 'val-blue');
+            addStory('📤', `<strong>{Finished}</strong> — ${cName} sends its own MAC to confirm the handshake integrity.`, 'type-client');
+            await sendPacket('right', '{FINISHED}', 'green');
+            await sleep(300);
+
+            // — Done! —
+            await completeHandshake(client, server);
+        }
+
+        /* ═══════════════════════════════════════════
+           TLS 1.2 HANDSHAKE
+           ═══════════════════════════════════════════ */
+        async function handshakeTLS12(client, server) {
+            const cName = `${client.icon} ${client.browser}`;
+            const sName = `${server.icon} ${server.domain}`;
+
+            const cipher12 = 'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384';
+
+            // — TCP —
+            addStory('🌐', `TCP three-way handshake...`, '');
+            setField('c-phase', 'TCP Handshake', 'val-blue');
+            await sendPacket('right', 'SYN', 'blue');
+            await sendPacket('left', 'SYN-ACK', 'purple');
+            await sendPacket('right', 'ACK', 'blue');
+            addStory('✅', 'TCP established. Starting TLS 1.2 handshake (requires 2 round-trips).', 'type-secure');
+            await sleep(400);
+            if (!state.connected) return;
+
+            // — Client Hello —
+            els.epClient.className = 'net-endpoint handshaking';
+            els.netLine.className = 'net-line handshaking';
+            setField('c-tls-ver', 'TLS 1.2', 'val-yellow');
+            setField('c-phase', 'Client Hello', 'val-blue');
+
+            addStory('📤', `<strong>Client Hello</strong> — ${cName} sends supported cipher suites, a client random, and session ID.`, 'type-client');
+            await sendPacket('right', 'CLIENT HELLO', 'blue');
+            await sleep(300);
+            if (!state.connected) return;
+
+            // — Server Hello —
+            els.epServer.className = 'net-endpoint handshaking';
+            setField('c-phase', 'Server Hello', 'val-purple');
+            setField('s-status', 'Handshake in progress', 'val-blue');
+
+            addStory('📥', `<strong>Server Hello</strong> — ${sName} picks cipher: <span class="mono">${cipher12}</span> and sends its server random.`, 'type-server');
+            setField('s-cipher', cipher12, 'mono val-green');
+            setField('c-cipher', cipher12, 'mono val-green');
+            await sendPacket('left', 'SERVER HELLO', 'purple');
+            await sleep(200);
+
+            // — Certificate —
+            addStory('📜', `<strong>Certificate</strong> — Server sends its certificate chain:<br>
+        <span style="color:var(--neon-blue)">🌐 ${server.domain}</span> ← <span style="color:var(--neon-purple)">🏛️ ${server.certIssuer}</span> ← <span style="color:var(--neon-green)">🏢 ${server.rootCA}</span>`, 'type-server');
+            setField('c-cert', server.domain, 'val-blue');
+            await sendPacket('left', 'CERTIFICATE', 'purple');
+            await sleep(200);
+            if (!state.connected) return;
+
+            // — Server Key Exchange —
+            addStory('📥', `<strong>Server Key Exchange</strong> — Server sends ECDHE parameters (curve: P-256, public point) signed with its private key.`, 'type-server');
+            setField('s-kex', 'ECDHE (P-256)', 'val-blue');
+            setField('c-kex', 'ECDHE (P-256)', 'val-blue');
+            await sendPacket('left', 'SERVER KEY EXCHANGE', 'purple');
+            await sleep(200);
+
+            // — Server Hello Done —
+            addStory('📥', `<strong>Server Hello Done</strong> — "That's everything from my side!"`, 'type-server');
+            await sendPacket('left', 'SERVER HELLO DONE', 'purple');
+            await sleep(300);
+            if (!state.connected) return;
+
+            // — Client verifies cert —
+            setField('c-phase', 'Verifying Certificate...', 'val-yellow');
+            addStory('🔍', `${cName} verifies the certificate chain...<br>
+        ✓ Root CA <strong>${server.rootCA}</strong> is trusted<br>
+        ✓ Certificate signature valid<br>
+        ✓ Domain <strong>${server.domain}</strong> matches<br>
+        ✓ Not expired (valid until ${server.validUntil})`, 'type-client');
+            await sleep(1000);
+            setField('c-chain', '✅ Trusted', 'val-green');
+            if (!state.connected) return;
+
+            // — Client Key Exchange —
+            setField('c-phase', 'Key Exchange', 'val-blue');
+            addStory('📤', `<strong>Client Key Exchange</strong> — ${cName} sends its ECDHE public point. Both sides can now compute the shared pre-master secret independently.`, 'type-client');
+            await sendPacket('right', 'CLIENT KEY EXCHANGE', 'blue');
+            await sleep(300);
+
+            // — Change Cipher Spec (Client) —
+            addStory('📤', `<strong>Change Cipher Spec</strong> — ${cName}: "Switching to encrypted mode now!"`, 'type-client');
+            await sendPacket('right', 'CHANGE CIPHER SPEC', 'green');
+            await sleep(200);
+
+            // — Client Finished —
+            addStory('📤', `<strong>Finished</strong> — Client sends an encrypted verification hash of all handshake messages.`, 'type-client');
+            setField('c-keys', '✅ Derived', 'val-green');
+            await sendPacket('right', '{FINISHED}', 'green');
+            await sleep(300);
+            if (!state.connected) return;
+
+            // — Change Cipher Spec (Server) —
+            addStory('📥', `<strong>Change Cipher Spec</strong> — ${sName}: "I'm switching too!"`, 'type-server');
+            await sendPacket('left', 'CHANGE CIPHER SPEC', 'green');
+            await sleep(200);
+
+            // — Server Finished —
+            addStory('📥', `<strong>{Finished}</strong> — Server sends its encrypted verification hash.`, 'type-server');
+            setField('s-keys', '✅ Derived', 'val-green');
+            await sendPacket('left', '{FINISHED}', 'green');
+            await sleep(300);
+
+            // — Done! —
+            await completeHandshake(client, server);
+        }
+
+        /* ═══════════════════════════════════════════
+           HANDSHAKE COMPLETE + DEMO TRAFFIC
+           ═══════════════════════════════════════════ */
+        async function completeHandshake(client, server) {
+            if (!state.connected) return;
+
+            // Visual: lock, green
+            els.netLock.textContent = '🔒';
+            els.netLock.className = 'net-lock locked';
+            els.netLine.className = 'net-line encrypted';
+            els.epClient.className = 'net-endpoint secure';
+            els.epServer.className = 'net-endpoint secure';
+
+            setField('c-phase', '🔒 Encrypted', 'val-green');
+            setField('s-status', '🔒 Secure Session', 'val-green');
+            setField('s-enc', '✅ AES-256-GCM', 'val-green');
+
+            addStory('🔒', `<strong>Handshake complete!</strong> The connection is now fully encrypted with <span class="mono">${server.chosenCipher}</span>. Every byte from here is unreadable to eavesdroppers.`, 'type-secure');
+
+            await sleep(600);
+            if (!state.connected) return;
+
+            // — TLS 1.3 vs 1.2 note —
+            if (state.tlsVersion === '1.3') {
+                addStory('⚡', `<strong>TLS 1.3 completed in just 1 round-trip</strong> (vs 2 for TLS 1.2). The key exchange and cipher negotiation happen simultaneously in the Client Hello, cutting latency in half!`, 'type-secure');
+            } else {
+                addStory('📊', `<strong>TLS 1.2 required 2 full round-trips</strong> to complete the handshake. TLS 1.3 cuts this to just 1 round-trip by sending the key share in the Client Hello itself.`, 'type-crypto');
+            }
+
+            await sleep(800);
+            if (!state.connected) return;
+
+            // — Demo encrypted traffic —
+            addStory('📡', `Now let's see encrypted data in action — your browser requests a page:`, '');
+            await sleep(400);
+
+            const plainReq = `GET /index.html HTTP/2`;
+            const encReq = randomHex(24);
+            addStory('📤', `<strong>Your request:</strong> <span class="mono" style="color:var(--neon-blue)">${plainReq}</span><br>
+        <strong>On the wire:</strong> <span class="mono" style="color:var(--text-muted)">${encReq}</span><br>
+        <span style="font-size:0.85rem;color:var(--text-muted);">Anyone snooping on the network sees only the gibberish!</span>`, 'type-client');
+            await sendPacket('right', '🔒 ENCRYPTED DATA', 'green');
+            await sleep(400);
+
+            if (!state.connected) return;
+
+            const plainRes = `200 OK (text/html, 42 KB)`;
+            const encRes = randomHex(24);
+            addStory('📥', `<strong>Server responds:</strong> <span class="mono" style="color:var(--neon-purple)">${plainRes}</span><br>
+        <strong>On the wire:</strong> <span class="mono" style="color:var(--text-muted)">${encRes}</span>`, 'type-server');
+            await sendPacket('left', '🔒 ENCRYPTED DATA', 'green');
+
+            await sleep(600);
+            addStory('🎉', `<strong>That's HTTPS!</strong> Your ${client.name} and ${server.domain} are now communicating securely. The padlock 🔒 in your browser means all of this just happened — in under 100 milliseconds.`, 'type-secure');
+        }
+
+        /* ═══════════════════════════════════════════
+           UTILITIES
+           ═══════════════════════════════════════════ */
+        function randomHex(len) {
+            return Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How OAuth 2.0 Works — The "Login with Google" Flow Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of OAuth 2.0 Authorization Code flow. Watch step-by-step how 'Login with Google' works using the valet key analogy.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-pink: #f472b6;
+            --neon-emerald: #34d399;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-emerald), var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 740px;
+            line-height: 1.6;
+        }
+
+        /* ── Selectors ── */
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 230px;
+        }
+
+        .select-card label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(52, 211, 153, 0.4);
+            box-shadow: 0 4px 25px rgba(52, 211, 153, 0.1);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-emerald);
+            box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+        }
+
+        .arrow-icon {
+            padding-top: 22px;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes arrowPulse {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* ── Status ── */
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.4s ease;
+            max-width: 800px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(52, 211, 153, 0.08);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+            color: var(--neon-emerald);
+        }
+
+        /* ── Controls ── */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(56, 189, 248, 0.2));
+            border-color: var(--neon-emerald);
+            box-shadow: 0 0 15px rgba(52, 211, 153, 0.3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(52, 211, 153, 0.5);
+            border-color: #fff;
+        }
+
+        /* ── Dashboard ── */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1320px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 22px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 12px;
+        }
+
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 9px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-header {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-emerald {
+            color: var(--neon-emerald);
+            font-weight: 600;
+        }
+
+        .val-orange {
+            color: var(--neon-orange);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+        }
+
+        /* ══════════════════════════════════════
+           VISUAL STAGE
+           ══════════════════════════════════════ */
+        .stage {
+            position: relative;
+            width: 100%;
+            min-height: 400px;
+        }
+
+        .actor {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 5;
+            transition: all 0.5s ease;
+        }
+
+        .actor-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            transition: all 0.5s ease;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+        }
+
+        .actor-name {
+            font-weight: 600;
+            font-size: 0.82rem;
+            text-align: center;
+        }
+
+        .actor-sub {
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            text-align: center;
+            max-width: 90px;
+        }
+
+        .actor.active .actor-icon {
+            border-color: var(--neon-emerald);
+            box-shadow: 0 0 22px rgba(52, 211, 153, 0.3);
+        }
+
+        .actor.done .actor-icon {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(74, 222, 128, 0.2);
+        }
+
+        .actor.alert .actor-icon {
+            border-color: var(--neon-yellow);
+            box-shadow: 0 0 20px rgba(250, 204, 21, 0.25);
+        }
+
+        /* Connections */
+        .stage-line {
+            position: absolute;
+            height: 2px;
+            background: #1e293b;
+            z-index: 1;
+            transition: all 0.5s ease;
+        }
+
+        .stage-line.active {
+            background: rgba(52, 211, 153, 0.4);
+            box-shadow: 0 0 8px rgba(52, 211, 153, 0.2);
+        }
+
+        /* Step badge */
+        .step-badge {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 5px 16px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--neon-emerald);
+            z-index: 6;
+            white-space: nowrap;
+            transition: all 0.4s ease;
+        }
+
+        /* Flying tokens/packets */
+        .fly-token {
+            position: absolute;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            z-index: 8;
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.7s ease-in-out;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Consent popup */
+        .consent-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.97);
+            border: 2px solid var(--neon-yellow);
+            border-radius: 16px;
+            padding: 20px;
+            width: 260px;
+            z-index: 20;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.7);
+            opacity: 0;
+            transition: all 0.5s ease;
+            pointer-events: none;
+        }
+
+        .consent-popup.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .consent-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .consent-scope {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 0.78rem;
+        }
+
+        .consent-scope:last-of-type {
+            border: none;
+        }
+
+        .consent-btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+            justify-content: center;
+        }
+
+        .consent-btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .consent-allow {
+            background: var(--neon-emerald);
+            color: #0f172a;
+        }
+
+        .consent-deny {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            border: 1px solid var(--panel-border);
+        }
+
+        /* Key metaphor */
+        .key-metaphor {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 8px 16px;
+            z-index: 6;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            max-width: 320px;
+            transition: all 0.4s ease;
+            opacity: 0;
+        }
+
+        .key-metaphor.visible {
+            opacity: 1;
+        }
+
+        .key-metaphor .km-title {
+            color: var(--neon-yellow);
+            font-weight: 700;
+            margin-bottom: 3px;
+            font-size: 0.72rem;
+        }
+
+        /* ── Story Feed ── */
+        .feed-wrapper {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, 0.1);
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp 0.4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: 0.98rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-user {
+            border-left-color: var(--neon-blue);
+        }
+
+        .type-app {
+            border-left-color: var(--neon-purple);
+        }
+
+        .type-auth {
+            border-left-color: var(--neon-emerald);
+        }
+
+        .type-token {
+            border-left-color: var(--neon-yellow);
+            background: rgba(250, 204, 21, 0.04);
+        }
+
+        .type-api {
+            border-left-color: var(--neon-cyan);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, 0.04);
+        }
+
+        .type-metaphor {
+            border-left-color: var(--neon-orange);
+            background: rgba(251, 146, 60, 0.04);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                max-width: 520px;
+            }
+
+            .stage {
+                min-height: 350px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .arrow-icon {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How OAuth 2.0 Works</h1>
+    <p class="subtitle">When you click <strong>"Login with Google"</strong>, you never give the app your Google
+        password.
+        Instead, Google hands the app a <strong>valet key</strong> — a limited token that opens only what you allow,
+        and expires automatically. Watch how it works, step by step.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Identity Provider</label>
+            <select id="select-provider" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a provider —</option>
+                <option value="google">🟢 Google</option>
+                <option value="github">⚫ GitHub</option>
+                <option value="apple">🍎 Apple</option>
+                <option value="microsoft">🔵 Microsoft</option>
+            </select>
+        </div>
+        <div class="arrow-icon">→</div>
+        <div class="select-card">
+            <label>Third-Party App</label>
+            <select id="select-app" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose an app —</option>
+                <option value="social">📸 PhotoShare (Social App)</option>
+                <option value="productivity">📋 TaskFlow (Productivity)</option>
+                <option value="fitness">🏃 FitTrack (Fitness App)</option>
+                <option value="devtool">🛠️ DeployBot (Dev Tool)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select an identity provider and app to begin the OAuth 2.0 flow.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startFlow()">🔐 Click "Login with Google"</button>
+    </div>
+
+    <div class="dashboard" id="dashboard" style="display:none">
+        <div class="panel" id="panel-left"></div>
+
+        <div class="stage" id="stage">
+            <div class="step-badge" id="step-badge">Ready</div>
+
+            <!-- Actors -->
+            <div class="actor" id="actor-user" style="left:6%;top:50%;transform:translateY(-50%);">
+                <div class="actor-icon" id="ai-user">🧑</div>
+                <div class="actor-name">You</div>
+                <div class="actor-sub">Resource Owner</div>
+            </div>
+
+            <div class="actor" id="actor-app" style="left:38%;top:20%;transform:translate(-50%,0);">
+                <div class="actor-icon" id="ai-app">📸</div>
+                <div class="actor-name" id="an-app">App</div>
+                <div class="actor-sub">Client</div>
+            </div>
+
+            <div class="actor" id="actor-auth" style="right:6%;top:20%;transform:translate(0,0);">
+                <div class="actor-icon" id="ai-auth">🟢</div>
+                <div class="actor-name" id="an-auth">Google</div>
+                <div class="actor-sub">Auth Server</div>
+            </div>
+
+            <div class="actor" id="actor-api" style="right:6%;bottom:15%;transform:translate(0,0);">
+                <div class="actor-icon" id="ai-api">📡</div>
+                <div class="actor-name" id="an-api">Google API</div>
+                <div class="actor-sub">Resource Server</div>
+            </div>
+
+            <!-- Consent popup -->
+            <div class="consent-popup" id="consent-popup">
+                <div class="consent-title" id="consent-title">🟢 Google</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;text-align:center;"
+                    id="consent-sub">App wants access to:</div>
+                <div id="consent-scopes"></div>
+                <div class="consent-btn-row">
+                    <button class="consent-btn consent-allow" id="consent-allow">✅ Allow</button>
+                    <button class="consent-btn consent-deny">❌ Deny</button>
+                </div>
+            </div>
+
+            <!-- Valet key metaphor -->
+            <div class="key-metaphor" id="key-metaphor">
+                <div class="km-title">🔑 Valet Key Analogy</div>
+                <span id="km-text"></span>
+            </div>
+        </div>
+
+        <div class="panel" id="panel-right"></div>
+
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;">
+                    <span class="log-icon">👋</span>
+                    <span class="log-text">Welcome! Select a provider and app, then click the login button to watch
+                        OAuth 2.0 in action.</span>
+                </div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const PROVIDERS = {
+            google: {
+                id: 'google', name: 'Google', icon: '🟢', color: '#34d399',
+                authEndpoint: 'accounts.google.com/o/oauth2/v2/auth',
+                tokenEndpoint: 'oauth2.googleapis.com/token',
+                apiBase: 'www.googleapis.com',
+                scopes: { email: 'View your email address', profile: 'View your basic profile', calendar: 'View your calendar events', drive: 'View files in Drive' },
+            },
+            github: {
+                id: 'github', name: 'GitHub', icon: '⚫', color: '#a78bfa',
+                authEndpoint: 'github.com/login/oauth/authorize',
+                tokenEndpoint: 'github.com/login/oauth/access_token',
+                apiBase: 'api.github.com',
+                scopes: { 'user:email': 'Read your email', 'read:user': 'Read your profile', 'repo': 'Access repositories', 'read:org': 'Read org membership' },
+            },
+            apple: {
+                id: 'apple', name: 'Apple', icon: '🍎', color: '#f8fafc',
+                authEndpoint: 'appleid.apple.com/auth/authorize',
+                tokenEndpoint: 'appleid.apple.com/auth/token',
+                apiBase: 'appleid.apple.com',
+                scopes: { name: 'View your name', email: 'View your email' },
+            },
+            microsoft: {
+                id: 'microsoft', name: 'Microsoft', icon: '🔵', color: '#38bdf8',
+                authEndpoint: 'login.microsoftonline.com/common/oauth2/v2.0/authorize',
+                tokenEndpoint: 'login.microsoftonline.com/common/oauth2/v2.0/token',
+                apiBase: 'graph.microsoft.com',
+                scopes: { 'User.Read': 'Read your profile', email: 'Read your email', 'Calendars.Read': 'Read your calendar', 'Files.Read': 'Read your OneDrive files' },
+            },
+        };
+
+        const APPS = {
+            social: {
+                id: 'social', name: 'PhotoShare', icon: '📸', type: 'Social App',
+                clientId: 'ps_' + rHex(8), redirectUri: 'https://photoshare.app/callback',
+                needsScopes: ['email', 'profile'],
+                apiCall: { method: 'GET', path: '/userinfo', desc: 'Fetch your name & avatar' },
+            },
+            productivity: {
+                id: 'productivity', name: 'TaskFlow', icon: '📋', type: 'Productivity App',
+                clientId: 'tf_' + rHex(8), redirectUri: 'https://taskflow.io/auth/callback',
+                needsScopes: ['email', 'profile', 'calendar'],
+                apiCall: { method: 'GET', path: '/calendar/events', desc: 'Import your calendar events' },
+            },
+            fitness: {
+                id: 'fitness', name: 'FitTrack', icon: '🏃', type: 'Fitness App',
+                clientId: 'ft_' + rHex(8), redirectUri: 'https://fittrack.app/oauth/callback',
+                needsScopes: ['email', 'profile'],
+                apiCall: { method: 'GET', path: '/userinfo', desc: 'Create your fitness profile' },
+            },
+            devtool: {
+                id: 'devtool', name: 'DeployBot', icon: '🛠️', type: 'Dev Tool',
+                clientId: 'db_' + rHex(8), redirectUri: 'https://deploybot.dev/auth/callback',
+                needsScopes: ['email', 'read:user', 'repo', 'user:email'],
+                apiCall: { method: 'GET', path: '/user/repos', desc: 'List your repositories' },
+            },
+        };
+
+        function rHex(n) { return Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join(''); }
+
+        /* ═══════════════════════════════════════════
+           STATE & ELEMENTS
+           ═══════════════════════════════════════════ */
+        const state = { animating: false };
+        const selProvider = document.getElementById('select-provider');
+        const selApp = document.getElementById('select-app');
+
+        const els = {
+            btnGo: document.getElementById('btn-go'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compat: document.getElementById('compat-status'),
+            panelL: document.getElementById('panel-left'),
+            panelR: document.getElementById('panel-right'),
+            feed: document.getElementById('feed'),
+            stage: document.getElementById('stage'),
+            stepBadge: document.getElementById('step-badge'),
+            actors: {
+                user: document.getElementById('actor-user'),
+                app: document.getElementById('actor-app'),
+                auth: document.getElementById('actor-auth'),
+                api: document.getElementById('actor-api'),
+            },
+            aiApp: document.getElementById('ai-app'),
+            anApp: document.getElementById('an-app'),
+            aiAuth: document.getElementById('ai-auth'),
+            anAuth: document.getElementById('an-auth'),
+            anApi: document.getElementById('an-api'),
+            consent: document.getElementById('consent-popup'),
+            consentTitle: document.getElementById('consent-title'),
+            consentSub: document.getElementById('consent-sub'),
+            consentScopes: document.getElementById('consent-scopes'),
+            consentAllow: document.getElementById('consent-allow'),
+            keyMetaphor: document.getElementById('key-metaphor'),
+            kmText: document.getElementById('km-text'),
+        };
+
+        /* ═══════════════════════════════════════════
+           HELPERS
+           ═══════════════════════════════════════════ */
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(icon, text, type = '') {
+            const el = document.createElement('div');
+            el.className = `log-msg ${type}`;
+            el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
+            els.feed.appendChild(el);
+            els.feed.scrollTop = els.feed.scrollHeight;
+        }
+        function setField(id, text, cls) {
+            const el = document.getElementById(id);
+            if (el) { el.innerText = text; if (cls) el.className = cls; }
+        }
+        function clearLogs() {
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`;
+        }
+        function setStep(label) { els.stepBadge.textContent = label; }
+        function setActor(name, cls) { els.actors[name].className = `actor ${cls}`; }
+        function resetActors() { Object.keys(els.actors).forEach(a => els.actors[a].className = 'actor'); }
+
+        function showMetaphor(text) {
+            els.kmText.textContent = text;
+            els.keyMetaphor.className = 'key-metaphor visible';
+        }
+        function hideMetaphor() { els.keyMetaphor.className = 'key-metaphor'; }
+
+        function animateToken(fromActor, toActor, label, color) {
+            return new Promise(resolve => {
+                const from = els.actors[fromActor].querySelector('.actor-icon');
+                const to = els.actors[toActor].querySelector('.actor-icon');
+                const sr = els.stage.getBoundingClientRect();
+                const fr = from.getBoundingClientRect();
+                const tr = to.getBoundingClientRect();
+                const sx = fr.left + fr.width / 2 - sr.left;
+                const sy = fr.top + fr.height / 2 - sr.top;
+                const ex = tr.left + tr.width / 2 - sr.left;
+                const ey = tr.top + tr.height / 2 - sr.top;
+                const colors = {
+                    blue: 'rgba(56,189,248,0.92)', purple: 'rgba(167,139,250,0.92)',
+                    green: 'rgba(74,222,128,0.92)', yellow: 'rgba(250,204,21,0.92)',
+                    emerald: 'rgba(52,211,153,0.92)', orange: 'rgba(251,146,60,0.92)',
+                    red: 'rgba(248,113,113,0.92)', cyan: 'rgba(34,211,238,0.92)'
+                };
+                const pkt = document.createElement('div');
+                pkt.className = 'fly-token';
+                pkt.textContent = label;
+                pkt.style.background = colors[color] || colors.emerald;
+                pkt.style.left = sx + 'px'; pkt.style.top = sy + 'px'; pkt.style.opacity = '1';
+                els.stage.appendChild(pkt);
+                requestAnimationFrame(() => requestAnimationFrame(() => { pkt.style.left = ex + 'px'; pkt.style.top = ey + 'px'; }));
+                setTimeout(() => { pkt.style.opacity = '0'; setTimeout(() => { pkt.remove(); resolve(); }, 300); }, 700);
+            });
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const pId = selProvider.value, aId = selApp.value;
+            resetActors(); hideMetaphor();
+            els.consent.className = 'consent-popup';
+
+            if (!pId || !aId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select a provider and app to begin.</span>';
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
+            const prov = PROVIDERS[pId], app = APPS[aId];
+
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${app.icon} ${app.name} wants to use "Login with ${prov.icon} ${prov.name}"</span>`;
+
+            els.aiApp.textContent = app.icon;
+            els.anApp.textContent = app.name;
+            els.aiAuth.textContent = prov.icon;
+            els.anAuth.textContent = prov.name;
+            els.anApi.textContent = prov.name + ' API';
+
+            // Map scopes
+            const scopeKeys = Object.keys(prov.scopes).slice(0, app.needsScopes.length);
+            const scopeDescs = scopeKeys.map(k => prov.scopes[k]);
+
+            els.panelL.innerHTML = renderLeftPanel(app, prov, scopeKeys);
+            els.panelR.innerHTML = renderRightPanel(prov, app);
+
+            els.controls.style.display = 'flex';
+            els.dashboard.style.display = 'grid';
+            els.btnGo.innerHTML = `🔐 Click "Login with ${prov.name}"`;
+            els.btnGo.className = 'primary';
+            els.btnGo.disabled = false;
+
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+                <span class="log-icon">👋</span>
+                <span class="log-text">Ready! Click the login button to watch the OAuth 2.0 Authorization Code flow between ${app.icon} ${app.name} and ${prov.icon} ${prov.name}.</span>
+            </div>`;
+        }
+
+        function renderLeftPanel(app, prov, scopes) {
+            return `
+            <div class="panel-title">${app.icon} ${app.name}</div>
+            <div class="status-box">
+                <div class="status-header">Application</div>
+                <div class="data-row"><span>Type:</span> <span class="val-purple">${app.type}</span></div>
+                <div class="data-row"><span>Client ID:</span> <span class="mono" style="font-size:0.7rem;">${app.clientId}</span></div>
+                <div class="data-row"><span>Redirect URI:</span></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--neon-blue);margin-top:2px;word-break:break-all;">${app.redirectUri}</div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Requested Scopes</div>
+                ${scopes.map(s => `<div class="data-row"><span>•</span> <span style="font-size:0.8rem;">${prov.scopes[s]}</span></div>`).join('')}
+            </div>
+            <div class="status-box">
+                <div class="status-header">OAuth Status</div>
+                <div class="data-row"><span>Phase:</span> <span id="app-phase">Idle</span></div>
+                <div class="data-row"><span>Auth Code:</span> <span id="app-code" class="mono" style="font-size:0.7rem;">—</span></div>
+                <div class="data-row"><span>Access Token:</span> <span id="app-token" class="mono" style="font-size:0.7rem;">—</span></div>
+                <div class="data-row"><span>Refresh Token:</span> <span id="app-refresh" class="mono" style="font-size:0.7rem;">—</span></div>
+            </div>`;
+        }
+
+        function renderRightPanel(prov, app) {
+            return `
+            <div class="panel-title">${prov.icon} ${prov.name} — Provider</div>
+            <div class="status-box">
+                <div class="status-header">Auth Server</div>
+                <div class="data-row"><span>Auth URL:</span></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--neon-emerald);margin:2px 0 6px;word-break:break-all;">${prov.authEndpoint}</div>
+                <div class="data-row"><span>Token URL:</span></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--neon-yellow);margin-top:2px;word-break:break-all;">${prov.tokenEndpoint}</div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Consent</div>
+                <div class="data-row"><span>User Approved:</span> <span id="prov-consent">Pending</span></div>
+                <div class="data-row"><span>Code Issued:</span> <span id="prov-code">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Tokens Issued</div>
+                <div class="data-row"><span>Access Token:</span> <span id="prov-at">—</span></div>
+                <div class="data-row"><span>Token Type:</span> <span id="prov-type">—</span></div>
+                <div class="data-row"><span>Expires In:</span> <span id="prov-exp">—</span></div>
+                <div class="data-row"><span>Scope:</span> <span id="prov-scope" style="font-size:0.75rem;">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">API Access</div>
+                <div class="data-row"><span>Endpoint:</span> <span class="mono" style="font-size:0.7rem;">${prov.apiBase}</span></div>
+                <div class="data-row"><span>Request:</span> <span id="prov-api">—</span></div>
+                <div class="data-row"><span>Response:</span> <span id="prov-apires">—</span></div>
+            </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           OAUTH 2.0 FLOW
+           ═══════════════════════════════════════════ */
+        async function startFlow() {
+            if (state.animating) return;
+            state.animating = true;
+            els.btnGo.disabled = true;
+            els.btnGo.innerHTML = '⏳ Flow in progress...';
+            resetActors(); hideMetaphor();
+            els.consent.className = 'consent-popup';
+
+            const prov = PROVIDERS[selProvider.value];
+            const app = APPS[selApp.value];
+            const scopeKeys = Object.keys(prov.scopes).slice(0, app.needsScopes.length);
+            const scopeStr = scopeKeys.join(' ');
+            const authCode = rHex(20);
+            const accessToken = rHex(32);
+            const refreshToken = rHex(32);
+            const csrfState = rHex(16);
+
+            /* ── Step 1: User clicks Login ── */
+            setStep('Step 1 / 8 — User Clicks Login');
+            setActor('user', 'active');
+
+            addStory('👆', `<strong>Step 1: You click "Login with ${prov.name}"</strong> on ${app.icon} ${app.name}'s website.<br>
+                <br>You do NOT type your ${prov.name} password into ${app.name}. Instead, ${app.name} redirects you to ${prov.name}'s own login page.`, 'type-user');
+
+            showMetaphor(`🚗 You pull up to a hotel. Instead of giving them your house keys, you'll give them a valet key that only starts the car.`);
+            await sleep(1500);
+
+            /* ── Step 2: Redirect to Auth Server ── */
+            setStep('Step 2 / 8 — Redirect to Auth Server');
+            setActor('app', 'active');
+
+            addStory('🔀', `<strong>Step 2: ${app.icon} ${app.name} redirects your browser</strong> to ${prov.name}'s authorization endpoint:<br>
+                <span class="mono" style="font-size:0.72rem;">
+                https://${prov.authEndpoint}?<br>
+                &nbsp;&nbsp;client_id=<span class="val-purple">${app.clientId}</span>&<br>
+                &nbsp;&nbsp;redirect_uri=<span class="val-blue">${app.redirectUri}</span>&<br>
+                &nbsp;&nbsp;scope=<span class="val-emerald">${scopeStr}</span>&<br>
+                &nbsp;&nbsp;response_type=<span class="val-yellow">code</span>&<br>
+                &nbsp;&nbsp;state=<span class="val-orange">${csrfState}</span>
+                </span><br>
+                <br>Notice: ${app.name} sends its <span class="mono">client_id</span> (public identifier) but NOT its <span class="mono">client_secret</span> — that stays on the server!`, 'type-app');
+
+            setField('app-phase', 'Redirecting...', 'val-blue');
+            await animateToken('user', 'app', 'Login Click', 'blue');
+            await animateToken('app', 'auth', 'Redirect', 'purple');
+            await sleep(600);
+
+            showMetaphor(`🏨 You walk to the hotel's key desk (Google). The hotel clerk (app) told them what kind of key to make.`);
+
+            /* ── Step 3: User authenticates ── */
+            setStep('Step 3 / 8 — User Authenticates');
+            setActor('auth', 'active');
+
+            addStory('🔐', `<strong>Step 3: You log into ${prov.name} directly</strong><br>
+                Your browser is now on <span class="mono val-emerald">https://${prov.authEndpoint}</span> — this is ${prov.name}'s page, NOT ${app.name}'s.<br>
+                <br>You enter your ${prov.name} username & password here. <strong>${app.name} never sees these credentials.</strong>`, 'type-auth');
+
+            await sleep(1200);
+
+            /* ── Step 4: Consent Screen ── */
+            setStep('Step 4 / 8 — Consent Screen');
+            setActor('user', 'alert');
+
+            addStory('📋', `<strong>Step 4: ${prov.name} shows the consent screen</strong><br>
+                "${app.icon} ${app.name} wants to access:"<br>
+                ${scopeKeys.map(s => `• <span class="val-emerald">${prov.scopes[s]}</span>`).join('<br>')}<br>
+                <br>You choose exactly what to allow. These are the <strong>scopes</strong> — the boundaries of the valet key.`, 'type-auth');
+
+            // Show consent popup
+            els.consentTitle.innerHTML = `${prov.icon} Sign in with ${prov.name}`;
+            els.consentSub.textContent = `${app.name} wants to:`;
+            els.consentScopes.innerHTML = scopeKeys.map(s =>
+                `<div class="consent-scope">✅ <span>${prov.scopes[s]}</span></div>`
+            ).join('');
+            els.consent.className = 'consent-popup visible';
+
+            showMetaphor(`🔑 The key desk asks you: "Which doors should this valet key open? Just the car? The trunk too?" You decide.`);
+
+            // Wait for "Allow" click
+            await new Promise(resolve => {
+                els.consentAllow.onclick = resolve;
+            });
+            els.consent.className = 'consent-popup';
+            await sleep(300);
+
+            addStory('✅', `<strong>You clicked "Allow"!</strong> You've granted ${app.name} permission to access only the scopes you approved — nothing more.`, 'type-user');
+            setField('prov-consent', '✅ Approved', 'val-green');
+            await sleep(600);
+
+            /* ── Step 5: Authorization Code ── */
+            setStep('Step 5 / 8 — Authorization Code');
+            setActor('auth', 'active');
+
+            addStory('🎫', `<strong>Step 5: ${prov.name} issues an authorization code</strong><br>
+                ${prov.name} redirects your browser back to ${app.name}'s redirect URI with a temporary code:<br>
+                <span class="mono" style="font-size:0.72rem;">
+                ${app.redirectUri}?<br>
+                &nbsp;&nbsp;code=<span class="val-yellow">${authCode}</span>&<br>
+                &nbsp;&nbsp;state=<span class="val-orange">${csrfState}</span>
+                </span><br>
+                <br>This code is <strong>one-time use</strong> and expires in ~60 seconds. By itself, it's useless — it must be exchanged for a token.`, 'type-token');
+
+            setField('app-code', authCode.substring(0, 12) + '...', 'mono val-yellow');
+            setField('prov-code', '✅ Issued', 'val-green');
+            setField('app-phase', 'Code Received', 'val-yellow');
+            await animateToken('auth', 'user', 'Code: ' + authCode.substring(0, 8), 'yellow');
+            await animateToken('user', 'app', 'Code via redirect', 'yellow');
+            await sleep(600);
+
+            showMetaphor(`🎫 The hotel gives you a claim ticket (auth code). This isn't the key yet — you need to take it to the valet station.`);
+
+            /* ── Step 6: Exchange Code for Token ── */
+            setStep('Step 6 / 8 — Token Exchange');
+            setActor('app', 'active');
+
+            addStory('🔄', `<strong>Step 6: ${app.icon} ${app.name}'s backend exchanges the code for tokens</strong><br>
+                This happens <strong>server-to-server</strong> (your browser doesn't see this):<br>
+                <span class="mono" style="font-size:0.72rem;">
+                POST https://${prov.tokenEndpoint}<br>
+                &nbsp;&nbsp;grant_type=authorization_code&<br>
+                &nbsp;&nbsp;code=<span class="val-yellow">${authCode}</span>&<br>
+                &nbsp;&nbsp;client_id=<span class="val-purple">${app.clientId}</span>&<br>
+                &nbsp;&nbsp;client_secret=<span class="val-red">••••••••••••</span>&<br>
+                &nbsp;&nbsp;redirect_uri=${app.redirectUri}
+                </span><br>
+                <br>The <span class="mono">client_secret</span> proves ${app.name} is the real app, not an impostor.`, 'type-app');
+
+            await animateToken('app', 'auth', 'Code + Secret', 'purple');
+            await sleep(500);
+
+            addStory('📥', `<strong>${prov.name} responds with tokens:</strong><br>
+                <span class="mono" style="font-size:0.72rem;">
+                {<br>
+                &nbsp;&nbsp;"access_token": "<span class="val-emerald">${accessToken.substring(0, 20)}...</span>",<br>
+                &nbsp;&nbsp;"token_type": "Bearer",<br>
+                &nbsp;&nbsp;"expires_in": <span class="val-yellow">3600</span>,<br>
+                &nbsp;&nbsp;"refresh_token": "<span class="val-orange">${refreshToken.substring(0, 16)}...</span>",<br>
+                &nbsp;&nbsp;"scope": "${scopeStr}"<br>
+                }
+                </span>`, 'type-token');
+
+            setField('app-token', accessToken.substring(0, 14) + '...', 'mono val-emerald');
+            setField('app-refresh', refreshToken.substring(0, 14) + '...', 'mono val-orange');
+            setField('prov-at', '✅ Issued', 'val-green');
+            setField('prov-type', 'Bearer', '');
+            setField('prov-exp', '3600 seconds (1 hour)', 'val-yellow');
+            setField('prov-scope', scopeStr, 'mono');
+            setField('app-phase', 'Token Received', 'val-emerald');
+            await animateToken('auth', 'app', 'Access Token', 'emerald');
+            await sleep(600);
+
+            showMetaphor(`🔑 You exchange the claim ticket for the actual valet key. This key only opens the car door (not the house), and it expires at checkout.`);
+
+            /* ── Step 7: Use Token to Access API ── */
+            setStep('Step 7 / 8 — API Access');
+            setActor('app', 'active');
+            setActor('api', 'active');
+
+            addStory('📡', `<strong>Step 7: ${app.icon} ${app.name} uses the access token to call ${prov.name}'s API</strong><br>
+                <span class="mono" style="font-size:0.72rem;">
+                ${app.apiCall.method} https://${prov.apiBase}${app.apiCall.path}<br>
+                Authorization: Bearer <span class="val-emerald">${accessToken.substring(0, 16)}...</span>
+                </span><br>
+                <br>The token acts as a <strong>temporary badge</strong> — no password needed. The API checks: "Is this token valid? What scopes does it have?"`, 'type-api');
+
+            setField('prov-api', `${app.apiCall.method} ${app.apiCall.path}`, 'mono val-blue');
+            await animateToken('app', 'api', 'Bearer Token', 'emerald');
+            await sleep(500);
+
+            addStory('📥', `<strong>API responds with your data:</strong><br>
+                <span class="mono" style="font-size:0.72rem;">
+                {<br>
+                &nbsp;&nbsp;"name": "Rishabh Tomar",<br>
+                &nbsp;&nbsp;"email": "rishabh@example.com",<br>
+                &nbsp;&nbsp;"picture": "https://...avatar.jpg"<br>
+                }
+                </span><br>
+                <br>The app only sees what the <strong>scopes</strong> allow — nothing more. It can read your email, but it <strong>can't change your password or read your Drive files</strong> (unless you approved those scopes).`, 'type-api');
+
+            setField('prov-apires', '200 OK ✅', 'val-green');
+            setField('app-phase', '✅ Authenticated', 'val-green');
+            await animateToken('api', 'app', '200 OK + Data', 'cyan');
+            setActor('user', 'done');
+            setActor('app', 'done');
+            setActor('auth', 'done');
+            setActor('api', 'done');
+            await sleep(800);
+
+            /* ── Step 8: Token Lifecycle ── */
+            setStep('Step 8 / 8 — Token Lifecycle');
+
+            addStory('⏳', `<strong>Step 8: Token lifecycle — what happens next?</strong><br>
+                • ⏰ <strong>Access token expires</strong> after 1 hour — the app can't access your data anymore<br>
+                • 🔄 <strong>Refresh token</strong> is used to silently get a <em>new</em> access token (no login needed)<br>
+                • ❌ <strong>You can revoke access</strong> anytime from your ${prov.name} account settings<br>
+                • 🔐 <strong>${app.name} never stored your password</strong> — only the tokens`, 'type-token');
+
+            showMetaphor(`⏰ At checkout, the valet key stops working automatically. You can also ask the hotel desk to deactivate it early. Either way, your house keys were never at risk.`);
+            await sleep(800);
+
+            /* ── Summary ── */
+            addStory('🎯', `<strong>Why is this so much better than sharing your password?</strong><br>
+                <br>❌ <strong>Without OAuth:</strong> You'd give ${app.name} your ${prov.name} password. They could read ALL your data, change your settings, lock you out — and if they get hacked, your ${prov.name} account is compromised.<br>
+                <br>✅ <strong>With OAuth:</strong><br>
+                • ${app.name} never sees your password<br>
+                • Access is limited to specific scopes<br>
+                • Tokens expire automatically<br>
+                • You can revoke access anytime<br>
+                • If ${app.name} gets hacked, attackers only get a temporary token, not your password`, 'type-secure');
+            await sleep(600);
+
+            addStory('🗝️', `<strong>The Valet Key Analogy — Full Mapping:</strong><br>
+                • 🏠 <strong>House Keys</strong> = Your ${prov.name} password (full access to everything)<br>
+                • 🔑 <strong>Valet Key</strong> = Access token (limited scope, time-limited)<br>
+                • 🚗 <strong>Car Only</strong> = Scopes (email + profile, not Drive or Docs)<br>
+                • ⏰ <strong>Time Limit</strong> = Token expiry (1 hour)<br>
+                • 🎫 <strong>Claim Ticket</strong> = Authorization code (one-time, exchanged for the key)<br>
+                • 🏨 <strong>Hotel Desk</strong> = ${prov.name}'s auth server (issues and validates keys)<br>
+                • 🧑‍🔧 <strong>Valet</strong> = ${app.name} (uses the key, can't copy it for other cars)`, 'type-metaphor');
+            await sleep(500);
+
+            const facts = {
+                google: 'Fun fact: Google processes over 1 billion OAuth token requests per day. When you "Login with Google" on any site, the entire flow above happens in under 2 seconds!',
+                github: 'Fun fact: GitHub OAuth is how CI/CD tools like Vercel and Netlify deploy your code — they get a repo-scoped token, not your GitHub password!',
+                apple: 'Fun fact: "Sign in with Apple" has a unique privacy feature — it can generate a random relay email address, so the app never sees your real email!',
+                microsoft: 'Fun fact: Microsoft\'s OAuth implementation powers not just consumer logins, but the entire enterprise world — every Teams, Outlook, and Azure service uses the same OAuth 2.0 flow!',
+            };
+            addStory('💡', facts[selProvider.value], 'type-secure');
+
+            await sleep(400);
+            addStory('🎉', `<strong>That's OAuth 2.0!</strong> Every "Login with ${prov.name}" button, every connected app, every API integration — they all use this exact flow. Your password stays safe, and third-party apps get only the access they need.`, 'type-secure');
+
+            state.animating = false;
+            els.btnGo.innerHTML = '🔄 Run Again';
+            els.btnGo.className = 'primary';
+            els.btnGo.disabled = false;
+        }
+    </script>
+</body>
+
+</html>

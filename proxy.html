@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Proxy Servers Work — The Middleman Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of forward and reverse proxy servers. Watch the Secret Agent analogy as packets flow through proxies that hide identities, filter content, and cache responses.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --neon-amber: #f59e0b;
+            --neon-pink: #f472b6;
+            --text-muted: #94a3b8;
+            --no-c: #f87171;
+            --fwd-c: #38bdf8;
+            --rev-c: #a78bfa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--fwd-c), var(--rev-c));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 780px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(56, 189, 248, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--fwd-c);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 860px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(56, 189, 248, .08);
+            border: 1px solid rgba(56, 189, 248, .25);
+            color: var(--fwd-c);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(56, 189, 248, .2), rgba(167, 139, 250, .2));
+            border-color: var(--fwd-c);
+            box-shadow: 0 0 15px rgba(56, 189, 248, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(56, 189, 248, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1280px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ══════════ STAGE ══════════ */
+        .stage-section {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+        }
+
+        .stage-header.no-proxy {
+            background: rgba(248, 113, 113, .06);
+            border: 1px solid rgba(248, 113, 113, .2);
+        }
+
+        .stage-header.fwd-proxy {
+            background: rgba(56, 189, 248, .06);
+            border: 1px solid rgba(56, 189, 248, .2);
+        }
+
+        .stage-header.rev-proxy {
+            background: rgba(167, 139, 250, .06);
+            border: 1px solid rgba(167, 139, 250, .2);
+        }
+
+        .sh-icon {
+            font-size: 1.4rem;
+        }
+
+        .sh-info {
+            flex: 1;
+        }
+
+        .sh-name {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .sh-name.no-c {
+            color: var(--no-c);
+        }
+
+        .sh-name.fwd-c {
+            color: var(--fwd-c);
+        }
+
+        .sh-name.rev-c {
+            color: var(--rev-c);
+        }
+
+        .sh-desc {
+            font-size: .7rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .sh-badge {
+            padding: 4px 12px;
+            border-radius: 7px;
+            font-size: .6rem;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .badge-no {
+            background: rgba(248, 113, 113, .12);
+            color: var(--no-c);
+            border: 1px solid rgba(248, 113, 113, .25);
+        }
+
+        .badge-fwd {
+            background: rgba(56, 189, 248, .12);
+            color: var(--fwd-c);
+            border: 1px solid rgba(56, 189, 248, .25);
+        }
+
+        .badge-rev {
+            background: rgba(167, 139, 250, .12);
+            color: var(--rev-c);
+            border: 1px solid rgba(167, 139, 250, .25);
+        }
+
+        .road {
+            position: relative;
+            min-height: 180px;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        /* Road surface */
+        .road-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(255, 255, 255, .04);
+            transform: translateY(-50%);
+        }
+
+        .road-line-dash {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 0;
+            border-top: 2px dashed rgba(255, 255, 255, .06);
+            transform: translateY(-50%);
+        }
+
+        /* Nodes */
+        .node {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            z-index: 5;
+            transition: all .5s;
+        }
+
+        .node-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, .95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            transition: all .5s;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .5);
+        }
+
+        .node-name {
+            font-weight: 600;
+            font-size: .68rem;
+            text-align: center;
+            max-width: 80px;
+        }
+
+        .node-sub {
+            font-size: .5rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            max-width: 90px;
+            word-break: break-all;
+        }
+
+        .node.active .node-icon {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 14px rgba(34, 211, 238, .25);
+        }
+
+        .node.hidden .node-icon {
+            border-color: var(--neon-emerald);
+            box-shadow: 0 0 14px rgba(52, 211, 153, .2);
+        }
+
+        .node.blocked .node-icon {
+            border-color: var(--no-c);
+            box-shadow: 0 0 14px rgba(248, 113, 113, .2);
+            opacity: .6;
+        }
+
+        /* Sees panel */
+        .sees-box {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: rgba(0, 0, 0, .7);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: .52rem;
+            z-index: 6;
+            max-width: 160px;
+            line-height: 1.4;
+            transition: all .4s;
+        }
+
+        .sees-title {
+            font-weight: 700;
+            margin-bottom: 3px;
+            font-size: .55rem;
+        }
+
+        /* Packets */
+        .pkt {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: .52rem;
+            font-weight: 700;
+            color: #0f172a;
+            z-index: 8;
+            opacity: 0;
+            white-space: nowrap;
+            transition: left .6s ease-in-out, opacity .25s;
+        }
+
+        .pkt.visible {
+            opacity: 1;
+        }
+
+        .pkt-req {
+            background: rgba(56, 189, 248, .9);
+            border: 1px solid var(--fwd-c);
+        }
+
+        .pkt-res {
+            background: rgba(74, 222, 128, .9);
+            border: 1px solid var(--neon-green);
+        }
+
+        .pkt-exposed {
+            background: rgba(248, 113, 113, .9);
+            border: 1px solid var(--no-c);
+        }
+
+        .pkt-masked {
+            background: rgba(167, 139, 250, .9);
+            border: 1px solid var(--rev-c);
+        }
+
+        .pkt-blocked {
+            background: rgba(248, 113, 113, .6);
+            border: 1px solid var(--no-c);
+            text-decoration: line-through;
+        }
+
+        .pkt-cached {
+            background: rgba(250, 204, 21, .9);
+            border: 1px solid var(--neon-yellow);
+        }
+
+        /* ══════════ Details ══════════ */
+        .detail-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .detail-card .panel-title {
+            font-size: .9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .mini-header {
+            color: var(--text-muted);
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: .8rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--rev-c);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--fwd-c);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .74rem;
+        }
+
+        /* Feed */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 460px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+        }
+
+        .type-direct {
+            border-left-color: var(--no-c);
+            background: rgba(248, 113, 113, .04);
+        }
+
+        .type-fwd {
+            border-left-color: var(--fwd-c);
+        }
+
+        .type-rev {
+            border-left-color: var(--rev-c);
+            background: rgba(167, 139, 250, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-indigo);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .04);
+        }
+
+        .type-cache {
+            border-left-color: var(--neon-yellow);
+            background: rgba(250, 204, 21, .04);
+        }
+
+        .type-block {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .04);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+            .detail-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How Proxy Servers Work</h1>
+    <p class="subtitle">Instead of talking to a website directly, you hand a note to a <strong>Secret Agent</strong>
+        (the proxy).
+        The agent walks to the website, gets the response, and brings it back. The website never sees <em>you</em>.
+        Watch how <strong>forward proxies</strong> hide clients and <strong>reverse proxies</strong> protect servers.
+    </p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Scenario</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a scenario —</option>
+                <option value="anon">🕵️ Browse Anonymously</option>
+                <option value="filter">🚫 Corporate Content Filtering</option>
+                <option value="reverse">🛡️ Reverse Proxy (Nginx / Cloudflare)</option>
+                <option value="cache">⚡ Caching Proxy (Speed Boost)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to see how proxies route your traffic.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">🕵️ Run Simulation</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- ══════════ ROAD 1: NO PROXY ══════════ -->
+        <div class="stage-section">
+            <div class="stage-header no-proxy">
+                <div class="sh-icon">🚫</div>
+                <div class="sh-info">
+                    <div class="sh-name no-c">Without Proxy — Direct Connection</div>
+                    <div class="sh-desc">The website sees your real IP and identity</div>
+                </div>
+                <div class="sh-badge badge-no">EXPOSED</div>
+            </div>
+            <div class="road" id="road-direct">
+                <div class="road-line"></div>
+                <div class="road-line-dash"></div>
+                <div class="sees-box" id="sees-direct" style="border-color:rgba(248,113,113,.3);">
+                    <div class="sees-title" style="color:var(--no-c);">👁️ Website logs:</div>
+                    <div id="sees-direct-data" style="color:var(--text-muted);">Waiting...</div>
+                </div>
+                <div class="node" id="d-user" style="left:6%;top:50%;transform:translateY(-50%);">
+                    <div class="node-icon">🧑‍💻</div>
+                    <div class="node-name">You</div>
+                    <div class="node-sub" id="d-user-ip">192.168.1.42</div>
+                </div>
+                <div class="node" id="d-site" style="right:6%;top:50%;transform:translateY(-50%);">
+                    <div class="node-icon" id="d-site-icon">🌐</div>
+                    <div class="node-name" id="d-site-name">Website</div>
+                    <div class="node-sub" id="d-site-ip">93.184.216.34</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════ ROAD 2: WITH PROXY ══════════ -->
+        <div class="stage-section">
+            <div class="stage-header fwd-proxy" id="proxy-header">
+                <div class="sh-icon" id="proxy-icon">🕵️</div>
+                <div class="sh-info">
+                    <div class="sh-name fwd-c" id="proxy-name">Forward Proxy</div>
+                    <div class="sh-desc" id="proxy-desc">Hides your identity from the website</div>
+                </div>
+                <div class="sh-badge badge-fwd" id="proxy-badge">PROTECTED</div>
+            </div>
+            <div class="road" id="road-proxy">
+                <div class="road-line"></div>
+                <div class="road-line-dash"></div>
+                <div class="sees-box" id="sees-proxy" style="border-color:rgba(56,189,248,.3);">
+                    <div class="sees-title" id="sees-proxy-title" style="color:var(--fwd-c);">👁️‍🗨️ Website sees:
+                    </div>
+                    <div id="sees-proxy-data" style="color:var(--text-muted);">Waiting...</div>
+                </div>
+                <div class="node" id="p-user" style="left:6%;top:50%;transform:translateY(-50%);">
+                    <div class="node-icon">🧑‍💻</div>
+                    <div class="node-name">You</div>
+                    <div class="node-sub" id="p-user-ip">192.168.1.42</div>
+                </div>
+                <div class="node" id="p-proxy" style="left:44%;top:50%;transform:translate(-50%,-50%);">
+                    <div class="node-icon" id="p-proxy-icon">🕵️</div>
+                    <div class="node-name" id="p-proxy-name">Proxy</div>
+                    <div class="node-sub" id="p-proxy-ip">104.28.6.221</div>
+                </div>
+                <div class="node" id="p-site" style="right:6%;top:50%;transform:translateY(-50%);">
+                    <div class="node-icon" id="p-site-icon">🌐</div>
+                    <div class="node-name" id="p-site-name">Website</div>
+                    <div class="node-sub" id="p-site-ip">93.184.216.34</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details -->
+        <div class="detail-row">
+            <div class="detail-card">
+                <div class="panel-title" style="color:var(--fwd-c);">🕵️ Forward Proxy</div>
+                <div class="mini-box">
+                    <div class="mini-header">Sits between</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.4;">Client → <span
+                            class="val-blue">Proxy</span> → Internet<br>Hides the <strong>client's identity</strong>
+                        from websites.</div>
+                </div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Client IP hidden:</span><span class="val-green">✅ Yes</span></div>
+                    <div class="data-row"><span>Server IP hidden:</span><span class="val-red">❌ No</span></div>
+                    <div class="data-row"><span>Use cases:</span><span>Anonymity, filtering</span></div>
+                    <div class="data-row"><span>Examples:</span><span class="mono">Squid, 3proxy</span></div>
+                </div>
+            </div>
+            <div class="detail-card">
+                <div class="panel-title" style="color:var(--rev-c);">🛡️ Reverse Proxy</div>
+                <div class="mini-box">
+                    <div class="mini-header">Sits between</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.4;">Internet → <span
+                            class="val-purple">Proxy</span> → Server(s)<br>Hides the <strong>server's identity</strong>
+                        from clients.</div>
+                </div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Client IP hidden:</span><span class="val-red">❌ No</span></div>
+                    <div class="data-row"><span>Server IP hidden:</span><span class="val-green">✅ Yes</span></div>
+                    <div class="data-row"><span>Use cases:</span><span>Load balance, cache, WAF</span></div>
+                    <div class="data-row"><span>Examples:</span><span class="mono">Nginx, Cloudflare</span></div>
+                </div>
+            </div>
+            <div class="detail-card">
+                <div class="panel-title">📖 The Middleman Analogy</div>
+                <div class="mini-box">
+                    <div style="font-size:.82rem;color:var(--neon-amber);line-height:1.5;">
+                        <strong>🕵️ Forward Proxy</strong> = Your personal assistant. You whisper "Get me info from
+                        WebsiteX." The assistant walks there — WebsiteX sees the assistant, not you.<br><br>
+                        <strong>🛡️ Reverse Proxy</strong> = A receptionist. You walk into the building. The
+                        receptionist says "I'll handle your request" — you never see which employee actually did the
+                        work.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a scenario and click "Run" to watch traffic flow through (and
+                        without) a proxy.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            anon: {
+                name: 'Browse Anonymously', icon: '🕵️', type: 'forward',
+                site: 'reddit.com', siteIp: '151.101.1.140', siteIcon: '🌐',
+                proxyName: 'Anonymous Proxy', proxyIp: '185.220.101.42', proxyIcon: '🕵️',
+                proxyLoc: '🇩🇪 Frankfurt',
+            },
+            filter: {
+                name: 'Corporate Content Filtering', icon: '🚫', type: 'forward',
+                site: 'youtube.com', siteIp: '142.250.191.46', siteIcon: '📺',
+                proxyName: 'Corporate Firewall', proxyIp: '10.0.0.1', proxyIcon: '🏢',
+                proxyLoc: '🏢 Office Network',
+            },
+            reverse: {
+                name: 'Reverse Proxy (Cloudflare)', icon: '🛡️', type: 'reverse',
+                site: 'api.myapp.com', siteIp: '10.0.1.5 (hidden)', siteIcon: '🖥️',
+                proxyName: 'Cloudflare Edge', proxyIp: '104.16.132.229', proxyIcon: '🛡️',
+                proxyLoc: '🌍 Edge Network',
+            },
+            cache: {
+                name: 'Caching Proxy', icon: '⚡', type: 'forward',
+                site: 'cdn.images.com', siteIp: '54.230.11.198', siteIcon: '🖼️',
+                proxyName: 'Caching Proxy', proxyIp: '10.0.0.1', proxyIcon: '⚡',
+                proxyLoc: '🏢 Local Cache',
+            },
+        };
+
+        let animating = false;
+        const selScenario = document.getElementById('select-scenario');
+        const els = { btnGo: document.getElementById('btn-go'), controls: document.getElementById('controls'), dashboard: document.getElementById('dashboard'), compat: document.getElementById('compat-status'), feed: document.getElementById('feed') };
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+
+        function setActive(id, cls) { const el = document.getElementById(id); if (el) { el.className = 'node'; if (cls) el.classList.add(cls); } }
+
+        function animPkt(roadId, cls, label, startPct, endPct, dur) {
+            return new Promise(resolve => {
+                const road = document.getElementById(roadId);
+                const pkt = document.createElement('div');
+                pkt.className = `pkt ${cls} visible`;
+                pkt.textContent = label;
+                pkt.style.left = startPct + '%';
+                road.appendChild(pkt);
+                requestAnimationFrame(() => requestAnimationFrame(() => { pkt.style.left = endPct + '%'; }));
+                setTimeout(() => { pkt.style.opacity = '0'; setTimeout(() => { pkt.remove(); resolve(); }, 200); }, dur);
+            });
+        }
+
+        function onSelectionChange() {
+            const sId = selScenario.value;
+            if (!sId) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            const sc = SCENARIOS[sId];
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${sc.icon} ${sc.name}</span>`;
+
+            // Update nodes
+            document.getElementById('d-site-icon').textContent = sc.siteIcon;
+            document.getElementById('d-site-name').textContent = sc.site;
+            document.getElementById('d-site-ip').textContent = sc.siteIp;
+            document.getElementById('p-site-icon').textContent = sc.siteIcon;
+            document.getElementById('p-site-name').textContent = sc.site;
+            document.getElementById('p-site-ip').textContent = sc.siteIp;
+            document.getElementById('p-proxy-icon').textContent = sc.proxyIcon;
+            document.getElementById('p-proxy-name').textContent = sc.proxyName;
+            document.getElementById('p-proxy-ip').textContent = sc.proxyIp;
+
+            // Header
+            const isRev = sc.type === 'reverse';
+            document.getElementById('proxy-icon').textContent = sc.icon;
+            document.getElementById('proxy-name').textContent = isRev ? 'Reverse Proxy' : 'Forward Proxy';
+            document.getElementById('proxy-name').className = isRev ? 'sh-name rev-c' : 'sh-name fwd-c';
+            document.getElementById('proxy-desc').textContent = isRev ? 'Protects the server from direct access' : 'Hides your identity from the website';
+            document.getElementById('proxy-badge').textContent = isRev ? 'SERVER SIDE' : 'CLIENT SIDE';
+            document.getElementById('proxy-badge').className = isRev ? 'sh-badge badge-rev' : 'sh-badge badge-fwd';
+            const ph = document.getElementById('proxy-header');
+            ph.className = isRev ? 'stage-header rev-proxy' : 'stage-header fwd-proxy';
+
+            // Reset
+            document.getElementById('sees-direct-data').textContent = 'Waiting...';
+            document.getElementById('sees-proxy-data').textContent = 'Waiting...';
+            ['d-user', 'd-site', 'p-user', 'p-proxy', 'p-site'].forEach(id => setActive(id, ''));
+
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = '🕵️ Run Simulation'; els.btnGo.disabled = false;
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🎯</span><span class="log-text">Ready! Click "Run" to compare direct connection vs proxy for <strong>${sc.icon} ${sc.name}</strong>.</span></div>`;
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            const sc = SCENARIOS[selScenario.value];
+            document.getElementById('sees-direct-data').textContent = 'Waiting...';
+            document.getElementById('sees-proxy-data').textContent = 'Waiting...';
+            ['d-user', 'd-site', 'p-user', 'p-proxy', 'p-site'].forEach(id => setActive(id, ''));
+
+            if (sc.type === 'forward') {
+                if (selScenario.value === 'filter') await demoFilter(sc);
+                else if (selScenario.value === 'cache') await demoCache(sc);
+                else await demoAnon(sc);
+            } else {
+                await demoReverse(sc);
+            }
+
+            animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+
+        async function demoAnon(sc) {
+            /* ── DIRECT ── */
+            addStory('1️⃣', `<strong>Without Proxy — Direct connection to ${sc.site}</strong>`, 'type-info');
+            await sleep(300);
+
+            setActive('d-user', 'active');
+            addStory('🚫', `<strong>you → ${sc.site}:</strong> Your browser connects directly. The website sees your <span class="val-red">real IP address</span>: <span class="mono val-red">192.168.1.42</span>.`, 'type-direct');
+            await animPkt('road-direct', 'pkt-exposed', `GET ${sc.site} (IP: 192.168.1.42)`, 10, 88, 700);
+            setActive('d-site', 'active');
+            document.getElementById('sees-direct-data').innerHTML = `<span style="color:var(--no-c);">IP: 192.168.1.42<br>Location: 📍 Mumbai<br>ISP: Airtel<br>Browser: Chrome 124</span>`;
+            await animPkt('road-direct', 'pkt-res', '200 OK + Page Data', 88, 10, 600);
+            await sleep(400);
+
+            addStory('👁️', `<strong>What ${sc.site} logged:</strong><br>
+        <span class="mono" style="font-size:.78rem;">
+        IP: <span class="val-red">192.168.1.42</span> | Loc: <span class="val-red">Mumbai, IN</span> | ISP: Airtel | UA: Chrome/124
+        </span><br>They know exactly who you are and where you are.`, 'type-direct');
+            await sleep(500);
+
+            /* ── PROXY ── */
+            addStory('2️⃣', `<strong>With Forward Proxy — Your Secret Agent</strong>`, 'type-info');
+            await sleep(300);
+
+            setActive('p-user', 'active');
+            addStory('🕵️', `<strong>you → proxy:</strong> Instead of contacting ${sc.site} directly, you send the request to the <span class="val-blue">Anonymous Proxy</span> at <span class="mono">${sc.proxyIp}</span> (${sc.proxyLoc}).`, 'type-fwd');
+            await animPkt('road-proxy', 'pkt-req', `GET ${sc.site} (your IP: hidden)`, 10, 46, 500);
+            setActive('p-proxy', 'active');
+            await sleep(300);
+
+            addStory('🎭', `<strong>proxy → ${sc.site}:</strong> The proxy makes the request to ${sc.site} on your behalf, using <span class="val-blue">its own IP</span>: <span class="mono val-blue">${sc.proxyIp}</span>. Your IP is nowhere in the request.`, 'type-fwd');
+            await animPkt('road-proxy', 'pkt-masked', `🎭 GET ${sc.site} (IP: ${sc.proxyIp})`, 48, 88, 500);
+            setActive('p-site', 'active');
+            document.getElementById('sees-proxy-data').innerHTML = `<span style="color:var(--fwd-c);">IP: ${sc.proxyIp}<br>Location: ${sc.proxyLoc}<br>ISP: DataCenter AG<br>You? 🤷 Unknown</span>`;
+            await sleep(300);
+
+            addStory('📩', `<strong>${sc.site} → proxy → you:</strong> The website sends the response to the proxy. The proxy forwards it back to you. You get the page, the website never knew you existed.`, 'type-fwd');
+            await animPkt('road-proxy', 'pkt-res', '200 OK', 88, 48, 400);
+            await animPkt('road-proxy', 'pkt-res', '200 OK + Page', 48, 10, 400);
+            await sleep(400);
+
+            addStory('📊', `<strong>Identity Comparison:</strong><br>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:.84rem;">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">What the website sees</td><td style="padding:5px;color:var(--no-c);font-weight:600;">🚫 Direct</td><td style="padding:5px;color:var(--fwd-c);font-weight:600;">🕵️ Proxy</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Your IP</td><td style="padding:5px;color:var(--no-c);">192.168.1.42 ❌</td><td style="padding:5px;color:var(--neon-green);">${sc.proxyIp} ✅</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Location</td><td style="padding:5px;color:var(--no-c);">Mumbai, India ❌</td><td style="padding:5px;color:var(--neon-green);">${sc.proxyLoc} ✅</td></tr>
+    <tr><td style="padding:5px;">Identity</td><td style="padding:5px;color:var(--no-c);">Fully exposed</td><td style="padding:5px;color:var(--neon-green);">Hidden behind proxy</td></tr>
+    </table>`, 'type-compare');
+            await sleep(400);
+
+            addStory('⚠️', `<strong>Proxy ≠ VPN:</strong> A proxy only handles specific traffic (e.g., HTTP). A VPN encrypts ALL traffic from your device. Also, the proxy operator can see your traffic — choose trusted providers!`, 'type-info');
+        }
+
+        async function demoFilter(sc) {
+            addStory('1️⃣', `<strong>Without Proxy — employee accesses ${sc.site} freely</strong>`, 'type-info');
+            await sleep(200);
+            setActive('d-user', 'active');
+            await animPkt('road-direct', 'pkt-exposed', `GET ${sc.site}`, 10, 88, 600);
+            setActive('d-site', 'active');
+            document.getElementById('sees-direct-data').innerHTML = `<span style="color:var(--no-c);">Direct access ✅<br>No filtering</span>`;
+            await animPkt('road-direct', 'pkt-res', '200 OK + Video 🎬', 88, 10, 600);
+            addStory('📺', `Employee watches YouTube all day. Productivity drops. IT is not amused.`, 'type-direct');
+            await sleep(400);
+
+            addStory('2️⃣', `<strong>With Corporate Proxy — all traffic routed through gateway</strong>`, 'type-info');
+            await sleep(200);
+            setActive('p-user', 'active');
+            addStory('🏢', `<strong>Company policy:</strong> All outbound HTTP traffic MUST go through the corporate proxy at <span class="mono">${sc.proxyIp}</span>. The proxy checks every URL against a blocklist.`, 'type-fwd');
+            await animPkt('road-proxy', 'pkt-req', `GET youtube.com`, 10, 46, 500);
+            setActive('p-proxy', 'active');
+            await sleep(300);
+
+            addStory('🚫', `<strong>BLOCKED!</strong> The proxy checks: <span class="mono">youtube.com</span> → Category: <span class="val-red">"Streaming/Entertainment"</span> → <span class="val-red">DENIED</span> by policy.<br>The request never reaches YouTube.`, 'type-block');
+
+            const blockedPkt = document.createElement('div');
+            blockedPkt.className = 'pkt pkt-blocked visible';
+            blockedPkt.textContent = '❌ BLOCKED';
+            blockedPkt.style.left = '48%';
+            document.getElementById('road-proxy').appendChild(blockedPkt);
+            setActive('p-proxy', 'blocked');
+            document.getElementById('sees-proxy-data').innerHTML = `<span style="color:var(--neon-green);">youtube.com BLOCKED<br>Category: Streaming<br>Policy: Deny</span>`;
+            document.getElementById('sees-proxy-title').textContent = '🚫 Proxy decision:';
+            await sleep(700);
+            blockedPkt.style.opacity = '0'; setTimeout(() => blockedPkt.remove(), 300);
+
+            addStory('↩️', `The proxy returns a block page to the employee: <span class="val-red">"Access Denied — this site is blocked by company policy."</span>`, 'type-block');
+            await animPkt('road-proxy', 'pkt-blocked', '403 Forbidden 🚫', 46, 10, 500);
+            await sleep(400);
+
+            addStory('✅', `Now the employee tries <span class="mono">stackoverflow.com</span> → Category: <span class="val-green">"Development/Reference"</span> → <span class="val-green">ALLOWED</span>!`, 'type-fwd');
+            await animPkt('road-proxy', 'pkt-req', 'GET stackoverflow.com', 10, 46, 400);
+            await animPkt('road-proxy', 'pkt-req', '✅ Forwarded', 48, 88, 400);
+            setActive('p-site', 'active');
+            await animPkt('road-proxy', 'pkt-res', '200 OK', 88, 10, 600);
+            await sleep(400);
+
+            addStory('📊', `<strong>What corporate proxies can do:</strong><br>
+        • 🚫 Block categories (social media, gaming, adult content)<br>
+        • 📊 Log all URLs visited by each employee<br>
+        • 🛡️ Scan downloads for malware<br>
+        • ⏱️ Enforce time-based access (social media only during lunch)<br>
+        • 🔒 Inspect HTTPS traffic (via MITM with corporate CA certificate)`, 'type-compare');
+        }
+
+        async function demoReverse(sc) {
+            addStory('1️⃣', `<strong>Direct connection — user connects to origin server</strong>`, 'type-info');
+            await sleep(200);
+            setActive('d-user', 'active');
+            document.getElementById('d-site-name').textContent = 'Origin Server';
+            document.getElementById('d-site-ip').textContent = '10.0.1.5';
+            document.getElementById('d-site-icon').textContent = '🖥️';
+            addStory('🚫', `Without a reverse proxy, users connect directly to your origin server. Its real IP (<span class="mono val-red">10.0.1.5</span>) is exposed. Attackers can target it directly with DDoS attacks.`, 'type-direct');
+            await animPkt('road-direct', 'pkt-exposed', 'GET api.myapp.com', 10, 88, 600);
+            setActive('d-site', 'active');
+            document.getElementById('sees-direct-data').innerHTML = `<span style="color:var(--no-c);">Origin IP exposed ❌<br>No DDoS protection<br>No caching<br>No SSL termination</span>`;
+            await animPkt('road-direct', 'pkt-res', '200 OK (direct)', 88, 10, 600);
+            await sleep(400);
+
+            addStory('2️⃣', `<strong>With Reverse Proxy (Cloudflare) — the shield</strong>`, 'type-info');
+            await sleep(200);
+            setActive('p-user', 'active');
+            document.getElementById('p-proxy-name').textContent = 'Cloudflare';
+            document.getElementById('p-proxy-icon').textContent = '🛡️';
+            document.getElementById('p-site-name').textContent = 'Origin Server';
+
+            addStory('🛡️', `<strong>DNS points to Cloudflare, not your server.</strong> Users connect to <span class="mono val-purple">${sc.proxyIp}</span> (Cloudflare's edge). They never see your real server IP.`, 'type-rev');
+            await animPkt('road-proxy', 'pkt-req', 'GET api.myapp.com', 10, 46, 500);
+            setActive('p-proxy', 'active');
+            document.getElementById('sees-proxy-data').innerHTML = `<span style="color:var(--rev-c);">User sees: ${sc.proxyIp}<br>Origin hidden: 10.0.1.5<br>✅ DDoS protection<br>✅ WAF active<br>✅ SSL termination</span>`;
+            document.getElementById('sees-proxy-title').textContent = '🛡️ Reverse proxy:';
+            document.getElementById('sees-proxy').style.borderColor = 'rgba(167,139,250,.3)';
+            await sleep(400);
+
+            addStory('🔍', `<strong>Cloudflare inspects the request:</strong><br>
+        ✅ Not a bot → proceed<br>
+        ✅ Rate limit OK (< 100 req/s from this IP)<br>
+        ✅ No SQL injection in URL<br>
+        ✅ WAF rules passed — forwarding to origin`, 'type-rev');
+            await animPkt('road-proxy', 'pkt-masked', '🛡️ Forwarded (clean)', 48, 88, 500);
+            setActive('p-site', 'active');
+            await sleep(300);
+
+            addStory('📩', `Origin responds → Cloudflare forwards (and optionally caches the response for next time).`, 'type-rev');
+            await animPkt('road-proxy', 'pkt-res', '200 OK', 88, 48, 400);
+            await animPkt('road-proxy', 'pkt-res', '200 OK', 48, 10, 400);
+            await sleep(400);
+
+            addStory('📊', `<strong>What reverse proxies do:</strong><br>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:.84rem;">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">Feature</td><td style="padding:5px;">Description</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">🛡️ DDoS Protection</td><td style="padding:5px;">Absorb attack traffic before it reaches your server</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">⚡ Caching</td><td style="padding:5px;">Cache static assets at edge — faster for users worldwide</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">🔒 SSL Termination</td><td style="padding:5px;">Handle HTTPS encryption so your server doesn't have to</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">⚖️ Load Balancing</td><td style="padding:5px;">Distribute requests across multiple backend servers</td></tr>
+    <tr><td style="padding:5px;">🔥 WAF</td><td style="padding:5px;">Web Application Firewall blocks SQLi, XSS, etc.</td></tr>
+    </table>`, 'type-compare');
+            await sleep(400);
+
+            addStory('💡', `<strong>Real-world:</strong> Nearly every major website uses a reverse proxy. Netflix uses Nginx, Cloudflare protects ~20% of the internet, and AWS ALB/CloudFront handle millions of requests per second.`, 'type-secure');
+        }
+
+        async function demoCache(sc) {
+            addStory('1️⃣', `<strong>Without cache — every request hits the origin</strong>`, 'type-info');
+            await sleep(200);
+            setActive('d-user', 'active');
+            addStory('🌐', `5 employees all request the same image: <span class="mono">logo.png</span> (2 MB). Without caching, the origin server sends it 5 times = <span class="val-red">10 MB bandwidth</span>.`, 'type-direct');
+            for (let i = 0; i < 3; i++) {
+                await animPkt('road-direct', 'pkt-exposed', `GET logo.png #${i + 1}`, 10, 88, 400);
+                await animPkt('road-direct', 'pkt-res', '2 MB download', 88, 10, 400);
+            }
+            setActive('d-site', 'active');
+            document.getElementById('sees-direct-data').innerHTML = `<span style="color:var(--no-c);">3 requests = 6 MB<br>All hit origin server<br>No caching</span>`;
+            addStory('🐌', `Origin server hammered with duplicate requests. Slow responses, high bandwidth bills.`, 'type-direct');
+            await sleep(400);
+
+            addStory('2️⃣', `<strong>With Caching Proxy — serve from local cache</strong>`, 'type-info');
+            await sleep(200);
+
+            // First request - MISS
+            setActive('p-user', 'active');
+            addStory('📡', `<strong>Request #1: CACHE MISS</strong> — first time this resource is requested. Proxy fetches from origin and <span class="val-yellow">stores a copy</span>.`, 'type-fwd');
+            await animPkt('road-proxy', 'pkt-req', 'GET logo.png', 10, 46, 400);
+            setActive('p-proxy', 'active');
+            await animPkt('road-proxy', 'pkt-req', 'MISS → Forwarding', 48, 88, 400);
+            setActive('p-site', 'active');
+            await animPkt('road-proxy', 'pkt-res', '2 MB + Cache-Control', 88, 48, 400);
+            document.getElementById('sees-proxy-data').innerHTML = `<span style="color:var(--neon-yellow);">logo.png CACHED ✅<br>TTL: 3600s<br>Saved: 1 origin trip</span>`;
+            document.getElementById('sees-proxy-title').textContent = '⚡ Proxy cache:';
+            await animPkt('road-proxy', 'pkt-res', '2 MB → User', 48, 10, 400);
+            await sleep(300);
+
+            // Second request - HIT
+            addStory('⚡', `<strong>Request #2: CACHE HIT!</strong> — Same resource already cached. Proxy serves it <em>instantly</em> from local storage. <span class="val-green">Origin server is never contacted.</span>`, 'type-cache');
+            await animPkt('road-proxy', 'pkt-req', 'GET logo.png', 10, 46, 400);
+            document.getElementById('sees-proxy-data').innerHTML = `<span style="color:var(--neon-green);">logo.png CACHE HIT ⚡<br>TTL: 3540s remaining<br>Saved: 2 origin trips</span>`;
+            await animPkt('road-proxy', 'pkt-cached', '⚡ CACHE HIT! (instant)', 46, 10, 400);
+            await sleep(300);
+
+            // Third
+            addStory('⚡', `<strong>Request #3: CACHE HIT again!</strong> Zero latency to origin. Zero bandwidth used.`, 'type-cache');
+            await animPkt('road-proxy', 'pkt-req', 'GET logo.png', 10, 46, 300);
+            await animPkt('road-proxy', 'pkt-cached', '⚡ HIT! (0ms)', 46, 10, 300);
+            await sleep(400);
+
+            addStory('📊', `<strong>Caching Impact:</strong><br>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:.84rem;">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">Metric</td><td style="padding:5px;color:var(--no-c);font-weight:600;">🚫 No Cache</td><td style="padding:5px;color:var(--neon-yellow);font-weight:600;">⚡ Cached</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Origin Requests</td><td style="padding:5px;">3 (all hit origin)</td><td style="padding:5px;color:var(--neon-green);">1 (only first)</td></tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">Bandwidth</td><td style="padding:5px;color:var(--no-c);">6 MB</td><td style="padding:5px;color:var(--neon-green);">2 MB (67% saved)</td></tr>
+    <tr><td style="padding:5px;">Latency</td><td style="padding:5px;">~200ms each</td><td style="padding:5px;color:var(--neon-green);">~5ms (from cache)</td></tr>
+    </table>`, 'type-compare');
+            await sleep(400);
+
+            addStory('💡', `<strong>Cache-Control headers</strong> tell the proxy HOW to cache:<br>
+        • <span class="mono">Cache-Control: public, max-age=3600</span> — cache for 1 hour<br>
+        • <span class="mono">Cache-Control: no-cache</span> — always revalidate with origin<br>
+        • <span class="mono">Cache-Control: no-store</span> — never cache (sensitive data)<br>
+        • <span class="mono">ETag</span> / <span class="mono">If-None-Match</span> — conditional requests (304 Not Modified)`, 'type-info');
+        }
+    </script>
+
+</body>
+
+</html>

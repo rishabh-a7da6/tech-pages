@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Dark Mode Works — CSS Variables Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of CSS custom properties and dark mode. Toggle a lightbulb and watch CSS variables, the DOM, and a live preview change in real-time.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --neon-amber: #f59e0b;
+            --neon-pink: #f472b6;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-yellow), var(--neon-indigo));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 780px;
+            line-height: 1.6;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1280px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ══════════ LIGHTBULB TOGGLE ══════════ */
+        .toggle-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+        }
+
+        .bulb-wrap {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .bulb {
+            font-size: 5rem;
+            transition: all .5s ease;
+            filter: drop-shadow(0 0 0px transparent);
+        }
+
+        .bulb.on {
+            filter: drop-shadow(0 0 40px rgba(250, 204, 21, .5)) drop-shadow(0 0 80px rgba(250, 204, 21, .2));
+        }
+
+        .bulb-label {
+            font-size: .85rem;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 4px;
+            transition: all .4s;
+        }
+
+        .bulb-hint {
+            font-size: .7rem;
+            color: var(--text-muted);
+            text-align: center;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: .5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        .mode-badges {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .mode-badge {
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: .85rem;
+            transition: all .4s;
+            border: 2px solid transparent;
+        }
+
+        .mode-badge.active-light {
+            background: rgba(250, 204, 21, .15);
+            border-color: rgba(250, 204, 21, .4);
+            color: var(--neon-yellow);
+        }
+
+        .mode-badge.active-dark {
+            background: rgba(129, 140, 248, .15);
+            border-color: rgba(129, 140, 248, .4);
+            color: var(--neon-indigo);
+        }
+
+        .mode-badge.inactive {
+            background: rgba(255, 255, 255, .03);
+            border-color: rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+            opacity: .5;
+        }
+
+        /* ══════════ SPLIT: PREVIEW + CODE ══════════ */
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* Live Preview */
+        .preview-wrap {
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid var(--panel-border);
+            transition: border-color .4s;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+        }
+
+        .preview-frame {
+            transition: all .6s ease;
+            padding: 0;
+            min-height: 380px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Mini website inside preview */
+        .mini-nav {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all .6s;
+        }
+
+        .mini-logo {
+            font-weight: 700;
+            font-size: .9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-links {
+            display: flex;
+            gap: 14px;
+            font-size: .72rem;
+            font-weight: 500;
+        }
+
+        .mini-link {
+            padding: 4px 10px;
+            border-radius: 6px;
+            transition: all .4s;
+            cursor: default;
+        }
+
+        .mini-hero {
+            padding: 30px 24px;
+            text-align: center;
+            transition: all .6s;
+        }
+
+        .mini-hero h2 {
+            font-size: 1.3rem;
+            margin: 0 0 8px;
+            transition: color .6s;
+        }
+
+        .mini-hero p {
+            font-size: .78rem;
+            margin: 0 0 16px;
+            transition: color .6s;
+            line-height: 1.5;
+        }
+
+        .mini-btn {
+            display: inline-block;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: .8rem;
+            transition: all .6s;
+            border: none;
+            cursor: default;
+        }
+
+        .mini-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            padding: 0 24px 24px;
+            transition: all .6s;
+        }
+
+        .mini-card {
+            padding: 14px;
+            border-radius: 10px;
+            transition: all .6s;
+        }
+
+        .mini-card-title {
+            font-size: .72rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            transition: color .6s;
+        }
+
+        .mini-card-text {
+            font-size: .6rem;
+            line-height: 1.4;
+            transition: color .6s;
+        }
+
+        /* Code Panel */
+        .code-wrap {
+            border-radius: 16px;
+            background: rgba(0, 0, 0, .5);
+            border: 1px solid var(--panel-border);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-header {
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, .06);
+            background: rgba(0, 0, 0, .3);
+        }
+
+        .code-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .code-tab {
+            margin-left: 12px;
+            font-size: .72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 4px 12px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, .05);
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .code-tab.active {
+            color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .1);
+        }
+
+        .code-body {
+            padding: 16px;
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .72rem;
+            line-height: 1.8;
+        }
+
+        .code-line {
+            display: flex;
+            gap: 8px;
+            transition: all .4s;
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+
+        .code-line.highlight {
+            background: rgba(250, 204, 21, .08);
+        }
+
+        .code-line.highlight-dark {
+            background: rgba(129, 140, 248, .08);
+        }
+
+        .line-num {
+            color: rgba(255, 255, 255, .15);
+            min-width: 24px;
+            text-align: right;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .code-content {
+            flex: 1;
+            white-space: pre;
+        }
+
+        /* Code syntax colors */
+        .ck {
+            color: #c792ea;
+        }
+
+        /* keyword */
+        .cp {
+            color: #82aaff;
+        }
+
+        /* property */
+        .cv {
+            color: #c3e88d;
+        }
+
+        /* value */
+        .cv-dynamic {
+            transition: color .5s;
+        }
+
+        /* animated value */
+        .cc {
+            color: #546e7a;
+            font-style: italic;
+        }
+
+        /* comment */
+        .ct {
+            color: #ffcb6b;
+        }
+
+        /* tag */
+        .ca {
+            color: #f07178;
+        }
+
+        /* attribute */
+        .cs {
+            color: #c3e88d;
+        }
+
+        /* string */
+        .co {
+            color: #89ddff;
+        }
+
+        /* operator */
+
+        /* Swatch */
+        .swatch {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin: 0 2px;
+            border: 1px solid rgba(255, 255, 255, .15);
+            transition: background .5s;
+        }
+
+        /* ══════════ VARIABLES PANEL ══════════ */
+        .vars-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .vars-title {
+            font-size: .95rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+        }
+
+        .var-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: all .4s;
+            font-size: .82rem;
+        }
+
+        .var-row.changed {
+            background: rgba(250, 204, 21, .06);
+        }
+
+        .var-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .72rem;
+            color: var(--neon-cyan);
+            min-width: 140px;
+        }
+
+        .var-arrow {
+            color: var(--text-muted);
+            font-size: .7rem;
+        }
+
+        .var-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .72rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all .5s;
+        }
+
+        .var-swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, .15);
+            transition: background .5s;
+        }
+
+        /* Info row */
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .info-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-card .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .mini-header {
+            color: var(--text-muted);
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        /* Feed */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+        }
+
+        .type-css {
+            border-left-color: var(--neon-cyan);
+        }
+
+        .type-js {
+            border-left-color: var(--neon-yellow);
+            background: rgba(250, 204, 21, .04);
+        }
+
+        .type-dom {
+            border-left-color: var(--neon-purple);
+            background: rgba(167, 139, 250, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-indigo);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-emerald);
+            background: rgba(52, 211, 153, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+
+            .split-view,
+            .info-row {
+                grid-template-columns: 1fr;
+            }
+
+            .mini-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How Dark Mode Works</h1>
+    <p class="subtitle">Dark mode isn't magic — it's just <strong>CSS variables</strong>. One line of JavaScript swaps a
+        class on <span class="mono">&lt;html&gt;</span>,
+        and <strong>every color in the entire page</strong> updates instantly through CSS custom properties. Click the
+        lightbulb and watch it happen live.</p>
+
+    <div class="main-grid">
+        <!-- Lightbulb Toggle -->
+        <div class="toggle-section">
+            <div class="bulb-wrap" onclick="toggleMode()">
+                <div class="bulb on" id="bulb">💡</div>
+            </div>
+            <div class="bulb-label" id="bulb-label" style="color:var(--neon-yellow);">☀️ Light Mode Active</div>
+            <div class="bulb-hint">👆 Click to toggle!</div>
+            <div class="mode-badges">
+                <div class="mode-badge active-light" id="badge-light">☀️ Light</div>
+                <div class="mode-badge inactive" id="badge-dark">🌙 Dark</div>
+            </div>
+        </div>
+
+        <!-- Split: Preview + Code -->
+        <div class="split-view">
+            <!-- LIVE PREVIEW -->
+            <div>
+                <div
+                    style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px;padding-left:4px;">
+                    🖥️ Live Preview</div>
+                <div class="preview-wrap" id="preview-wrap">
+                    <div class="preview-frame" id="preview">
+                        <div class="mini-nav" id="mini-nav">
+                            <div class="mini-logo" id="mini-logo">⚡ TechBlog</div>
+                            <div class="mini-links">
+                                <span class="mini-link" id="mini-link1">Home</span>
+                                <span class="mini-link" id="mini-link2">Articles</span>
+                                <span class="mini-link" id="mini-link3">About</span>
+                            </div>
+                        </div>
+                        <div class="mini-hero" id="mini-hero">
+                            <h2 id="mini-title">Welcome to TechBlog</h2>
+                            <p id="mini-desc">The best way to learn web development with interactive tutorials and
+                                real-world projects.</p>
+                            <div class="mini-btn" id="mini-btn">Get Started →</div>
+                        </div>
+                        <div class="mini-cards">
+                            <div class="mini-card" id="mini-card1">
+                                <div class="mini-card-title" id="mc-t1">📘 CSS Flexbox</div>
+                                <div class="mini-card-text" id="mc-d1">Master modern layouts with flexible boxes.</div>
+                            </div>
+                            <div class="mini-card" id="mini-card2">
+                                <div class="mini-card-title" id="mc-t2">📗 JavaScript</div>
+                                <div class="mini-card-text" id="mc-d2">From basics to async/await and beyond.</div>
+                            </div>
+                            <div class="mini-card" id="mini-card3">
+                                <div class="mini-card-title" id="mc-t3">📕 React Hooks</div>
+                                <div class="mini-card-text" id="mc-d3">Build powerful UIs with useState and useEffect.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIVE CODE -->
+            <div>
+                <div
+                    style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px;padding-left:4px;">
+                    💻 Live CSS Code</div>
+                <div class="code-wrap" id="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dot" style="background:#ff5f57;"></div>
+                        <div class="code-dot" style="background:#febc2e;"></div>
+                        <div class="code-dot" style="background:#28c840;"></div>
+                        <div class="code-tab active" id="tab-css" onclick="showTab('css')">styles.css</div>
+                        <div class="code-tab" id="tab-js" onclick="showTab('js')">script.js</div>
+                        <div class="code-tab" id="tab-html" onclick="showTab('html')">index.html</div>
+                    </div>
+                    <div class="code-body" id="code-css"></div>
+                    <div class="code-body" id="code-js" style="display:none;"></div>
+                    <div class="code-body" id="code-html" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Variables Panel -->
+        <div class="vars-panel" id="vars-panel">
+            <div class="vars-title">🎨 CSS Custom Properties (Live)</div>
+            <div id="vars-list"></div>
+        </div>
+
+        <!-- Info -->
+        <div class="info-row">
+            <div class="info-card">
+                <div class="panel-title">🧠 How It Works</div>
+                <div class="mini-box">
+                    <div class="mini-header">Step 1: Define Variables</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">In <span
+                            class="mono">:root</span> (the <span class="mono">&lt;html&gt;</span> element), define all
+                        your colors as CSS custom properties: <span class="mono"
+                            style="color:var(--neon-cyan);">--bg-color</span>, <span class="mono"
+                            style="color:var(--neon-cyan);">--text-color</span>, etc.</div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">Step 2: Use Variables</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">Instead of hardcoding <span
+                            class="mono" style="color:var(--neon-green);">color: #000</span>, write <span class="mono"
+                            style="color:var(--neon-green);">color: var(--text-color)</span>. Now every element
+                        references the variable, not a fixed value.</div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">Step 3: Swap on Toggle</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">When the user toggles dark
+                        mode, JavaScript adds <span class="mono"
+                            style="color:var(--neon-yellow);">data-theme="dark"</span> to <span
+                            class="mono">&lt;html&gt;</span>. A CSS rule <span class="mono">[data-theme="dark"]</span>
+                        overrides all variable values at once. The entire page updates instantly!</div>
+                </div>
+            </div>
+            <div class="info-card">
+                <div class="panel-title">🔍 Why CSS Variables?</div>
+                <div class="mini-box">
+                    <div class="mini-header">Analogy: The Control Panel</div>
+                    <div style="font-size:.82rem;color:var(--neon-yellow);line-height:1.5;">Imagine an entire building
+                        wired to one control panel. Instead of repainting every room, you just flip switches on the
+                        panel. CSS variables are those switches — change one, and every room (element) using it updates.
+                    </div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">vs. Inline Styles (Bad)</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">Without variables, you'd need
+                        JavaScript to find and change every element individually: <span class="mono"
+                            style="color:var(--neon-red);">document.querySelector('.card').style.background =
+                            '#1e1e1e'</span> — for EVERY element. Unmaintainable!</div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">prefers-color-scheme</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5;">Modern browsers detect your
+                        OS setting via <span class="mono" style="color:var(--neon-cyan);">@media (prefers-color-scheme:
+                            dark)</span>. You can auto-match the user's system theme — no toggle needed!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed"></div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           THEME DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const THEMES = {
+            light: {
+                '--bg-color': { val: '#ffffff', label: 'Background' },
+                '--surface-color': { val: '#f8fafc', label: 'Surface/Card' },
+                '--nav-bg': { val: '#f1f5f9', label: 'Navigation BG' },
+                '--text-color': { val: '#0f172a', label: 'Primary Text' },
+                '--text-muted': { val: '#64748b', label: 'Muted Text' },
+                '--primary': { val: '#6366f1', label: 'Primary/Button' },
+                '--primary-text': { val: '#ffffff', label: 'Button Text' },
+                '--card-bg': { val: '#f1f5f9', label: 'Card BG' },
+                '--card-border': { val: '#e2e8f0', label: 'Card Border' },
+                '--link-hover': { val: '#ede9fe', label: 'Link Hover' },
+            },
+            dark: {
+                '--bg-color': { val: '#0f172a', label: 'Background' },
+                '--surface-color': { val: '#1e293b', label: 'Surface/Card' },
+                '--nav-bg': { val: '#1e293b', label: 'Navigation BG' },
+                '--text-color': { val: '#f8fafc', label: 'Primary Text' },
+                '--text-muted': { val: '#94a3b8', label: 'Muted Text' },
+                '--primary': { val: '#818cf8', label: 'Primary/Button' },
+                '--primary-text': { val: '#ffffff', label: 'Button Text' },
+                '--card-bg': { val: '#334155', label: 'Card BG' },
+                '--card-border': { val: '#475569', label: 'Card Border' },
+                '--link-hover': { val: '#312e81', label: 'Link Hover' },
+            },
+        };
+
+        let isDark = false;
+        let toggleCount = 0;
+
+        const feed = document.getElementById('feed');
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; feed.appendChild(el); feed.scrollTop = feed.scrollHeight; }
+        function clearLogs() { feed.innerHTML = ''; }
+
+        /* ═══════════════════════════════════════════
+           APPLY THEME TO PREVIEW
+           ═══════════════════════════════════════════ */
+        function applyTheme(dark) {
+            const t = dark ? THEMES.dark : THEMES.light;
+
+            // Preview elements
+            document.getElementById('preview').style.background = t['--bg-color'].val;
+            document.getElementById('mini-nav').style.background = t['--nav-bg'].val;
+            document.getElementById('mini-logo').style.color = t['--text-color'].val;
+            ['mini-link1', 'mini-link2', 'mini-link3'].forEach(id => {
+                document.getElementById(id).style.color = t['--text-muted'].val;
+                document.getElementById(id).style.background = 'transparent';
+            });
+            document.getElementById('mini-hero').style.background = t['--bg-color'].val;
+            document.getElementById('mini-title').style.color = t['--text-color'].val;
+            document.getElementById('mini-desc').style.color = t['--text-muted'].val;
+            const btn = document.getElementById('mini-btn');
+            btn.style.background = t['--primary'].val; btn.style.color = t['--primary-text'].val;
+
+            ['mini-card1', 'mini-card2', 'mini-card3'].forEach(id => {
+                const el = document.getElementById(id);
+                el.style.background = t['--card-bg'].val;
+                el.style.border = '1px solid ' + t['--card-border'].val;
+            });
+            ['mc-t1', 'mc-t2', 'mc-t3'].forEach(id => document.getElementById(id).style.color = t['--text-color'].val);
+            ['mc-d1', 'mc-d2', 'mc-d3'].forEach(id => document.getElementById(id).style.color = t['--text-muted'].val);
+
+            document.getElementById('preview-wrap').style.borderColor = dark ? 'rgba(129,140,248,.3)' : 'rgba(245,158,11,.3)';
+        }
+
+        /* ═══════════════════════════════════════════
+           RENDER CODE
+           ═══════════════════════════════════════════ */
+        function renderCode() {
+            const t = isDark ? THEMES.dark : THEMES.light;
+            const tl = THEMES.light, td = THEMES.dark;
+            const hlClass = isDark ? 'highlight-dark' : 'highlight';
+
+            // CSS
+            const cssLines = [
+                { n: 1, c: `<span class="cc">/* 🎨 Light theme (default) */</span>` },
+                { n: 2, c: `<span class="ck">:root</span> {`, hl: !isDark },
+                ...Object.entries(THEMES.light).map(([k, v], i) => ({
+                    n: i + 3,
+                    c: `  <span class="cp">${k}</span><span class="co">:</span> <span class="cv-dynamic" id="css-light-${i}" style="color:${v.val === '#ffffff' || v.val === '#f8fafc' || v.val === '#f1f5f9' || v.val === '#e2e8f0' ? '#94a3b8' : v.val}">${v.val}</span><span class="co">;</span> <span class="cc">/* ${v.label} */</span>`,
+                    hl: !isDark
+                })),
+                { n: 13, c: `}` },
+                { n: 14, c: `` },
+                { n: 15, c: `<span class="cc">/* 🌙 Dark theme override */</span>` },
+                { n: 16, c: `<span class="ct">[data-theme=<span class="cs">"dark"</span>]</span> {`, hl: isDark },
+                ...Object.entries(THEMES.dark).map(([k, v], i) => ({
+                    n: i + 17,
+                    c: `  <span class="cp">${k}</span><span class="co">:</span> <span class="cv-dynamic" id="css-dark-${i}" style="color:${v.val === '#0f172a' || v.val === '#1e293b' ? '#818cf8' : v.val}">${v.val}</span><span class="co">;</span>`,
+                    hl: isDark
+                })),
+                { n: 27, c: `}` },
+                { n: 28, c: `` },
+                { n: 29, c: `<span class="cc">/* All elements use variables — never hardcoded colors */</span>` },
+                { n: 30, c: `<span class="ck">body</span> { <span class="cp">background</span>: <span class="co">var(</span><span class="cp">--bg-color</span><span class="co">)</span>; <span class="cp">color</span>: <span class="co">var(</span><span class="cp">--text-color</span><span class="co">)</span>; }` },
+                { n: 31, c: `<span class="ck">.card</span> { <span class="cp">background</span>: <span class="co">var(</span><span class="cp">--card-bg</span><span class="co">)</span>; <span class="cp">border</span>: 1px solid <span class="co">var(</span><span class="cp">--card-border</span><span class="co">)</span>; }` },
+                { n: 32, c: `<span class="ck">.btn</span>  { <span class="cp">background</span>: <span class="co">var(</span><span class="cp">--primary</span><span class="co">)</span>; <span class="cp">color</span>: <span class="co">var(</span><span class="cp">--primary-text</span><span class="co">)</span>; }` },
+            ];
+
+            document.getElementById('code-css').innerHTML = cssLines.map(l =>
+                `<div class="code-line ${l.hl ? hlClass : ''}"><span class="line-num">${l.n}</span><span class="code-content">${l.c}</span></div>`
+            ).join('');
+
+            // JS
+            document.getElementById('code-js').innerHTML = [
+                { n: 1, c: `<span class="cc">// Toggle dark mode</span>` },
+                { n: 2, c: `<span class="ck">const</span> toggle = document.<span class="cp">getElementById</span>(<span class="cs">'theme-toggle'</span>);` },
+                { n: 3, c: `` },
+                { n: 4, c: `toggle.<span class="cp">addEventListener</span>(<span class="cs">'click'</span>, () => {` },
+                { n: 5, c: `  <span class="ck">const</span> html = document.<span class="cp">documentElement</span>;`, hl: true },
+                { n: 6, c: `  <span class="ck">const</span> isDark = html.<span class="cp">dataset</span>.theme === <span class="cs">'dark'</span>;`, hl: true },
+                { n: 7, c: `` },
+                { n: 8, c: `  <span class="cc">// This ONE line changes the ENTIRE page:</span>`, hl: true },
+                { n: 9, c: `  html.<span class="cp">dataset</span>.<span class="ca">theme</span> = isDark ? <span class="cs">'light'</span> : <span class="cs">'dark'</span>;`, hl: true },
+                { n: 10, c: `` },
+                { n: 11, c: `  <span class="cc">// Save preference</span>` },
+                { n: 12, c: `  localStorage.<span class="cp">setItem</span>(<span class="cs">'theme'</span>, html.dataset.theme);` },
+                { n: 13, c: `});` },
+                { n: 14, c: `` },
+                { n: 15, c: `<span class="cc">// Auto-detect system preference</span>` },
+                { n: 16, c: `<span class="ck">const</span> prefersDark = window.<span class="cp">matchMedia</span>(` },
+                { n: 17, c: `  <span class="cs">'(prefers-color-scheme: dark)'</span>` },
+                { n: 18, c: `);` },
+                { n: 19, c: `<span class="ck">if</span> (prefersDark.matches) {` },
+                { n: 20, c: `  document.documentElement.dataset.theme = <span class="cs">'dark'</span>;` },
+                { n: 21, c: `}` },
+            ].map(l => `<div class="code-line ${l.hl ? 'highlight' : ''}"><span class="line-num">${l.n}</span><span class="code-content">${l.c}</span></div>`).join('');
+
+            // HTML
+            document.getElementById('code-html').innerHTML = [
+                { n: 1, c: `<span class="co">&lt;!</span><span class="ck">DOCTYPE</span> <span class="ca">html</span><span class="co">&gt;</span>` },
+                { n: 2, c: `<span class="co">&lt;</span><span class="ct">html</span> <span class="ca">data-theme</span>=<span class="cs">"${isDark ? 'dark' : 'light'}"</span><span class="co">&gt;</span>`, hl: true },
+                { n: 3, c: `<span class="co">&lt;</span><span class="ct">head</span><span class="co">&gt;</span>` },
+                { n: 4, c: `  <span class="co">&lt;</span><span class="ct">link</span> <span class="ca">rel</span>=<span class="cs">"stylesheet"</span> <span class="ca">href</span>=<span class="cs">"styles.css"</span><span class="co">&gt;</span>` },
+                { n: 5, c: `<span class="co">&lt;/</span><span class="ct">head</span><span class="co">&gt;</span>` },
+                { n: 6, c: `<span class="co">&lt;</span><span class="ct">body</span><span class="co">&gt;</span>  <span class="cc">&lt;!-- inherits --bg-color --&gt;</span>` },
+                { n: 7, c: `  <span class="co">&lt;</span><span class="ct">nav</span><span class="co">&gt;</span>...<span class="co">&lt;/</span><span class="ct">nav</span><span class="co">&gt;</span>  <span class="cc">&lt;!-- uses var(--nav-bg) --&gt;</span>` },
+                { n: 8, c: `  <span class="co">&lt;</span><span class="ct">h1</span><span class="co">&gt;</span>...<span class="co">&lt;/</span><span class="ct">h1</span><span class="co">&gt;</span>   <span class="cc">&lt;!-- uses var(--text-color) --&gt;</span>` },
+                { n: 9, c: `  <span class="co">&lt;</span><span class="ct">div</span> <span class="ca">class</span>=<span class="cs">"card"</span><span class="co">&gt;</span> <span class="cc">&lt;!-- uses var(--card-bg) --&gt;</span>` },
+                { n: 10, c: `  <span class="co">&lt;</span><span class="ct">button</span> <span class="ca">id</span>=<span class="cs">"theme-toggle"</span><span class="co">&gt;</span>🌙<span class="co">&lt;/</span><span class="ct">button</span><span class="co">&gt;</span>` },
+                { n: 11, c: `  <span class="co">&lt;</span><span class="ct">script</span> <span class="ca">src</span>=<span class="cs">"script.js"</span><span class="co">&gt;&lt;/</span><span class="ct">script</span><span class="co">&gt;</span>` },
+                { n: 12, c: `<span class="co">&lt;/</span><span class="ct">body</span><span class="co">&gt;&lt;/</span><span class="ct">html</span><span class="co">&gt;</span>` },
+            ].map(l => `<div class="code-line ${l.hl ? hlClass : ''}"><span class="line-num">${l.n}</span><span class="code-content">${l.c}</span></div>`).join('');
+        }
+
+        function renderVariables() {
+            const t = isDark ? THEMES.dark : THEMES.light;
+            const other = isDark ? THEMES.light : THEMES.dark;
+            let html = '';
+            Object.entries(t).forEach(([k, v]) => {
+                const changed = v.val !== other[k].val;
+                html += `<div class="var-row ${changed ? 'changed' : ''}">
+            <span class="var-name">${k}</span>
+            <span class="var-arrow">→</span>
+            <span class="var-val"><span class="var-swatch" style="background:${v.val};"></span> ${v.val}</span>
+            <span style="font-size:.65rem;color:var(--text-muted);margin-left:auto;">${v.label}</span>
+        </div>`;
+            });
+            document.getElementById('vars-list').innerHTML = html;
+        }
+
+        function showTab(tab) {
+            ['css', 'js', 'html'].forEach(t => {
+                document.getElementById('code-' + t).style.display = t === tab ? '' : 'none';
+                document.getElementById('tab-' + t).className = 'code-tab' + (t === tab ? ' active' : '');
+            });
+        }
+
+        /* ═══════════════════════════════════════════
+           TOGGLE
+           ═══════════════════════════════════════════ */
+        function toggleMode() {
+            isDark = !isDark;
+            toggleCount++;
+
+            // Bulb
+            const bulb = document.getElementById('bulb');
+            const label = document.getElementById('bulb-label');
+            bulb.className = isDark ? 'bulb' : 'bulb on';
+            bulb.textContent = isDark ? '🌑' : '💡';
+            label.textContent = isDark ? '🌙 Dark Mode Active' : '☀️ Light Mode Active';
+            label.style.color = isDark ? 'var(--neon-indigo)' : 'var(--neon-yellow)';
+
+            // Badges
+            document.getElementById('badge-light').className = isDark ? 'mode-badge inactive' : 'mode-badge active-light';
+            document.getElementById('badge-dark').className = isDark ? 'mode-badge active-dark' : 'mode-badge inactive';
+
+            applyTheme(isDark);
+            renderCode();
+            renderVariables();
+
+            // Log
+            if (toggleCount === 1) {
+                addStory('💡', `<strong>You toggled to ${isDark ? '🌙 Dark' : '☀️ Light'} Mode!</strong><br>
+            Here's what happened in 3 steps:<br>
+            <strong>1.</strong> JavaScript set <span class="mono">document.documentElement.dataset.theme = "${isDark ? 'dark' : 'light'}"</span><br>
+            <strong>2.</strong> CSS rule <span class="mono">[data-theme="${isDark ? 'dark' : 'light'}"]</span> activated — overriding ALL 10 variables<br>
+            <strong>3.</strong> Every element using <span class="mono">var(--xyz)</span> instantly updated — no DOM traversal needed!`, 'type-js');
+            } else if (toggleCount === 2) {
+                addStory('🔄', `<strong>Toggled back to ${isDark ? '🌙 Dark' : '☀️ Light'} Mode!</strong> Notice how the code panel highlights which CSS block is active. The <span class="mono">:root</span> (light) vs <span class="mono">[data-theme="dark"]</span> — only one is in effect at a time.`, 'type-css');
+            } else if (toggleCount === 3) {
+                addStory('⚡', `<strong>Notice the speed?</strong> Changing 10 CSS variables updates the entire page in < 1ms. Compared to changing inline styles on every element via JavaScript — CSS variables are ~100× more performant.`, 'type-info');
+            } else {
+                addStory(isDark ? '🌙' : '☀️', `Switched to ${isDark ? 'dark' : 'light'} mode. <span class="mono">--bg-color: ${isDark ? '#0f172a' : '#ffffff'}</span>`, isDark ? 'type-dom' : 'type-css');
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           INIT
+           ═══════════════════════════════════════════ */
+        applyTheme(false);
+        renderCode();
+        renderVariables();
+
+        addStory('👋', `<strong>Welcome!</strong> Click the <strong>💡 lightbulb</strong> above to toggle between light and dark mode. Watch three things change simultaneously:`, 'type-info');
+        addStory('🖥️', `<strong>1. Live Preview</strong> (left) — a mini website that changes colors instantly`, 'type-info');
+        addStory('💻', `<strong>2. CSS Code</strong> (right) — highlighted sections show which variables are active`, 'type-css');
+        addStory('🎨', `<strong>3. Variables Panel</strong> (below) — all 10 CSS custom properties with live color swatches`, 'type-dom');
+        addStory('🧠', `<strong>The big idea:</strong> You define colors ONCE as variables. Then one class change swaps ALL of them. No JavaScript touching individual elements — CSS does the work through the cascade.`, 'type-compare');
+    </script>
+
+</body>
+
+</html>

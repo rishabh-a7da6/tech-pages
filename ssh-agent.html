@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH Agent Forwarding & ProxyJumps — Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualizer explaining SSH Agent Forwarding (-A) and ProxyJumps (-J). See why copying SSH keys is dangerous, and how jumping securely works.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-cyan: #22d3ee;
+            --neon-purple: #d946ef;
+            --neon-red: #ef4444;
+            --neon-yellow: #facc15;
+            --neon-green: #4ade80;
+            --neon-blue: #0ea5e9;
+            --neon-orange: #fb923c;
+            --text-muted: #94a3b8;
+            --c-lap: #22d3ee;
+            --c-srvA: #fb923c;
+            --c-srvB: #4ade80;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--c-lap), var(--c-srvB));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 850px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 0 3px rgba(217, 70, 239, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 860px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(217, 70, 239, .08);
+            border: 1px solid rgba(217, 70, 239, .25);
+            color: var(--neon-purple);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(217, 70, 239, .2), rgba(34, 211, 238, .2));
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 15px rgba(217, 70, 239, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(217, 70, 239, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1100px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            height: 100%;
+        }
+
+        .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ══════════ THE STAGE (NETWORK) ══════════ */
+        .stage {
+            position: relative;
+            height: 380px;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: inset 0 10px 30px rgba(0, 0, 0, .5);
+        }
+
+        .node-wrap {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+            width: 110px;
+        }
+
+        .node-sq {
+            width: 76px;
+            height: 76px;
+            background: rgba(15, 23, 42, .9);
+            border: 2px solid;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, .5);
+        }
+
+        .nw-laptop .node-sq {
+            border-color: var(--c-lap);
+            box-shadow: 0 0 20px rgba(34, 211, 238, .3);
+        }
+
+        .nw-serv-a .node-sq {
+            border-color: var(--c-srvA);
+            box-shadow: 0 0 20px rgba(251, 146, 60, .3);
+        }
+
+        .nw-serv-b .node-sq {
+            border-color: var(--c-srvB);
+            box-shadow: 0 0 20px rgba(74, 222, 128, .3);
+        }
+
+        .node-title {
+            margin-top: 10px;
+            font-weight: 700;
+            font-size: .8rem;
+            text-align: center;
+            color: #f8fafc;
+            line-height: 1.4;
+        }
+
+        .key-box {
+            margin-top: 8px;
+            background: rgba(0, 0, 0, .6);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: .7rem;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid rgba(255, 255, 255, .2);
+            transition: all .4s;
+        }
+
+        .key-box.stolen {
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+            font-weight: 700;
+            box-shadow: 0 0 15px rgba(239, 68, 68, .3);
+            background: rgba(239, 68, 68, .1);
+        }
+
+        .lock-req {
+            margin-top: 8px;
+            background: rgba(0, 0, 0, .8);
+            border: 1px solid var(--panel-border);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .75rem;
+            color: var(--text-muted);
+            text-align: center;
+            transition: all .4s;
+        }
+
+        .lock-req.success-bg {
+            background: rgba(74, 222, 128, .15);
+            color: var(--neon-green);
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(74, 222, 128, .2);
+        }
+
+        .hacker-icon {
+            position: absolute;
+            top: -40px;
+            right: -5px;
+            font-size: 2.5rem;
+            filter: drop-shadow(0 2px 8px red);
+            transform: scale(0);
+            transition: transform .5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            pointer-events: none;
+        }
+
+        .hacker-icon.show {
+            transform: scale(1);
+        }
+
+        /* Pipes */
+        .flow-line {
+            animation: flowPath 1s linear infinite;
+        }
+
+        .flow-line-fast {
+            animation: flowPath 0.5s linear infinite;
+        }
+
+        @keyframes flowPath {
+            to {
+                stroke-dashoffset: -24;
+            }
+        }
+
+        /* Packets */
+        .pkt {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .75rem;
+            font-weight: 700;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, .5);
+            z-index: 50;
+            white-space: nowrap;
+            border: 1px solid rgba(255, 255, 255, .2);
+            background: rgba(15, 23, 42, .9);
+        }
+
+        .theme-key {
+            background: rgba(51, 65, 85, .9);
+            color: #fff;
+        }
+
+        .theme-chal {
+            background: rgba(250, 204, 21, .9);
+            color: #000;
+            border-color: #ca8a04;
+        }
+
+        .theme-sig {
+            background: rgba(217, 70, 239, .9);
+            color: #fff;
+        }
+
+        /* ══════════ DATA TABLE ══════════ */
+        .k-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+        }
+
+        .k-table td {
+            padding: 14px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+            line-height: 1.5;
+            vertical-align: top;
+        }
+
+        .k-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Feed */
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 22px;
+            height: 420px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 10px 24px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .92rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .85rem;
+            background: rgba(0, 0, 0, .3);
+            padding: 2px 4px;
+            border-radius: 4px;
+            color: var(--neon-cyan);
+        }
+
+        .log-text code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .85rem;
+            color: var(--neon-purple);
+            background: rgba(0, 0, 0, .4);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .type-info {
+            border-left-color: var(--neon-purple);
+        }
+
+        .type-feat {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .05);
+        }
+
+        .type-err {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .08);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-orange);
+            background: rgba(251, 146, 60, .08);
+        }
+
+        .type-success {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .05);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:950px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            .node-title {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>SSH Agent Forwarding & Jumps</h1>
+    <p class="subtitle">Securely managing database servers buried deep behind firewalls. Watch the evolution of how we
+        traverse through Bastions to reach our targets without severely compromising our cryptographic keys.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Infrastructure Protocol</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Select a connection method —</option>
+                <option value="bad">⚠️ 1. Copying Keys (The Dangerous Way)</option>
+                <option value="agent">🚇 2. Agent Forwarding (The Legacy '-A' Way)</option>
+                <option value="jump">🚀 3. ProxyJump (The Modern '-J' Way)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to dive into SSH network security.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">▶ Run Architecture Sim</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- THE STAGE -->
+        <div class="stage" id="stage">
+            <!-- SVG Paths -->
+            <svg width="100%" height="100%" style="position:absolute; inset:0; z-index:1;">
+                <!-- Base path -->
+                <line x1="15%" y1="50%" x2="85%" y2="50%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+
+                <!-- Agent Forwarding Tunnel (Laptop -> A) -->
+                <line id="agent-pipe" x1="15%" y1="50%" x2="50%" y2="50%" stroke="var(--neon-purple)" stroke-width="8"
+                    stroke-dasharray="12 12" style="opacity:0; transition:opacity 0.6s;" class="flow-line" />
+
+                <!-- ProxyJump Tunnel (Laptop -> B, shifted down slightly visually) -->
+                <line id="proxy-pipe" x1="15%" y1="65%" x2="85%" y2="65%" stroke="var(--neon-cyan)" stroke-width="6"
+                    stroke-dasharray="12 12" style="opacity:0; transition:opacity 0.6s;" class="flow-line-fast" />
+            </svg>
+
+            <!-- Nodes -->
+            <div class="node-wrap nw-laptop" style="left:15%; top:50%;">
+                <div class="hacker-icon" id="h-laptop">👹</div>
+                <div class="node-sq">💻</div>
+                <div class="node-title">Laptop<br><span
+                        style="font-size:.6rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:400;">ssh-agent</span>
+                </div>
+                <div class="key-box">🔑 id_rsa</div>
+            </div>
+
+            <div class="node-wrap nw-serv-a" style="left:50%; top:50%;">
+                <div class="hacker-icon" id="h-servA">👹</div>
+                <div class="node-sq">🛡️</div>
+                <div class="node-title">Bastion Server<br><span
+                        style="font-size:.6rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:400;">10.0.0.5</span>
+                </div>
+                <div class="key-box" id="bad-key" style="opacity:0;">🔑 id_rsa</div>
+            </div>
+
+            <div class="node-wrap nw-serv-b" style="left:85%; top:50%;">
+                <div class="node-sq">🗄️</div>
+                <div class="node-title">Internal DB<br><span
+                        style="font-size:.6rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:400;">10.0.0.9</span>
+                </div>
+                <div class="lock-req" id="lock-b">🔒 Await Signature</div>
+            </div>
+        </div>
+
+        <div class="split-view">
+            <!-- DATA TABLE -->
+            <div class="detail-card">
+                <div class="panel-title">🛡️ Security & Protocol Breakdown</div>
+                <table class="k-table">
+                    <tr>
+                        <td style="width: 35%;"><strong>Direct Key Uploads</strong><br><span
+                                style="font-size:0.65rem;color:var(--text-muted)">The old, dangerous way</span></td>
+                        <td>Solves the immediate access issue but permanently leaves your root identity tokens
+                            completely exposed at rest on intermediary servers. Never do this.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Agent Forwarding <code>-A</code></strong><br><span
+                                style="font-size:0.65rem;color:var(--text-muted)">Decent improvement</span></td>
+                        <td>Connects the Bastion directly to your laptop's memory via socket. <strong>Flaw:</strong> If
+                            the bastion is hacked <em>while</em> you are logged in, the hacker can natively hijack your
+                            active tunnel to forge signatures!</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ProxyJump <code>-J</code></strong><br><span
+                                style="font-size:0.65rem;color:var(--text-muted)">The modern gold standard</span></td>
+                        <td>Creates a hermetically sealed, end-to-end TLS tunnel straight through to the Internal DB.
+                            The Bastion is fully relegated to a blind TCP forwarder, locking out attackers entirely.
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- FEED -->
+            <div style="display:flex;flex-direction:column;height:100%;">
+                <div class="story-feed" id="feed">
+                    <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                            class="log-text">Welcome! Select a scenario to explore SSH network traversal.</span></div>
+                </div>
+                <button class="clear-logs-btn" onclick="clearLogs()" style="border-radius:0 0 16px 16px;">🗑️ Clear
+                    Logs</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            bad: { name: 'Copying Keys (The Dangerous Way)', icon: '⚠️' },
+            agent: { name: 'Agent Forwarding (-A)', icon: '🚇' },
+            jump: { name: 'ProxyJump (-J)', icon: '🚀' }
+        };
+
+        let animating = false;
+
+        const els = {
+            sel: document.getElementById('select-scenario'),
+            compat: document.getElementById('compat-status'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            btnGo: document.getElementById('btn-go'),
+            feed: document.getElementById('feed'),
+            stage: document.getElementById('stage'),
+
+            agentPipe: document.getElementById('agent-pipe'),
+            proxyPipe: document.getElementById('proxy-pipe'),
+            badKey: document.getElementById('bad-key'),
+            lockB: document.getElementById('lock-b'),
+            hServA: document.getElementById('h-servA')
+        };
+
+        const POS = { laptop: '15%', servA: '50%', servB: '85%' };
+
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function clearLogs() { els.feed.innerHTML = ''; }
+
+        async function sendPkt(text, fromNode, toNode, theme, directPath = false) {
+            const pkt = document.createElement('div');
+            pkt.className = `pkt ${theme}`;
+            pkt.textContent = text;
+            pkt.style.top = directPath ? '65%' : '50%';
+            pkt.style.left = POS[fromNode];
+            els.stage.appendChild(pkt);
+
+            void pkt.offsetWidth; // Reflow
+
+            const dist = Math.abs(parseFloat(POS[toNode]) - parseFloat(POS[fromNode]));
+            const duration = dist > 40 ? 1500 : 900; // calculate duration based on distance
+
+            pkt.style.transition = `left ${duration}ms ease-in-out, opacity 0.3s`;
+            pkt.style.left = POS[toNode];
+
+            await delay(duration);
+            pkt.style.opacity = '0';
+            setTimeout(() => pkt.remove(), 400);
+        }
+
+        function resetStage() {
+            els.agentPipe.style.opacity = 0;
+            els.proxyPipe.style.opacity = 0;
+            els.hServA.classList.remove('show');
+            els.lockB.textContent = '🔒 Await Signature';
+            els.lockB.className = 'lock-req';
+            els.badKey.style.opacity = 0;
+            els.badKey.className = 'key-box';
+            els.badKey.textContent = '🔑 id_rsa';
+        }
+
+        function onSelectionChange() {
+            const v = els.sel.value;
+            if (!v) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${SCENARIOS[v].icon} ${SCENARIOS[v].name}</span>`;
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = `▶ Run Architecture Sim`; els.btnGo.disabled = false;
+            clearLogs(); resetStage();
+
+            addStory(SCENARIOS[v].icon, `Ready to run <strong>${SCENARIOS[v].name}</strong>.`, 'type-info');
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            clearLogs(); resetStage();
+
+            const v = els.sel.value;
+            if (v === 'bad') await demoTheBadWay();
+            if (v === 'agent') await demoAgentForwarding();
+            if (v === 'jump') await demoProxyJump();
+
+            animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+
+        // ══════════ 1. THE BAD WAY ══════════
+        async function demoTheBadWay() {
+            addStory('⚠️', `<strong>The Access Problem:</strong> Alice needs to administer the Internal DB Server, but the company firewall only allows traffic from the Bastion Server.`, 'type-warn');
+            await delay(1200);
+
+            addStory('📥', `Alice uses SCP to permanently copy her private key to the Bastion so she can jump to the DB from there.`, 'type-warn');
+            await sendPkt('SCP: id_rsa', 'laptop', 'servA', 'theme-key');
+            els.badKey.style.opacity = 1;
+            await delay(1000);
+
+            addStory('🔐', `She logs into the Bastion, then runs <code>ssh root@InternalDB</code>. The Bastion seamlessly uses her copied key to sign the challenge.`);
+            await sendPkt('Challenge: ABC', 'servB', 'servA', 'theme-chal');
+            await sendPkt('Signature', 'servA', 'servB', 'theme-sig');
+            els.lockB.textContent = '✅ Access Granted'; els.lockB.classList.add('success-bg');
+            await delay(1800);
+
+            addStory('👹', `<strong>DISASTER:</strong> A hacker discovers an unpatched vulnerability in a monitoring tool on the Bastion and gains access!`, 'type-err');
+            els.hServA.classList.add('show');
+            await delay(1200);
+
+            addStory('💥', `They immediately snag Alice's <span class="mono">id_rsa</span> file sitting plainly on the disk. They copy it, bypassing all firewalls. Game Over!`, 'type-err');
+            els.badKey.className = 'key-box stolen';
+            els.badKey.textContent = '🔥 COMPROMISED';
+        }
+
+        // ══════════ 2. AGENT FORWARDING ══════════
+        async function demoAgentForwarding() {
+            addStory('🧹', `Let's modernize. Alice securely generates a new key on her laptop and deletes the files from the Bastion.`, 'type-info');
+            await delay(1000);
+
+            addStory('🚇', `Alice connects to the Bastion using <code>ssh -A user@Bastion</code>. This maps a secure, in-memory <strong>Agent Tunnel</strong> directly back to her laptop's ssh-agent!`, 'type-feat');
+            els.agentPipe.style.opacity = 0.8;
+            await delay(1500);
+
+            addStory('🚪', `Alice types <code>ssh root@InternalDB</code> on the Bastion. The DB issues a cryptographic challenge.`);
+            await sendPkt('Challenge: XyZ99', 'servB', 'servA', 'theme-chal');
+
+            addStory('📤', `The Bastion has NO keys. It forwards the raw challenge backward completely through the tunnel to Alice's Laptop.`, 'type-info');
+            await sendPkt('Auth Fwd: XyZ99', 'servA', 'laptop', 'theme-chal');
+
+            addStory('✍️', `The Laptop's Agent uses the private key securely stored in hardware to generate a math-based Signature, sending ONLY the Signature back.`, 'type-feat');
+            await sendPkt('Signature: 8bF2', 'laptop', 'servA', 'theme-sig');
+
+            addStory('🚚', `The Bastion blindly passes the pure Signature to the DB.`);
+            await sendPkt('Signature: 8bF2', 'servA', 'servB', 'theme-sig');
+
+            els.lockB.textContent = '✅ Access Granted'; els.lockB.classList.add('success-bg');
+            addStory('✅', `<strong>Much Better!</strong> The private key never left Alice's laptop. If the Bastion is hacked later, there are no keys to steal.`, 'type-success');
+        }
+
+        // ══════════ 3. PROXY JUMP ══════════
+        async function demoProxyJump() {
+            addStory('💡', `<strong>Wait! Agent Forwarding has a critical flaw:</strong> If root control compromises the Bastion <em>while you are actively logged in</em>, they can hijack your active Agent socket to forge signatures!`, 'type-warn');
+            await delay(2500);
+
+            addStory('🛡️', `The modern, superior command is <strong>ProxyJump</strong>: <code>ssh -J Bastion InternalDB</code>.`, 'type-info');
+            await delay(1500);
+
+            addStory('🚇', `ProxyJump doesn't expose your Agent memory to the Bastion AT ALL. Instead, your laptop builds an <strong>Encrypted TLS Tunnel</strong> straight through the Bastion directly to the DB.`, 'type-feat');
+            els.proxyPipe.style.opacity = 0.8; // the shifted-down line
+            await delay(1200);
+
+            addStory('🔐', `The entire cryptographic handshake happens natively between the Laptop and the Internal DB! The Bastion is merely a blind network router that can't read the traffic.`);
+            await sendPkt('Challenge: Jmp1', 'servB', 'laptop', 'theme-chal', true); // direct path = true
+            await sendPkt('Signature: 9qXF', 'laptop', 'servB', 'theme-sig', true);
+
+            els.lockB.textContent = '✅ Access Granted'; els.lockB.classList.add('success-bg');
+            addStory('✅', `<strong>Perfect Security.</strong> Even if an attacker fully controls the Bastion right now, they cannot decrypt the tunnel, they cannot proxy signatures, and they absolutely cannot steal your keys!`, 'type-success');
+        }
+    </script>
+
+</body>
+
+</html>

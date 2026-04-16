@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket vs HTTP — Real-Time Communication Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive side-by-side comparison of HTTP request-response and WebSocket persistent connections. Watch the letter vs phone call analogy in real-time.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-pink: #f472b6;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --text-muted: #94a3b8;
+            --http-color: #fb923c;
+            --ws-color: #a78bfa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--http-color), var(--ws-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 760px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 260px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s ease;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(167, 139, 250, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--ws-color);
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s ease;
+            max-width: 800px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(167, 139, 250, .08);
+            border: 1px solid rgba(167, 139, 250, .25);
+            color: var(--ws-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all .3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(251, 146, 60, .2), rgba(167, 139, 250, .2));
+            border-color: var(--ws-color);
+            box-shadow: 0 0 15px rgba(167, 139, 250, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(167, 139, 250, .5);
+            border-color: #fff;
+        }
+
+        /* ══════════════ SPLIT VIEW ══════════════ */
+        .split-dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            width: 100%;
+            max-width: 1340px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .protocol-col {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Protocol header */
+        .proto-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: 16px;
+            backdrop-filter: blur(16px);
+        }
+
+        .proto-header.http {
+            background: rgba(251, 146, 60, .08);
+            border: 1px solid rgba(251, 146, 60, .2);
+        }
+
+        .proto-header.ws {
+            background: rgba(167, 139, 250, .08);
+            border: 1px solid rgba(167, 139, 250, .2);
+        }
+
+        .proto-icon {
+            font-size: 1.8rem;
+        }
+
+        .proto-info {
+            flex: 1;
+        }
+
+        .proto-name {
+            font-weight: 700;
+            font-size: 1.15rem;
+        }
+
+        .proto-name.http-c {
+            color: var(--http-color);
+        }
+
+        .proto-name.ws-c {
+            color: var(--ws-color);
+        }
+
+        .proto-desc {
+            font-size: .78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .proto-badge {
+            padding: 5px 14px;
+            border-radius: 8px;
+            font-size: .7rem;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .badge-http {
+            background: rgba(251, 146, 60, .15);
+            color: var(--http-color);
+            border: 1px solid rgba(251, 146, 60, .3);
+        }
+
+        .badge-ws {
+            background: rgba(167, 139, 250, .15);
+            color: var(--ws-color);
+            border: 1px solid rgba(167, 139, 250, .3);
+        }
+
+        /* Animation lane */
+        .lane {
+            position: relative;
+            height: 340px;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid var(--panel-border);
+            overflow: hidden;
+        }
+
+        /* Endpoints */
+        .endpoint {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            z-index: 5;
+        }
+
+        .ep-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, .95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, .5);
+            transition: all .5s ease;
+        }
+
+        .ep-label {
+            font-size: .65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .endpoint.active .ep-icon {
+            box-shadow: 0 0 18px rgba(34, 211, 238, .25);
+        }
+
+        .endpoint.active.http-ep .ep-icon {
+            border-color: var(--http-color);
+            box-shadow: 0 0 18px rgba(251, 146, 60, .25);
+        }
+
+        .endpoint.active.ws-ep .ep-icon {
+            border-color: var(--ws-color);
+            box-shadow: 0 0 18px rgba(167, 139, 250, .25);
+        }
+
+        /* Connection line */
+        .conn-line {
+            position: absolute;
+            top: 50%;
+            left: 70px;
+            right: 70px;
+            height: 2px;
+            background: #1e293b;
+            transform: translateY(-50%);
+            z-index: 1;
+            transition: all .5s ease;
+        }
+
+        .conn-line.http-active {
+            background: rgba(251, 146, 60, .25);
+            box-shadow: 0 0 8px rgba(251, 146, 60, .1);
+        }
+
+        .conn-line.ws-active {
+            background: rgba(167, 139, 250, .5);
+            box-shadow: 0 0 12px rgba(167, 139, 250, .2);
+            height: 3px;
+        }
+
+        .conn-line.ws-active::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 0;
+            right: 0;
+            bottom: -4px;
+            border: 1px dashed rgba(167, 139, 250, .2);
+            border-radius: 4px;
+        }
+
+        /* Packet dot */
+        .pkt {
+            position: absolute;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: .55rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            z-index: 8;
+            pointer-events: none;
+            opacity: 0;
+            transition: all .5s ease-in-out;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Analogy box */
+        .analogy {
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: .88rem;
+            line-height: 1.6;
+            backdrop-filter: blur(10px);
+        }
+
+        .analogy.http {
+            background: rgba(251, 146, 60, .06);
+            border: 1px solid rgba(251, 146, 60, .15);
+            color: var(--http-color);
+        }
+
+        .analogy.ws {
+            background: rgba(167, 139, 250, .06);
+            border: 1px solid rgba(167, 139, 250, .15);
+            color: var(--ws-color);
+        }
+
+        .analogy-title {
+            font-weight: 700;
+            font-size: .82rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Stats panel */
+        .stats-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            padding: 16px;
+            backdrop-filter: blur(16px);
+        }
+
+        .stats-panel .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .mini-header {
+            color: var(--text-muted);
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: .82rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-orange {
+            color: var(--http-color);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .76rem;
+        }
+
+        /* Lane status overlay */
+        .lane-status {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, .7);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 4px 14px;
+            font-size: .68rem;
+            font-weight: 600;
+            z-index: 6;
+            white-space: nowrap;
+            transition: all .4s ease;
+        }
+
+        /* Message bubbles in lane */
+        .msg-bubble {
+            position: absolute;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: .6rem;
+            font-weight: 600;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            z-index: 4;
+            opacity: 0;
+            transition: all .4s ease;
+            transform: translateY(0);
+        }
+
+        .msg-bubble.visible {
+            opacity: 1;
+        }
+
+        .msg-bubble.from-client {
+            background: rgba(56, 189, 248, .12);
+            border: 1px solid rgba(56, 189, 248, .25);
+            color: var(--neon-blue);
+        }
+
+        .msg-bubble.from-server {
+            background: rgba(74, 222, 128, .12);
+            border: 1px solid rgba(74, 222, 128, .25);
+            color: var(--neon-green);
+        }
+
+        /* feed */
+        .feed-wrapper {
+            grid-column: 1/-1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 480px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s ease;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-http {
+            border-left-color: var(--http-color);
+        }
+
+        .type-ws {
+            border-left-color: var(--ws-color);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .04);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+            .split-dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .lane {
+                height: 280px;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>WebSocket vs HTTP</h1>
+    <p class="subtitle"><strong>HTTP</strong> is like sending a letter — you write, send, and wait for a reply.
+        <strong>WebSocket</strong> is like a phone call — the line stays open and both sides can talk at once,
+        instantly.
+        Pick a real-time scenario and watch both protocols handle it side-by-side.
+    </p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Real-Time Use Case</label>
+            <select id="select-usecase" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a use case —</option>
+                <option value="chat">💬 Live Chat App</option>
+                <option value="stocks">📈 Stock Price Ticker</option>
+                <option value="gaming">🎮 Multiplayer Game</option>
+                <option value="notif">🔔 Live Notifications</option>
+                <option value="collab">📝 Collaborative Editor</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a use case to see HTTP and WebSocket compared side-by-side.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">⚡ Run Side-by-Side Comparison</button>
+    </div>
+
+    <div class="split-dashboard" id="dashboard" style="display:none">
+        <!-- ═══ HTTP COLUMN ═══ -->
+        <div class="protocol-col" id="col-http">
+            <div class="proto-header http">
+                <div class="proto-icon">📨</div>
+                <div class="proto-info">
+                    <div class="proto-name http-c">HTTP (Polling)</div>
+                    <div class="proto-desc" id="http-desc">Request → Response → Close → Repeat</div>
+                </div>
+                <div class="proto-badge badge-http">HALF-DUPLEX</div>
+            </div>
+
+            <div class="analogy http">
+                <div class="analogy-title">✉️ The Letter Analogy</div>
+                <span id="http-analogy">You write a letter, mail it, and wait days for a reply. Want an update? Write
+                    another letter.</span>
+            </div>
+
+            <div class="lane" id="lane-http">
+                <div class="lane-status" id="http-status" style="color:var(--http-color);">Idle</div>
+                <div class="conn-line" id="http-line"></div>
+                <div class="endpoint http-ep" id="http-client" style="left:10px;top:50%;transform:translateY(-50%);">
+                    <div class="ep-icon">💻</div>
+                    <div class="ep-label">Client</div>
+                </div>
+                <div class="endpoint http-ep" id="http-server" style="right:10px;top:50%;transform:translateY(-50%);">
+                    <div class="ep-icon">🖥️</div>
+                    <div class="ep-label">Server</div>
+                </div>
+            </div>
+
+            <div class="stats-panel" id="stats-http">
+                <div class="panel-title"><span style="color:var(--http-color);">📊</span> HTTP Stats</div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Requests Sent:</span><span id="h-reqs" class="val-orange">0</span></div>
+                    <div class="data-row"><span>Responses:</span><span id="h-res">0</span></div>
+                    <div class="data-row"><span>Empty Polls:</span><span id="h-empty" class="val-yellow">0</span></div>
+                    <div class="data-row"><span>Useful Data:</span><span id="h-useful">0</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Connections Opened:</span><span id="h-conns" class="val-orange">0</span>
+                    </div>
+                    <div class="data-row"><span>Headers Overhead:</span><span id="h-overhead">0 B</span></div>
+                    <div class="data-row"><span>Avg Latency:</span><span id="h-latency">—</span></div>
+                    <div class="data-row"><span>Efficiency:</span><span id="h-eff">—</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ WEBSOCKET COLUMN ═══ -->
+        <div class="protocol-col" id="col-ws">
+            <div class="proto-header ws">
+                <div class="proto-icon">📞</div>
+                <div class="proto-info">
+                    <div class="proto-name ws-c">WebSocket</div>
+                    <div class="proto-desc" id="ws-desc">Upgrade once → Bidirectional stream forever</div>
+                </div>
+                <div class="proto-badge badge-ws">FULL-DUPLEX</div>
+            </div>
+
+            <div class="analogy ws">
+                <div class="analogy-title">📞 The Phone Call Analogy</div>
+                <span id="ws-analogy">You dial once, the line stays open, and both sides can talk at the same time —
+                    instantly, no waiting.</span>
+            </div>
+
+            <div class="lane" id="lane-ws">
+                <div class="lane-status" id="ws-status" style="color:var(--ws-color);">Idle</div>
+                <div class="conn-line" id="ws-line"></div>
+                <div class="endpoint ws-ep" id="ws-client" style="left:10px;top:50%;transform:translateY(-50%);">
+                    <div class="ep-icon">💻</div>
+                    <div class="ep-label">Client</div>
+                </div>
+                <div class="endpoint ws-ep" id="ws-server" style="right:10px;top:50%;transform:translateY(-50%);">
+                    <div class="ep-icon">🖥️</div>
+                    <div class="ep-label">Server</div>
+                </div>
+            </div>
+
+            <div class="stats-panel" id="stats-ws">
+                <div class="panel-title"><span style="color:var(--ws-color);">📊</span> WebSocket Stats</div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Messages Sent:</span><span id="w-sent" class="val-purple">0</span></div>
+                    <div class="data-row"><span>Messages Received:</span><span id="w-recv" class="val-purple">0</span>
+                    </div>
+                    <div class="data-row"><span>Server Pushes:</span><span id="w-push" class="val-green">0</span></div>
+                    <div class="data-row"><span>Empty Polls:</span><span id="w-empty" class="val-green">0 ✨</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="data-row"><span>Connections Opened:</span><span id="w-conns" class="val-green">1</span>
+                    </div>
+                    <div class="data-row"><span>Frame Overhead:</span><span id="w-overhead">0 B</span></div>
+                    <div class="data-row"><span>Avg Latency:</span><span id="w-latency">—</span></div>
+                    <div class="data-row"><span>Efficiency:</span><span id="w-eff">—</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a use case and click "Run" to watch HTTP and WebSocket handle
+                        the same scenario side-by-side.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const USECASES = {
+            chat: {
+                id: 'chat', name: 'Live Chat App', icon: '💬',
+                httpDesc: 'Client polls every 2s: "Any new messages?" — Server replies (often empty).',
+                wsDesc: 'Client connects once. Server pushes new messages instantly when they arrive.',
+                httpAnalogy: 'You keep mailing letters asking "Any news?" — most come back saying "Nope."',
+                wsAnalogy: 'You call your friend, stay on the line, and chat freely in both directions.',
+                messages: [
+                    { from: 'client', text: 'Hey! Are you coming tonight?', delay: 0 },
+                    { from: 'server', text: 'Yeah! What time?', delay: 1200 },
+                    { from: 'client', text: 'Around 8pm 🎉', delay: 800 },
+                    { from: 'server', text: 'Perfect, see you there!', delay: 1000 },
+                    { from: 'server', text: 'Should I bring snacks?', delay: 600 },
+                    { from: 'client', text: 'Yes please! 🍕', delay: 800 },
+                ],
+                pollInterval: 500,
+            },
+            stocks: {
+                id: 'stocks', name: 'Stock Price Ticker', icon: '📈',
+                httpDesc: 'Client polls every 1s: "What\'s the price now?" — Most responses are the same.',
+                wsDesc: 'Server pushes price updates only when they change — no wasted requests.',
+                httpAnalogy: 'You call the stock exchange every second asking "Same price?" — "Yes." "Same price?" — "Yes." Wasteful!',
+                wsAnalogy: 'The exchange calls YOU only when the price changes. You sit back and listen.',
+                messages: [
+                    { from: 'server', text: 'AAPL: $187.42 (+0.3%)', delay: 0 },
+                    { from: 'server', text: 'AAPL: $187.58 (+0.4%)', delay: 600 },
+                    { from: 'server', text: 'GOOGL: $141.80 (-0.1%)', delay: 400 },
+                    { from: 'server', text: 'AAPL: $188.01 (+0.6%)', delay: 500 },
+                    { from: 'server', text: 'TSLA: $245.20 (+1.2%)', delay: 300 },
+                    { from: 'server', text: 'AAPL: $187.95 (+0.5%)', delay: 700 },
+                    { from: 'server', text: 'GOOGL: $142.10 (+0.1%)', delay: 400 },
+                ],
+                pollInterval: 400,
+            },
+            gaming: {
+                id: 'gaming', name: 'Multiplayer Game', icon: '🎮',
+                httpDesc: 'Client polls 30x/second for player positions — massive overhead per frame.',
+                wsDesc: 'Bidirectional stream: client sends inputs, server broadcasts game state — both at 60fps.',
+                httpAnalogy: 'You send 30 letters per second asking "Where is everyone?" — the postman quits.',
+                wsAnalogy: 'Everyone is on a group call — you shout your moves, hear everyone else\'s instantly.',
+                messages: [
+                    { from: 'client', text: 'Player moved → (120, 45)', delay: 0 },
+                    { from: 'server', text: 'World state: 3 players', delay: 200 },
+                    { from: 'client', text: 'Player shot → dir:NE', delay: 150 },
+                    { from: 'server', text: 'Hit! Enemy HP: 60', delay: 100 },
+                    { from: 'server', text: 'Enemy moved → (80, 92)', delay: 200 },
+                    { from: 'client', text: 'Player moved → (125, 50)', delay: 150 },
+                    { from: 'server', text: 'Power-up spawned!', delay: 300 },
+                    { from: 'client', text: 'Picked up shield 🛡️', delay: 200 },
+                ],
+                pollInterval: 300,
+            },
+            notif: {
+                id: 'notif', name: 'Live Notifications', icon: '🔔',
+                httpDesc: 'Client polls every 5s: "Any notifications?" — 90% of responses are empty.',
+                wsDesc: 'Server pushes notifications the instant they happen — no polling at all.',
+                httpAnalogy: 'You walk to the mailbox every 5 minutes. Usually empty. What a waste of steps.',
+                wsAnalogy: 'Your phone buzzes in your pocket the instant a notification arrives. Zero effort.',
+                messages: [
+                    { from: 'server', text: '🔔 New follower: @alice', delay: 0 },
+                    { from: 'server', text: '❤️ Bob liked your post', delay: 2000 },
+                    { from: 'server', text: '💬 Comment from Carol', delay: 1500 },
+                    { from: 'server', text: '🔔 New follower: @dave', delay: 3000 },
+                ],
+                pollInterval: 600,
+            },
+            collab: {
+                id: 'collab', name: 'Collaborative Editor', icon: '📝',
+                httpDesc: 'Client polls for changes: "Did anyone edit?" — Conflicts everywhere.',
+                wsDesc: 'Every keystroke is broadcast instantly. All cursors move in real-time.',
+                httpAnalogy: 'Everyone writes their own letter, mails it, and hopes nobody wrote the same paragraph.',
+                wsAnalogy: 'Everyone is on a conference call editing the same document — you hear every keystroke live.',
+                messages: [
+                    { from: 'client', text: 'Insert "Hello" at pos:0', delay: 0 },
+                    { from: 'server', text: 'User2 typed " World"', delay: 300 },
+                    { from: 'client', text: 'Cursor → pos:11', delay: 200 },
+                    { from: 'server', text: 'User3 selected line 5', delay: 400 },
+                    { from: 'client', text: 'Delete chars 8-11', delay: 300 },
+                    { from: 'server', text: 'User2 cursor → pos:5', delay: 200 },
+                ],
+                pollInterval: 400,
+            },
+        };
+
+        /* ═══════════════════════════════════════════
+           STATE & ELEMENTS
+           ═══════════════════════════════════════════ */
+        const state = { animating: false };
+        const selUC = document.getElementById('select-usecase');
+        const els = {
+            btnGo: document.getElementById('btn-go'), controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'), compat: document.getElementById('compat-status'),
+            feed: document.getElementById('feed'),
+            httpStatus: document.getElementById('http-status'), wsStatus: document.getElementById('ws-status'),
+            httpLine: document.getElementById('http-line'), wsLine: document.getElementById('ws-line'),
+            httpClient: document.getElementById('http-client'), httpServer: document.getElementById('http-server'),
+            wsClient: document.getElementById('ws-client'), wsServer: document.getElementById('ws-server'),
+            laneHttp: document.getElementById('lane-http'), laneWs: document.getElementById('lane-ws'),
+        };
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(icon, text, type = '') { const el = document.createElement('div'); el.className = `log-msg ${type}`; el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function setField(id, t, c) { const el = document.getElementById(id); if (el) { el.innerText = t; if (c) el.className = c; } }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+
+        function animPkt(lane, fromSide, label, color) {
+            return new Promise(resolve => {
+                const laneEl = lane === 'http' ? els.laneHttp : els.laneWs;
+                const lr = laneEl.getBoundingClientRect();
+                const sx = fromSide === 'client' ? 70 : lr.width - 70;
+                const ex = fromSide === 'client' ? lr.width - 70 : 70;
+                const sy = lr.height / 2;
+                const colors = {
+                    orange: 'rgba(251,146,60,.92)', purple: 'rgba(167,139,250,.92)',
+                    blue: 'rgba(56,189,248,.92)', green: 'rgba(74,222,128,.92)',
+                    yellow: 'rgba(250,204,21,.92)', red: 'rgba(248,113,113,.92)',
+                    cyan: 'rgba(34,211,238,.92)'
+                };
+                const pkt = document.createElement('div');
+                pkt.className = 'pkt';
+                pkt.textContent = label;
+                pkt.style.background = colors[color] || colors.purple;
+                pkt.style.left = sx + 'px'; pkt.style.top = sy + 'px'; pkt.style.opacity = '1';
+                laneEl.appendChild(pkt);
+                requestAnimationFrame(() => requestAnimationFrame(() => { pkt.style.left = ex + 'px'; }));
+                setTimeout(() => { pkt.style.opacity = '0'; setTimeout(() => { pkt.remove(); resolve(); }, 200); }, 480);
+            });
+        }
+
+        function flashEndpoint(lane, side) {
+            const el = lane === 'http'
+                ? (side === 'client' ? els.httpClient : els.httpServer)
+                : (side === 'client' ? els.wsClient : els.wsServer);
+            el.classList.add('active');
+            setTimeout(() => el.classList.remove('active'), 600);
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const ucId = selUC.value;
+            if (!ucId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select a use case to begin.</span>';
+                els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return;
+            }
+            const uc = USECASES[ucId];
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${uc.icon} ${uc.name} — Watch HTTP polling vs WebSocket side-by-side</span>`;
+
+            document.getElementById('http-desc').textContent = uc.httpDesc;
+            document.getElementById('ws-desc').textContent = uc.wsDesc;
+            document.getElementById('http-analogy').textContent = uc.httpAnalogy;
+            document.getElementById('ws-analogy').textContent = uc.wsAnalogy;
+
+            // Reset stats
+            ['h-reqs', 'h-res', 'h-empty', 'h-useful', 'h-conns'].forEach(id => setField(id, '0', ''));
+            ['w-sent', 'w-recv', 'w-push'].forEach(id => setField(id, '0', ''));
+            setField('w-empty', '0 ✨', 'val-green');
+            setField('w-conns', '1', 'val-green');
+            setField('h-overhead', '0 B', ''); setField('w-overhead', '0 B', '');
+            setField('h-latency', '—', ''); setField('w-latency', '—', '');
+            setField('h-eff', '—', ''); setField('w-eff', '—', '');
+            els.httpStatus.textContent = 'Idle'; els.wsStatus.textContent = 'Idle';
+            els.httpLine.className = 'conn-line'; els.wsLine.className = 'conn-line';
+
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'grid';
+            els.btnGo.innerHTML = '⚡ Run Side-by-Side Comparison'; els.btnGo.className = 'primary'; els.btnGo.disabled = false;
+
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span class="log-text">Ready! Click <strong>"Run"</strong> to watch HTTP polling and WebSocket handle ${uc.icon} ${uc.name} simultaneously.</span></div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           DEMO
+           ═══════════════════════════════════════════ */
+        async function startDemo() {
+            if (state.animating) return;
+            state.animating = true;
+            els.btnGo.disabled = true;
+            els.btnGo.innerHTML = '⏳ Running...';
+
+            const uc = USECASES[selUC.value];
+            const msgs = uc.messages;
+            let hReqs = 0, hRes = 0, hEmpty = 0, hUseful = 0, hConns = 0, hOverhead = 0;
+            let wSent = 0, wRecv = 0, wPush = 0, wOverhead = 0;
+
+            /* ── Phase 1: Connection Setup ── */
+            addStory('📨', `<strong style="color:var(--http-color);">HTTP — No setup needed</strong><br>
+        HTTP is stateless. Each request opens a new TCP connection (or reuses via keep-alive), sends headers, gets a response, done.<br>
+        <span class="mono">GET /api/messages HTTP/1.1<br>Host: example.com<br>Accept: application/json<br>Cookie: session=abc123<br>...</span><br>
+        That's <strong>~800 bytes of headers</strong> — sent with EVERY single request.`, 'type-http');
+            await sleep(600);
+
+            addStory('📞', `<strong style="color:var(--ws-color);">WebSocket — Upgrade Handshake</strong><br>
+        WebSocket starts as an HTTP request with a special "Upgrade" header:<br>
+        <span class="mono">GET /ws HTTP/1.1<br>Upgrade: websocket<br>Connection: Upgrade<br>Sec-WebSocket-Key: dGhlIHNhbXBsZQ==<br>Sec-WebSocket-Version: 13</span><br>
+        <br>Server responds: <span class="mono">101 Switching Protocols</span><br>
+        The connection is now <strong>upgraded</strong> — HTTP is gone, raw WebSocket frames take over.`, 'type-ws');
+
+            // WS handshake animation
+            els.wsStatus.textContent = 'Upgrading...';
+            flashEndpoint('ws', 'client');
+            await animPkt('ws', 'client', 'Upgrade: websocket', 'purple');
+            flashEndpoint('ws', 'server');
+            await animPkt('ws', 'server', '101 Switching', 'purple');
+            els.wsLine.className = 'conn-line ws-active';
+            els.wsStatus.textContent = '🟢 Connected (persistent)';
+            wOverhead += 200; // one-time handshake
+            setField('w-overhead', wOverhead + ' B', '');
+            setField('w-conns', '1', 'val-green');
+            await sleep(400);
+
+            addStory('✅', `<strong style="color:var(--ws-color);">WebSocket connected!</strong> The line is now open. Both sides can send data at any time — no more HTTP headers, no more request-response cycles. Just tiny 2-6 byte frames.`, 'type-ws');
+            await sleep(600);
+
+            /* ── Phase 2: Data Exchange ── */
+            addStory('⚡', `<strong>Now let's exchange ${msgs.length} messages and see the difference!</strong><br>
+        Watch both lanes simultaneously — HTTP must poll repeatedly, while WebSocket messages flow instantly.`, 'type-compare');
+            await sleep(500);
+
+            let msgIdx = 0;
+            const httpPolls = [];
+            let pollCount = 0;
+            const totalPolls = msgs.length * 3; // HTTP will poll ~3x per message
+
+            // Run both protocols simultaneously
+            const httpPromise = (async () => {
+                for (let p = 0; p < totalPolls && msgIdx <= msgs.length; p++) {
+                    // HTTP: Open connection
+                    hConns++;
+                    hReqs++;
+                    hOverhead += 800; // headers
+                    els.httpLine.className = 'conn-line http-active';
+                    els.httpStatus.textContent = `Polling... (#${hReqs})`;
+                    flashEndpoint('http', 'client');
+                    await animPkt('http', 'client', `GET /messages?since=${p}`, 'orange');
+
+                    // Check if there's a message to deliver
+                    const pending = msgs[msgIdx];
+                    if (pending && pollCount >= 2) {
+                        // Deliver message
+                        hRes++;
+                        hUseful++;
+                        flashEndpoint('http', 'server');
+                        await animPkt('http', 'server', pending.text.substring(0, 16), 'green');
+                        pollCount = 0;
+                        // Don't advance msgIdx here — WS does it
+                    } else {
+                        // Empty poll
+                        hRes++;
+                        hEmpty++;
+                        flashEndpoint('http', 'server');
+                        await animPkt('http', 'server', '204 No Content', 'yellow');
+                        pollCount++;
+                    }
+
+                    // Close connection
+                    els.httpLine.className = 'conn-line';
+                    els.httpStatus.textContent = 'Connection closed';
+                    hOverhead += 200; // response headers
+
+                    setField('h-reqs', hReqs, 'val-orange');
+                    setField('h-res', hRes, '');
+                    setField('h-empty', hEmpty, hEmpty > 3 ? 'val-red' : 'val-yellow');
+                    setField('h-useful', hUseful, '');
+                    setField('h-conns', hConns, 'val-orange');
+                    setField('h-overhead', (hOverhead / 1000).toFixed(1) + ' KB', 'val-red');
+
+                    await sleep(uc.pollInterval);
+                }
+            })();
+
+            const wsPromise = (async () => {
+                for (let m = 0; m < msgs.length; m++) {
+                    const msg = msgs[m];
+                    await sleep(msg.delay || 400);
+
+                    if (msg.from === 'client') {
+                        wSent++;
+                        wOverhead += 6; // ws frame header
+                        flashEndpoint('ws', 'client');
+                        await animPkt('ws', 'client', msg.text.substring(0, 18), 'blue');
+                    } else {
+                        wRecv++;
+                        wPush++;
+                        wOverhead += 6;
+                        flashEndpoint('ws', 'server');
+                        await animPkt('ws', 'server', msg.text.substring(0, 18), 'green');
+                    }
+
+                    msgIdx = m + 1;
+                    setField('w-sent', wSent, 'val-purple');
+                    setField('w-recv', wRecv, 'val-purple');
+                    setField('w-push', wPush, 'val-green');
+                    setField('w-overhead', wOverhead + ' B', 'val-green');
+
+                    await sleep(200);
+                }
+            })();
+
+            await Promise.all([httpPromise, wsPromise]);
+            await sleep(500);
+
+            /* ── Phase 3: Results ── */
+            els.httpStatus.textContent = 'Done';
+            els.wsStatus.textContent = '🟢 Still connected';
+
+            setField('h-latency', '50-200ms', 'val-orange');
+            setField('w-latency', '< 5ms', 'val-green');
+            setField('h-eff', Math.round((hUseful / hReqs) * 100) + '%', hUseful / hReqs < 0.5 ? 'val-red' : 'val-yellow');
+            setField('w-eff', '100%', 'val-green');
+
+            addStory('📊', `<strong>Results Comparison:</strong><br>
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,.08);"><td style="padding:6px;color:var(--text-muted);">Metric</td><td style="padding:6px;color:var(--http-color);font-weight:600;">📨 HTTP</td><td style="padding:6px;color:var(--ws-color);font-weight:600;">📞 WebSocket</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">Total Requests</td><td style="padding:6px;font-family:'JetBrains Mono',monospace;font-size:.8rem;">${hReqs}</td><td style="padding:6px;font-family:'JetBrains Mono',monospace;font-size:.8rem;">1 (upgrade)</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">Useful Messages</td><td style="padding:6px;">${hUseful}</td><td style="padding:6px;">${wSent + wRecv}</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">Wasted Polls</td><td style="padding:6px;color:var(--neon-red);font-weight:600;">${hEmpty}</td><td style="padding:6px;color:var(--neon-green);font-weight:600;">0</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">Header Overhead</td><td style="padding:6px;color:var(--neon-red);">${(hOverhead / 1000).toFixed(1)} KB</td><td style="padding:6px;color:var(--neon-green);">${wOverhead} B</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:6px;">Connections</td><td style="padding:6px;color:var(--neon-orange);">${hConns}</td><td style="padding:6px;color:var(--neon-green);">1</td></tr>
+        <tr><td style="padding:6px;">Latency</td><td style="padding:6px;">50-200ms</td><td style="padding:6px;color:var(--neon-green);">< 5ms</td></tr>
+        </table>`, 'type-compare');
+            await sleep(800);
+
+            addStory('🚨', `<strong>The HTTP Polling Problem:</strong><br>
+        • ${hEmpty} out of ${hReqs} requests were <strong>wasted</strong> — the server had nothing new to say<br>
+        • Each request carried <strong>~800 bytes of HTTP headers</strong> — bigger than most actual messages<br>
+        • Every poll requires a new TCP connection or keep-alive overhead<br>
+        • Real-time feel is impossible: there's always a ${uc.pollInterval}ms delay between polls`, 'type-warn');
+            await sleep(500);
+
+            addStory('✅', `<strong>The WebSocket Advantage:</strong><br>
+        • <strong>Zero wasted requests</strong> — server sends data only when it has something<br>
+        • Frame overhead is just <strong>2-6 bytes</strong> vs ~800 bytes for HTTP headers<br>
+        • <strong>True real-time</strong>: messages arrive in < 5ms, not "next poll cycle"<br>
+        • <strong>Bidirectional</strong>: server can push without client asking (impossible in HTTP/1.1)<br>
+        • One connection = less memory, CPU, and battery consumption on mobile`, 'type-secure');
+            await sleep(500);
+
+            const usecaseAdvice = {
+                chat: `<strong>For Chat Apps:</strong> WebSocket is the clear winner. Slack, Discord, WhatsApp Web — they all use WebSockets. HTTP polling would mean messages arrive with visible delay and drain your battery checking for updates.`,
+                stocks: `<strong>For Stock Tickers:</strong> WebSocket with server-sent events. The server knows when prices change and pushes instantly. Coinbase, Binance, Bloomberg — all use WebSockets for real-time price feeds.`,
+                gaming: `<strong>For Gaming:</strong> WebSocket is mandatory. At 60fps, even 50ms HTTP latency is unacceptable. Games need sub-5ms bidirectional communication. Some games use UDP directly for even lower latency.`,
+                notif: `<strong>For Notifications:</strong> WebSocket or SSE (Server-Sent Events). SSE is HTTP-based but one-directional — perfect for notifications where only the server pushes. WebSocket is overkill if you don't need to send data back.`,
+                collab: `<strong>For Collaborative Editors:</strong> WebSocket + OT/CRDT algorithms. Google Docs, Figma, Notion — they all maintain a persistent WebSocket to broadcast every keystroke and cursor movement in real-time.`,
+            };
+            addStory('💡', usecaseAdvice[selUC.value], 'type-compare');
+            await sleep(400);
+
+            addStory('🔧', `<strong>When to use each:</strong><br>
+        <br>📨 <strong>Use HTTP when:</strong><br>
+        • Simple CRUD operations (load a page, submit a form)<br>
+        • RESTful APIs with infrequent requests<br>
+        • Cacheable content (CDNs can cache HTTP, not WebSocket)<br>
+        • Server-to-server communication<br>
+        <br>📞 <strong>Use WebSocket when:</strong><br>
+        • Real-time bidirectional data (chat, gaming, live collab)<br>
+        • High-frequency updates (stock tickers, live sports scores)<br>
+        • Server needs to push data without client asking<br>
+        • Low-latency is critical (< 10ms)`, 'type-compare');
+
+            state.animating = false;
+            els.btnGo.innerHTML = '🔄 Run Again';
+            els.btnGo.className = 'primary';
+            els.btnGo.disabled = false;
+        }
+    </script>
+
+</body>
+
+</html>

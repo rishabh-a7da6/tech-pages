@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How SSH Works — Secure Shell Handshake Visualizer</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of the SSH protocol handshake. Watch step-by-step how a client securely connects to a remote server using encryption and authentication.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #c084fc;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-orange), var(--neon-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 700px;
+            line-height: 1.6;
+        }
+
+        /* ── Selectors ── */
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 220px;
+        }
+
+        .select-card label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(251, 146, 60, 0.4);
+            box-shadow: 0 4px 25px rgba(251, 146, 60, 0.1);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-orange);
+            box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15);
+        }
+
+        .arrow-icon {
+            padding-top: 22px;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes arrowPulse {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* ── Auth Method Toggle ── */
+        .auth-toggle {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .auth-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 10px 22px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 0;
+            position: relative;
+        }
+
+        .auth-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .auth-btn.active {
+            background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(74, 222, 128, 0.15));
+            color: var(--neon-orange);
+        }
+
+        .auth-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: var(--neon-orange);
+            border-radius: 2px;
+        }
+
+        /* ── Status Badge ── */
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.4s ease;
+            max-width: 750px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(74, 222, 128, 0.08);
+            border: 1px solid rgba(74, 222, 128, 0.25);
+            color: var(--neon-green);
+        }
+
+        /* ── Controls ── */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(251, 146, 60, 0.2), rgba(74, 222, 128, 0.2));
+            border-color: var(--neon-orange);
+            box-shadow: 0 0 15px rgba(251, 146, 60, 0.3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(251, 146, 60, 0.5);
+            border-color: #fff;
+        }
+
+        /* ── Dashboard ── */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1250px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 14px;
+        }
+
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-header {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.92rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-orange {
+            color: var(--neon-orange);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* ── Animation Stage ── */
+        .stage {
+            position: relative;
+            width: 100%;
+            min-height: 300px;
+        }
+
+        .endpoint-group {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 5;
+        }
+
+        .endpoint-group.left {
+            left: 2%;
+        }
+
+        .endpoint-group.right {
+            right: 2%;
+        }
+
+        .net-endpoint {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            transition: all 0.6s ease;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .net-endpoint.handshaking {
+            border-color: var(--neon-orange);
+            box-shadow: 0 0 25px rgba(251, 146, 60, 0.25);
+        }
+
+        .net-endpoint.secure {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 25px rgba(74, 222, 128, 0.3);
+        }
+
+        .endpoint-label {
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            font-weight: 500;
+        }
+
+        .net-line {
+            position: absolute;
+            top: 50%;
+            left: calc(2% + 90px + 10px);
+            right: calc(2% + 90px + 10px);
+            height: 3px;
+            background: #1e293b;
+            transform: translateY(-50%);
+            transition: all 0.6s ease;
+            z-index: 1;
+            border-radius: 2px;
+        }
+
+        .net-line.handshaking {
+            background: rgba(251, 146, 60, 0.4);
+            box-shadow: 0 0 12px rgba(251, 146, 60, 0.2);
+        }
+
+        .net-line.encrypted {
+            background: rgba(74, 222, 128, 0.5);
+            box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
+        }
+
+        .net-lock {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.4rem;
+            z-index: 10;
+            transition: all 0.5s ease;
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+        }
+
+        .net-lock.locked {
+            filter: drop-shadow(0 0 12px rgba(74, 222, 128, 0.5));
+            animation: lockBounce 0.5s ease;
+        }
+
+        @keyframes lockBounce {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            40% {
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        /* ── Terminal Prompt ── */
+        .terminal-prompt {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--neon-green);
+            white-space: nowrap;
+            z-index: 6;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .terminal-prompt.visible {
+            opacity: 1;
+        }
+
+        /* ── Packets ── */
+        .packet {
+            position: absolute;
+            padding: 5px 14px;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #0f172a;
+            white-space: nowrap;
+            z-index: 8;
+            pointer-events: none;
+            letter-spacing: 0.3px;
+        }
+
+        .packet-right {
+            animation: flyRight 1.1s ease-in-out forwards;
+        }
+
+        .packet-left {
+            animation: flyLeft 1.1s ease-in-out forwards;
+        }
+
+        @keyframes flyRight {
+            0% {
+                left: 12%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+
+            12% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            88% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            100% {
+                left: 82%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+        }
+
+        @keyframes flyLeft {
+            0% {
+                left: 82%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+
+            12% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            88% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+
+            100% {
+                left: 12%;
+                opacity: 0;
+                transform: translateY(-50%) scale(0.6);
+            }
+        }
+
+        /* ── Story Feed ── */
+        .feed-wrapper {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, 0.1);
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp 0.4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: 0.98rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-client {
+            border-left-color: var(--neon-blue);
+        }
+
+        .type-server {
+            border-left-color: var(--neon-purple);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, 0.04);
+        }
+
+        .type-crypto {
+            border-left-color: var(--neon-yellow);
+        }
+
+        .type-auth {
+            border-left-color: var(--neon-orange);
+            background: rgba(251, 146, 60, 0.04);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1100px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                max-width: 520px;
+            }
+
+            .stage {
+                min-height: 240px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .arrow-icon {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How SSH Actually Works</h1>
+    <p class="subtitle">Every <span class="mono" style="color:var(--neon-orange)">ssh user@server</span> command
+        triggers an intricate cryptographic handshake. Pick a client device and remote server, choose your auth method,
+        then watch the SSH protocol negotiate a secure tunnel in real-time.</p>
+
+    <!-- ── Selectors ── -->
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Your Machine (Client)</label>
+            <select id="select-client" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a client —</option>
+                <option value="devlaptop">💻 Developer Laptop</option>
+                <option value="adminpc">🖥️ Admin Workstation</option>
+                <option value="cicd">⚙️ CI/CD Pipeline</option>
+                <option value="phone">📱 Mobile (Termux/iSH)</option>
+            </select>
+        </div>
+
+        <div class="arrow-icon">→</div>
+
+        <div class="select-card">
+            <label>Remote Server</label>
+            <select id="select-server" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a server —</option>
+                <option value="webserver">🌐 Production Web Server</option>
+                <option value="dbserver">🗄️ Database Server</option>
+                <option value="gitserver">📦 Git Repository (GitHub)</option>
+                <option value="rpi">🍓 Raspberry Pi (IoT)</option>
+                <option value="cloud">☁️ Cloud VM (AWS/GCP)</option>
+                <option value="jumpbox">🛡️ Jump Box / Bastion Host</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ── Auth Method Toggle ── -->
+    <div class="auth-toggle" id="auth-toggle">
+        <button class="auth-btn active" data-auth="key-ed25519" onclick="setAuth('key-ed25519')">🔑 SSH Key
+            (Ed25519)</button>
+        <button class="auth-btn" data-auth="key-rsa" onclick="setAuth('key-rsa')">🔐 SSH Key (RSA)</button>
+        <button class="auth-btn" data-auth="password" onclick="setAuth('password')">🔒 Password</button>
+    </div>
+
+    <!-- ── Status ── -->
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a client and remote server to begin the simulation.</span>
+    </div>
+
+    <!-- ── Controls ── -->
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-connect" class="primary" onclick="toggleConnection()">🖥️ Run ssh command</button>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div class="dashboard" id="dashboard" style="display:none">
+
+        <!-- Client Panel -->
+        <div class="panel" id="panel-client"></div>
+
+        <!-- Animation Stage -->
+        <div class="stage" id="stage">
+            <div class="endpoint-group left">
+                <div class="net-endpoint" id="ep-client">💻</div>
+                <div class="endpoint-label" id="lbl-client">Your Machine</div>
+            </div>
+
+            <div class="net-line" id="net-line"></div>
+            <div class="net-lock" id="net-lock">🔓</div>
+
+            <div class="endpoint-group right">
+                <div class="net-endpoint" id="ep-server">🖥️</div>
+                <div class="endpoint-label" id="lbl-server">Remote Server</div>
+            </div>
+
+            <div class="terminal-prompt" id="terminal-prompt">$ ssh user@server</div>
+        </div>
+
+        <!-- Server Panel -->
+        <div class="panel" id="panel-server"></div>
+
+        <!-- Story Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;">
+                    <span class="log-icon">👋</span>
+                    <span class="log-text">Welcome! Select a client and server above, then run the SSH command to watch
+                        the handshake unfold.</span>
+                </div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const CLIENTS = {
+            devlaptop: {
+                id: 'devlaptop', name: 'Developer Laptop', icon: '💻',
+                os: 'macOS Sequoia', sshClient: 'OpenSSH 9.7',
+                user: 'dev', knownHostsCount: 23,
+            },
+            adminpc: {
+                id: 'adminpc', name: 'Admin Workstation', icon: '🖥️',
+                os: 'Ubuntu 24.04 LTS', sshClient: 'OpenSSH 9.6',
+                user: 'admin', knownHostsCount: 87,
+            },
+            cicd: {
+                id: 'cicd', name: 'CI/CD Pipeline', icon: '⚙️',
+                os: 'Docker (Alpine)', sshClient: 'OpenSSH 9.5',
+                user: 'deploy', knownHostsCount: 5,
+            },
+            phone: {
+                id: 'phone', name: 'Mobile Terminal', icon: '📱',
+                os: 'Android (Termux)', sshClient: 'OpenSSH 9.4',
+                user: 'user', knownHostsCount: 3,
+            },
+        };
+
+        const SERVERS = {
+            webserver: {
+                id: 'webserver', name: 'Production Web Server', icon: '🌐',
+                hostname: 'prod-web-01.example.com', ip: '203.0.113.42', port: 22,
+                os: 'Ubuntu 22.04 LTS', sshDaemon: 'OpenSSH 9.3',
+                hostKeyType: 'ED25519', hostKeyFingerprint: 'SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8',
+            },
+            dbserver: {
+                id: 'dbserver', name: 'Database Server', icon: '🗄️',
+                hostname: 'db-primary.internal.example.com', ip: '10.0.1.50', port: 22,
+                os: 'RHEL 9', sshDaemon: 'OpenSSH 8.7',
+                hostKeyType: 'RSA (4096-bit)', hostKeyFingerprint: 'SHA256:4k2mRemBPCz2aMbj1c9wE3qNjR4vMbs2BEasOyhTJHw',
+            },
+            gitserver: {
+                id: 'gitserver', name: 'Git Repository', icon: '📦',
+                hostname: 'github.com', ip: '140.82.121.4', port: 22,
+                os: 'Custom Linux', sshDaemon: 'babeld (GitHub)',
+                hostKeyType: 'ED25519', hostKeyFingerprint: 'SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU',
+            },
+            rpi: {
+                id: 'rpi', name: 'Raspberry Pi', icon: '🍓',
+                hostname: 'raspberrypi.local', ip: '192.168.1.105', port: 22,
+                os: 'Raspberry Pi OS (Bookworm)', sshDaemon: 'OpenSSH 9.2',
+                hostKeyType: 'ECDSA (nistp256)', hostKeyFingerprint: 'SHA256:pL8H7F9gEnZk3yMdJTk1RQv+b57Xs2DPQB99wnAe4Jg',
+            },
+            cloud: {
+                id: 'cloud', name: 'Cloud VM', icon: '☁️',
+                hostname: 'ec2-54-123-45-67.compute-1.amazonaws.com', ip: '54.123.45.67', port: 22,
+                os: 'Amazon Linux 2023', sshDaemon: 'OpenSSH 8.9',
+                hostKeyType: 'ED25519', hostKeyFingerprint: 'SHA256:7Hm2HBerQLrs5pR9vE1aK3Tl6E4dZ9Mc3LpFw2fJQAs',
+            },
+            jumpbox: {
+                id: 'jumpbox', name: 'Bastion Host', icon: '🛡️',
+                hostname: 'bastion.secure.example.com', ip: '198.51.100.10', port: 2222,
+                os: 'Debian 12 (Hardened)', sshDaemon: 'OpenSSH 9.6',
+                hostKeyType: 'ED25519', hostKeyFingerprint: 'SHA256:WG8n9FTCqMvBrE1pUXk6cqL8dMavE1vR3bSs2qKpZxU',
+            },
+        };
+
+        /* ═══════════════════════════════════════════
+           STATE & ELEMENTS
+           ═══════════════════════════════════════════ */
+        const state = { connected: false, animating: false, authMethod: 'key-ed25519' };
+
+        const selClient = document.getElementById('select-client');
+        const selServer = document.getElementById('select-server');
+
+        const els = {
+            btnConnect: document.getElementById('btn-connect'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compat: document.getElementById('compat-status'),
+            panelC: document.getElementById('panel-client'),
+            panelS: document.getElementById('panel-server'),
+            feed: document.getElementById('feed'),
+            stage: document.getElementById('stage'),
+            epClient: document.getElementById('ep-client'),
+            epServer: document.getElementById('ep-server'),
+            lblClient: document.getElementById('lbl-client'),
+            lblServer: document.getElementById('lbl-server'),
+            netLine: document.getElementById('net-line'),
+            netLock: document.getElementById('net-lock'),
+            termPrompt: document.getElementById('terminal-prompt'),
+        };
+
+        /* ═══════════════════════════════════════════
+           AUTH METHOD TOGGLE
+           ═══════════════════════════════════════════ */
+        function setAuth(method) {
+            state.authMethod = method;
+            document.querySelectorAll('.auth-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.auth === method);
+            });
+            if (state.connected) {
+                disconnect();
+                addStory('🔄', `Switched auth to ${authLabel(method)}. Reconnect to see the updated handshake.`, '');
+            }
+        }
+
+        function authLabel(m) {
+            return { 'key-ed25519': 'SSH Key (Ed25519)', 'key-rsa': 'SSH Key (RSA 4096)', 'password': 'Password' }[m];
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION CHANGE
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const cId = selClient.value;
+            const sId = selServer.value;
+
+            if (state.connected) disconnect();
+
+            if (!cId || !sId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select a client and remote server to begin.</span>';
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
+
+            const client = CLIENTS[cId];
+            const server = SERVERS[sId];
+
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ Ready — <span class="mono">${client.user}@${server.hostname}:${server.port}</span></span>`;
+
+            els.panelC.innerHTML = renderClientPanel(client);
+            els.panelS.innerHTML = renderServerPanel(server);
+
+            els.epClient.textContent = client.icon;
+            els.lblClient.innerHTML = `${client.name}<br><span style="font-size:0.7rem;opacity:0.7;">${client.sshClient}</span>`;
+            els.epServer.textContent = server.icon;
+            els.lblServer.innerHTML = `${server.hostname.length > 25 ? server.hostname.substring(0, 22) + '...' : server.hostname}<br><span style="font-size:0.7rem;opacity:0.7;">${server.ip}:${server.port}</span>`;
+
+            els.epClient.className = 'net-endpoint';
+            els.epServer.className = 'net-endpoint';
+            els.netLine.className = 'net-line';
+            els.netLock.textContent = '🔓';
+            els.netLock.className = 'net-lock';
+            els.termPrompt.className = 'terminal-prompt';
+            els.termPrompt.textContent = `$ ssh ${client.user}@${server.hostname}${server.port !== 22 ? ' -p ' + server.port : ''}`;
+
+            els.controls.style.display = 'flex';
+            els.dashboard.style.display = 'grid';
+            els.btnConnect.innerHTML = '🖥️ Run ssh command';
+            els.btnConnect.className = 'primary';
+            els.btnConnect.disabled = false;
+
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+                <span class="log-icon">👋</span>
+                <span class="log-text">Ready! Click <strong>"Run ssh command"</strong> to connect ${client.icon} ${client.name} → ${server.icon} ${server.hostname} using ${authLabel(state.authMethod)}.</span>
+            </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           PANEL RENDERERS
+           ═══════════════════════════════════════════ */
+        function renderClientPanel(c) {
+            return `
+            <div class="panel-title">${c.icon} ${c.name} — Client</div>
+            <div class="status-box">
+                <div class="status-header">System</div>
+                <div class="data-row"><span>OS:</span> <span class="val-blue">${c.os}</span></div>
+                <div class="data-row"><span>SSH Client:</span> <span>${c.sshClient}</span></div>
+                <div class="data-row"><span>User:</span> <span class="mono">${c.user}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Connection</div>
+                <div class="data-row"><span>Phase:</span> <span id="c-phase">Not started</span></div>
+                <div class="data-row"><span>Protocol:</span> <span id="c-proto">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Host Key Verification</div>
+                <div class="data-row"><span>Known Hosts:</span> <span>${c.knownHostsCount} entries</span></div>
+                <div class="data-row"><span>Server Key:</span> <span id="c-hostkey">Not received</span></div>
+                <div class="data-row"><span>Trust Status:</span> <span id="c-trust">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Encryption</div>
+                <div class="data-row"><span>Cipher:</span> <span id="c-cipher" class="mono">None</span></div>
+                <div class="data-row"><span>MAC:</span> <span id="c-mac" class="mono">—</span></div>
+                <div class="data-row"><span>Key Exchange:</span> <span id="c-kex">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Authentication</div>
+                <div class="data-row"><span>Method:</span> <span id="c-auth">Pending</span></div>
+                <div class="data-row"><span>Result:</span> <span id="c-authres">—</span></div>
+            </div>`;
+        }
+
+        function renderServerPanel(s) {
+            return `
+            <div class="panel-title">${s.icon} ${s.name} — Server</div>
+            <div class="status-box">
+                <div class="status-header">Server Identity</div>
+                <div class="data-row"><span>Hostname:</span> <span class="val-blue" style="font-size:0.82rem;">${s.hostname}</span></div>
+                <div class="data-row"><span>IP Address:</span> <span class="mono">${s.ip}</span></div>
+                <div class="data-row"><span>Port:</span> <span>${s.port}</span></div>
+                <div class="data-row"><span>OS:</span> <span>${s.os}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">SSH Daemon</div>
+                <div class="data-row"><span>Software:</span> <span>${s.sshDaemon}</span></div>
+                <div class="data-row"><span>Status:</span> <span id="s-status">Listening on :${s.port}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Host Key</div>
+                <div class="data-row"><span>Type:</span> <span class="val-orange">${s.hostKeyType}</span></div>
+                <div class="data-row"><span>Fingerprint:</span> <span id="s-fp" class="mono" style="font-size:0.72rem;word-break:break-all;">${s.hostKeyFingerprint}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Session</div>
+                <div class="data-row"><span>Cipher:</span> <span id="s-cipher" class="mono">—</span></div>
+                <div class="data-row"><span>Auth Accepted:</span> <span id="s-auth">—</span></div>
+                <div class="data-row"><span>Channel:</span> <span id="s-channel">—</span></div>
+            </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           HELPERS
+           ═══════════════════════════════════════════ */
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function addStory(icon, text, type = 'type-client') {
+            const el = document.createElement('div');
+            el.className = `log-msg ${type}`;
+            el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
+            els.feed.appendChild(el);
+            els.feed.scrollTop = els.feed.scrollHeight;
+        }
+
+        function setField(id, text, cls) {
+            const el = document.getElementById(id);
+            if (el) { el.innerText = text; if (cls) el.className = cls; }
+        }
+
+        function clearLogs() {
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+                <span class="log-icon">🧹</span>
+                <span class="log-text">Logs cleared.</span>
+            </div>`;
+        }
+
+        function sendPacket(direction, label, color) {
+            return new Promise(resolve => {
+                const pkt = document.createElement('div');
+                pkt.className = `packet packet-${direction}`;
+                pkt.textContent = label;
+                const colors = {
+                    blue: 'rgba(56, 189, 248, 0.92)',
+                    purple: 'rgba(192, 132, 252, 0.92)',
+                    green: 'rgba(74, 222, 128, 0.92)',
+                    yellow: 'rgba(250, 204, 21, 0.92)',
+                    orange: 'rgba(251, 146, 60, 0.92)',
+                    red: 'rgba(248, 113, 113, 0.92)',
+                };
+                pkt.style.background = colors[color] || colors.blue;
+                const yOff = (Math.random() - 0.5) * 50;
+                pkt.style.top = `calc(50% + ${yOff}px)`;
+                els.stage.appendChild(pkt);
+                pkt.addEventListener('animationend', () => { pkt.remove(); resolve(); });
+            });
+        }
+
+        function randomHex(len) {
+            return Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        }
+
+        /* ═══════════════════════════════════════════
+           CONNECT / DISCONNECT
+           ═══════════════════════════════════════════ */
+        function toggleConnection() {
+            if (state.animating) return;
+            state.connected ? disconnect() : connect();
+        }
+
+        function disconnect() {
+            state.connected = false;
+            state.animating = false;
+            els.btnConnect.innerHTML = '🖥️ Run ssh command';
+            els.btnConnect.className = 'primary';
+            els.btnConnect.disabled = false;
+            els.epClient.className = 'net-endpoint';
+            els.epServer.className = 'net-endpoint';
+            els.netLine.className = 'net-line';
+            els.netLock.textContent = '🔓';
+            els.netLock.className = 'net-lock';
+            els.termPrompt.className = 'terminal-prompt';
+            setField('c-phase', 'Not started', '');
+            setField('c-proto', '—', '');
+            setField('c-hostkey', 'Not received', '');
+            setField('c-trust', '—', '');
+            setField('c-cipher', 'None', 'mono');
+            setField('c-mac', '—', 'mono');
+            setField('c-kex', '—', '');
+            setField('c-auth', 'Pending', '');
+            setField('c-authres', '—', '');
+            setField('s-status', 'Listening', '');
+            setField('s-cipher', '—', 'mono');
+            setField('s-auth', '—', '');
+            setField('s-channel', '—', '');
+            els.stage.querySelectorAll('.packet').forEach(p => p.remove());
+            addStory('🔌', 'SSH session terminated. Connection closed.', '');
+        }
+
+        async function connect() {
+            state.animating = true;
+            state.connected = true;
+            els.btnConnect.innerHTML = '⏳ Handshake in progress...';
+            els.btnConnect.disabled = true;
+            await sshHandshake();
+            if (!state.connected) return;
+            els.btnConnect.innerHTML = '🔌 Disconnect';
+            els.btnConnect.className = '';
+            els.btnConnect.disabled = false;
+            state.animating = false;
+        }
+
+        /* ═══════════════════════════════════════════
+           SSH HANDSHAKE
+           ═══════════════════════════════════════════ */
+        async function sshHandshake() {
+            const client = CLIENTS[selClient.value];
+            const server = SERVERS[selServer.value];
+            const auth = state.authMethod;
+            const cName = `${client.icon} ${client.name}`;
+            const sName = `${server.icon} ${server.hostname}`;
+
+            // Show terminal prompt
+            els.termPrompt.className = 'terminal-prompt visible';
+
+            /* ── Step 1: TCP ── */
+            addStory('🌐', `<span class="mono">$ ssh ${client.user}@${server.hostname}${server.port !== 22 ? ' -p ' + server.port : ''}</span><br>Initiating TCP connection to <span class="mono">${server.ip}:${server.port}</span>...`, '');
+            setField('c-phase', 'TCP Handshake', 'val-blue');
+            setField('s-status', 'SYN received', 'val-blue');
+            await sendPacket('right', 'SYN', 'blue');
+            await sendPacket('left', 'SYN-ACK', 'purple');
+            await sendPacket('right', 'ACK', 'blue');
+            addStory('✅', 'TCP connection established.', 'type-secure');
+            await sleep(400);
+            if (!state.connected) return;
+
+            /* ── Step 2: Protocol Version Exchange ── */
+            els.epClient.className = 'net-endpoint handshaking';
+            els.epServer.className = 'net-endpoint handshaking';
+            els.netLine.className = 'net-line handshaking';
+            setField('c-phase', 'Version Exchange', 'val-orange');
+
+            addStory('📤', `<strong>Protocol Banner</strong> — ${cName} announces: <span class="mono">SSH-2.0-${client.sshClient.replace(' ', '_')}</span>`, 'type-client');
+            await sendPacket('right', 'SSH-2.0-Client', 'blue');
+            await sleep(200);
+
+            addStory('📥', `<strong>Protocol Banner</strong> — ${sName} responds: <span class="mono">SSH-2.0-${server.sshDaemon.replace(' ', '_')}</span>`, 'type-server');
+            setField('c-proto', 'SSH-2.0', 'val-green');
+            await sendPacket('left', 'SSH-2.0-Server', 'purple');
+            await sleep(400);
+            if (!state.connected) return;
+
+            /* ── Step 3: Algorithm Negotiation (KEXINIT) ── */
+            setField('c-phase', 'Algorithm Negotiation', 'val-orange');
+
+            addStory('📤', `<strong>SSH_MSG_KEXINIT</strong> — ${cName} sends its supported algorithms:<br>
+                • Key Exchange: <span class="mono">curve25519-sha256, ecdh-sha2-nistp256, diffie-hellman-group16-sha512</span><br>
+                • Host Key: <span class="mono">ssh-ed25519, rsa-sha2-512, ecdsa-sha2-nistp256</span><br>
+                • Encryption: <span class="mono">chacha20-poly1305, aes256-gcm, aes128-gcm</span><br>
+                • MAC: <span class="mono">hmac-sha2-256-etm, hmac-sha2-512-etm</span><br>
+                • Compression: <span class="mono">none, zlib@openssh.com</span>`, 'type-client');
+            await sendPacket('right', 'KEXINIT', 'blue');
+            await sleep(200);
+
+            addStory('📥', `<strong>SSH_MSG_KEXINIT</strong> — ${sName} sends its supported algorithms (the two lists are compared to find the best mutual match).`, 'type-server');
+            await sendPacket('left', 'KEXINIT', 'purple');
+            await sleep(400);
+
+            const cipher = 'chacha20-poly1305@openssh.com';
+            const mac = 'implicit (AEAD)';
+            const kexAlgo = 'curve25519-sha256';
+
+            addStory('🤝', `<strong>Algorithm Agreement</strong> — Best mutual choices selected:<br>
+                • Key Exchange: <span class="mono val-green">${kexAlgo}</span><br>
+                • Encryption: <span class="mono val-green">${cipher}</span><br>
+                • MAC: <span class="mono val-green">${mac}</span><br>
+                • Compression: <span class="mono">none</span>`, 'type-crypto');
+
+            setField('c-cipher', cipher, 'mono val-green');
+            setField('c-mac', mac, 'mono val-green');
+            setField('c-kex', kexAlgo, 'val-blue');
+            setField('s-cipher', cipher, 'mono val-green');
+            await sleep(600);
+            if (!state.connected) return;
+
+            /* ── Step 4: Key Exchange (Curve25519) ── */
+            setField('c-phase', 'Key Exchange', 'val-yellow');
+
+            addStory('🔑', `<strong>Elliptic-Curve Diffie-Hellman</strong> — Both sides generate ephemeral Curve25519 key pairs (private + public). These are single-use keys, discarded after this session.`, 'type-crypto');
+            await sleep(500);
+
+            addStory('📤', `<strong>SSH_MSG_KEX_ECDH_INIT</strong> — ${cName} sends its ephemeral public key: <span class="mono">${randomHex(20)}...</span>`, 'type-client');
+            await sendPacket('right', 'ECDH_INIT', 'yellow');
+            await sleep(300);
+
+            addStory('📥', `<strong>SSH_MSG_KEX_ECDH_REPLY</strong> — ${sName} responds with:<br>
+                • Server's host public key (${server.hostKeyType})<br>
+                • Server's ephemeral public key: <span class="mono">${randomHex(20)}...</span><br>
+                • Signature over the exchange hash (proves server identity)`, 'type-server');
+            await sendPacket('left', 'ECDH_REPLY', 'purple');
+            await sleep(400);
+
+            addStory('🔐', `<strong>Shared Secret Derived!</strong> Both sides independently compute the same shared secret using ECDH — it never crosses the wire. From this, 6 session keys are derived:<br>
+                • <span class="mono">client→server encryption key</span><br>
+                • <span class="mono">server→client encryption key</span><br>
+                • <span class="mono">client→server integrity key</span><br>
+                • <span class="mono">server→client integrity key</span><br>
+                • <span class="mono">client→server IV</span> / <span class="mono">server→client IV</span>`, 'type-crypto');
+            await sleep(800);
+            if (!state.connected) return;
+
+            /* ── Step 5: Host Key Verification ── */
+            setField('c-phase', 'Host Verification', 'val-orange');
+            setField('c-hostkey', server.hostKeyType, 'val-orange');
+
+            addStory('🔍', `<strong>Host Key Verification</strong> — ${cName} checks if this server's fingerprint is in <span class="mono">~/.ssh/known_hosts</span>...<br>
+                Fingerprint: <span class="mono" style="font-size:0.8rem;">${server.hostKeyFingerprint}</span>`, 'type-auth');
+            await sleep(800);
+
+            if (client.knownHostsCount > 10) {
+                addStory('✅', `<strong>Host key found in known_hosts!</strong> This server's fingerprint matches a previously trusted entry. No user prompt needed.`, 'type-secure');
+                setField('c-trust', '✅ Known Host', 'val-green');
+            } else {
+                addStory('⚠️', `<strong>New host!</strong> This fingerprint isn't in known_hosts yet. In a real session you'd see:<br>
+                    <span class="mono" style="font-size:0.85rem;color:var(--neon-yellow);">The authenticity of host '${server.hostname}' can't be established.<br>
+                    ${server.hostKeyType} key fingerprint is ${server.hostKeyFingerprint}.<br>
+                    Are you sure you want to continue connecting (yes/no)?</span><br>
+                    User types <span class="mono val-green">yes</span> — fingerprint saved to known_hosts.`, 'type-auth');
+                setField('c-trust', '✅ Accepted (new)', 'val-yellow');
+            }
+            await sleep(600);
+            if (!state.connected) return;
+
+            /* ── Step 6: NEW KEYS ── */
+            addStory('📤', `<strong>SSH_MSG_NEWKEYS</strong> — ${cName}: "Switching to encrypted mode now!"`, 'type-client');
+            await sendPacket('right', 'NEWKEYS', 'green');
+            await sleep(200);
+            addStory('📥', `<strong>SSH_MSG_NEWKEYS</strong> — ${sName}: "Me too — all further messages are encrypted!"`, 'type-server');
+            await sendPacket('left', 'NEWKEYS', 'green');
+
+            setField('c-phase', '🔒 Transport Encrypted', 'val-green');
+            setField('s-status', '🔒 Encrypted', 'val-green');
+            await sleep(600);
+            if (!state.connected) return;
+
+            /* ── Step 7: User Authentication ── */
+            setField('c-phase', 'User Authentication', 'val-orange');
+
+            addStory('📤', `<strong>SSH_MSG_SERVICE_REQUEST</strong> — ${cName} requests the <span class="mono">ssh-userauth</span> service.`, 'type-client');
+            await sendPacket('right', 'SERVICE_REQUEST', 'blue');
+            addStory('📥', `<strong>SSH_MSG_SERVICE_ACCEPT</strong> — Server accepts.`, 'type-server');
+            await sendPacket('left', 'SERVICE_ACCEPT', 'purple');
+            await sleep(400);
+
+            if (auth === 'password') {
+                await authPassword(client, server);
+            } else {
+                await authPublicKey(client, server, auth);
+            }
+            if (!state.connected) return;
+
+            /* ── Step 8: Channel Open ── */
+            setField('c-phase', 'Opening Channel', 'val-blue');
+
+            addStory('📤', `<strong>SSH_MSG_CHANNEL_OPEN</strong> — ${cName} requests an interactive <span class="mono">session</span> channel.`, 'type-client');
+            await sendPacket('right', 'CHANNEL_OPEN', 'blue');
+            addStory('📥', `<strong>SSH_MSG_CHANNEL_OPEN_CONFIRMATION</strong> — Server allocates a PTY (pseudo-terminal).`, 'type-server');
+            setField('s-channel', 'session (PTY)', 'val-green');
+            await sendPacket('left', 'CHANNEL_CONFIRM', 'purple');
+            await sleep(400);
+
+            addStory('📤', `<strong>SSH_MSG_CHANNEL_REQUEST</strong> — Client requests a <span class="mono">shell</span>.`, 'type-client');
+            await sendPacket('right', 'SHELL_REQUEST', 'blue');
+            await sleep(300);
+            if (!state.connected) return;
+
+            /* ── Step 9: Session Active ── */
+            els.netLock.textContent = '🔒';
+            els.netLock.className = 'net-lock locked';
+            els.netLine.className = 'net-line encrypted';
+            els.epClient.className = 'net-endpoint secure';
+            els.epServer.className = 'net-endpoint secure';
+            setField('c-phase', '🔒 Shell Active', 'val-green');
+            setField('s-status', '🔒 Session Active', 'val-green');
+            setField('s-channel', 'session (shell)', 'val-green');
+
+            els.termPrompt.textContent = `${client.user}@${server.hostname.split('.')[0]}:~$`;
+
+            addStory('🖥️', `<strong>Shell ready!</strong> You now have an encrypted interactive terminal on ${sName}.`, 'type-secure');
+            await sleep(600);
+
+            // Demo commands
+            addStory('📡', `Let's see encrypted commands in action:`, '');
+            await sleep(300);
+
+            const cmd = server.id === 'gitserver' ? 'git pull origin main' : 'ls -la /var/www/html';
+            addStory('📤', `<strong>You type:</strong> <span class="mono" style="color:var(--neon-blue)">${cmd}</span><br>
+                <strong>On the wire:</strong> <span class="mono" style="color:var(--text-muted)">${randomHex(24)}</span><br>
+                <span style="font-size:0.85rem;color:var(--text-muted);">Every keystroke is individually encrypted — even the command length is hidden by padding!</span>`, 'type-client');
+            await sendPacket('right', '🔒 ENCRYPTED', 'green');
+            await sleep(400);
+            if (!state.connected) return;
+
+            const resp = server.id === 'gitserver' ? 'Already up to date.' : 'drwxr-xr-x 3 www-data … index.html';
+            addStory('📥', `<strong>Server output:</strong> <span class="mono" style="color:var(--neon-purple)">${resp}</span><br>
+                <strong>On the wire:</strong> <span class="mono" style="color:var(--text-muted)">${randomHex(24)}</span>`, 'type-server');
+            await sendPacket('left', '🔒 ENCRYPTED', 'green');
+
+            await sleep(500);
+
+            // Fun fact
+            const facts = {
+                webserver: 'Fun fact: SSH port forwarding (-L / -R) can create encrypted tunnels to access internal services as if you were on the server\'s local network!',
+                dbserver: 'Fun fact: Many teams use SSH tunnels (<span class="mono">ssh -L 3306:localhost:3306</span>) to securely access databases without exposing them to the internet!',
+                gitserver: 'Fun fact: When you <span class="mono">git push</span> via SSH, Git runs as a forced command on the server — you never actually get a shell on GitHub!',
+                rpi: 'Fun fact: Raspberry Pi OS now disables SSH by default. You enable it by placing an empty file named <span class="mono">ssh</span> on the boot partition!',
+                cloud: 'Fun fact: AWS EC2 instances use SSH key pairs exclusively — password auth is disabled by default for security!',
+                jumpbox: 'Fun fact: SSH supports <span class="mono">ProxyJump</span> (-J flag) to transparently hop through bastion hosts, establishing a secure chain of encrypted tunnels!',
+            };
+            addStory('💡', facts[server.id] || 'Fun fact: SSH was invented in 1995 by Tatu Ylönen after a password-sniffing attack on his university network in Finland!', 'type-secure');
+
+            await sleep(400);
+            addStory('🎉', `<strong>That's SSH!</strong> Your ${client.name} has a fully encrypted, authenticated tunnel to ${server.hostname}. Every byte — keystrokes, file transfers, port forwards — is protected by ${cipher}.`, 'type-secure');
+        }
+
+        /* ═══════════════════════════════════════════
+           AUTH: PASSWORD
+           ═══════════════════════════════════════════ */
+        async function authPassword(client, server) {
+            setField('c-auth', '🔒 Password', 'val-orange');
+
+            addStory('🔒', `<strong>Password Authentication</strong> — ${client.icon} ${client.name} will send the password <em>encrypted</em> inside the already-established tunnel.`, 'type-auth');
+            await sleep(400);
+
+            addStory('⚠️', `<strong>Note:</strong> Password auth is less secure than key-based auth — it's vulnerable to brute-force attacks and phishing. Many servers disable it entirely.`, 'type-warn');
+            await sleep(400);
+
+            addStory('📤', `<strong>SSH_MSG_USERAUTH_REQUEST</strong> — Method: <span class="mono">password</span><br>
+                User: <span class="mono">${client.user}</span><br>
+                Password: <span class="mono">••••••••••••</span> (encrypted in transit)`, 'type-client');
+            await sendPacket('right', 'USERAUTH (password)', 'orange');
+            await sleep(500);
+
+            addStory('📥', `<strong>SSH_MSG_USERAUTH_SUCCESS</strong> — Server verified the password hash against <span class="mono">/etc/shadow</span>. Access granted!`, 'type-server');
+            setField('c-authres', '✅ Accepted', 'val-green');
+            setField('s-auth', '✅ password', 'val-green');
+            await sendPacket('left', 'AUTH_SUCCESS', 'green');
+            await sleep(400);
+        }
+
+        /* ═══════════════════════════════════════════
+           AUTH: PUBLIC KEY
+           ═══════════════════════════════════════════ */
+        async function authPublicKey(client, server, auth) {
+            const keyType = auth === 'key-ed25519' ? 'Ed25519' : 'RSA 4096-bit';
+            const keyAlgo = auth === 'key-ed25519' ? 'ssh-ed25519' : 'rsa-sha2-512';
+            setField('c-auth', `🔑 ${keyType}`, 'val-orange');
+
+            addStory('🔑', `<strong>Public Key Authentication</strong> — The most secure method. No password crosses the wire — not even encrypted. Instead, the client proves it holds the private key through a cryptographic challenge.`, 'type-auth');
+            await sleep(600);
+
+            addStory('📤', `<strong>SSH_MSG_USERAUTH_REQUEST</strong> (probe) — ${client.icon} ${client.name} asks: "Would you accept this public key?"<br>
+                Algorithm: <span class="mono">${keyAlgo}</span><br>
+                Public Key: <span class="mono">${randomHex(20)}...</span>`, 'type-client');
+            await sendPacket('right', 'USERAUTH (pubkey?)', 'blue');
+            await sleep(400);
+
+            addStory('📥', `<strong>SSH_MSG_USERAUTH_PK_OK</strong> — Server found the matching public key in <span class="mono">~/.ssh/authorized_keys</span>. "Yes, prove you own the private key!"`, 'type-server');
+            await sendPacket('left', 'PK_OK', 'purple');
+            await sleep(400);
+
+            addStory('🔐', `<strong>Challenge-Response</strong> — ${client.icon} ${client.name} creates a signature over the session ID + request data using its <em>private key</em> (stored in <span class="mono">~/.ssh/id_${auth === 'key-ed25519' ? 'ed25519' : 'rsa'}</span>). The private key <strong>never leaves the client</strong>.`, 'type-crypto');
+            await sleep(600);
+
+            addStory('📤', `<strong>SSH_MSG_USERAUTH_REQUEST</strong> (signed) — Client sends the signature: <span class="mono">${randomHex(32)}...</span>`, 'type-client');
+            await sendPacket('right', 'USERAUTH (signed)', 'orange');
+            await sleep(500);
+
+            addStory('📥', `<strong>SSH_MSG_USERAUTH_SUCCESS</strong> — Server verified the signature using the stored public key. <strong>Identity proven without ever transmitting the private key!</strong>`, 'type-server');
+            setField('c-authres', '✅ Key Verified', 'val-green');
+            setField('s-auth', `✅ publickey (${keyType})`, 'val-green');
+            await sendPacket('left', 'AUTH_SUCCESS', 'green');
+            await sleep(400);
+
+            if (auth === 'key-ed25519') {
+                addStory('💡', `<strong>Why Ed25519?</strong> It's the modern default — faster to sign/verify than RSA, smaller keys (256-bit vs 4096-bit), and resistant to several classes of side-channel attacks.`, 'type-secure');
+            } else {
+                addStory('💡', `<strong>RSA 4096-bit</strong> is the legacy standard — widely supported but slower and produces larger signatures. Most experts recommend migrating to Ed25519.`, 'type-crypto');
+            }
+            await sleep(400);
+        }
+    </script>
+</body>
+
+</html>

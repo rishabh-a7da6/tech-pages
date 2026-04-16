@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the Tor Network Works — Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of The Onion Router (Tor) Network. Watch how data packets are anonymized by peeling encryption layers at each network relay.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-cyan: #22d3ee;
+            --neon-purple: #d946ef;
+            --neon-red: #ef4444;
+            --neon-yellow: #facc15;
+            --neon-green: #4ade80;
+            --neon-blue: #0ea5e9;
+            --neon-orange: #fb923c;
+            --text-muted: #94a3b8;
+            --c-user: #22d3ee;
+            --c-entry: #ef4444;
+            --c-mid: #facc15;
+            --c-exit: #4ade80;
+            --c-dest: #d946ef;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--c-user), var(--c-exit));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 850px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--c-exit);
+            box-shadow: 0 0 0 3px rgba(74, 222, 128, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 860px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(74, 222, 128, .08);
+            border: 1px solid rgba(74, 222, 128, .25);
+            color: var(--c-exit);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(74, 222, 128, .2), rgba(217, 70, 239, .2));
+            border-color: var(--c-exit);
+            box-shadow: 0 0 15px rgba(74, 222, 128, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(74, 222, 128, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1300px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ══════════ THE STAGE (TOR NETWORK) ══════════ */
+        .stage {
+            position: relative;
+            height: 280px;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: inset 0 10px 30px rgba(0, 0, 0, .5);
+        }
+
+        .road-line {
+            position: absolute;
+            top: 65%;
+            left: 8%;
+            right: 8%;
+            height: 2px;
+            background: rgba(255, 255, 255, .1);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .road-line-dash {
+            position: absolute;
+            top: 65%;
+            left: 8%;
+            right: 8%;
+            border-top: 2px dashed rgba(255, 255, 255, .15);
+            transform: translateY(-50%);
+            z-index: 2;
+        }
+
+        .node {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            z-index: 5;
+            top: 65%;
+            transform: translate(-50%, -50%);
+        }
+
+        .node-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, .95);
+            border: 2px solid;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .5);
+            transition: all .4s;
+        }
+
+        .node-name {
+            font-weight: 700;
+            font-size: .7rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-top: 2px;
+        }
+
+        .node-sub {
+            font-size: .52rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .n-user .node-icon {
+            border-color: var(--c-user);
+            box-shadow: 0 0 15px rgba(34, 211, 238, .3);
+        }
+
+        .n-user .node-name {
+            color: var(--c-user);
+        }
+
+        .n-entry .node-icon {
+            border-color: var(--c-entry);
+            box-shadow: 0 0 15px rgba(239, 68, 68, .3);
+        }
+
+        .n-entry .node-name {
+            color: var(--c-entry);
+        }
+
+        .n-mid .node-icon {
+            border-color: var(--c-mid);
+            box-shadow: 0 0 15px rgba(250, 204, 21, .3);
+        }
+
+        .n-mid .node-name {
+            color: var(--c-mid);
+        }
+
+        .n-exit .node-icon {
+            border-color: var(--c-exit);
+            box-shadow: 0 0 15px rgba(74, 222, 128, .3);
+        }
+
+        .n-exit .node-name {
+            color: var(--c-exit);
+        }
+
+        .n-dest .node-icon {
+            border-color: var(--c-dest);
+            box-shadow: 0 0 15px rgba(217, 70, 239, .3);
+        }
+
+        .n-dest .node-name {
+            color: var(--c-dest);
+        }
+
+        .sees-box {
+            position: absolute;
+            top: 10%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: .65rem;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity .5s, transform .5s;
+            line-height: 1.6;
+            z-index: 20;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, .6);
+            width: 145px;
+            backdrop-filter: blur(5px);
+        }
+
+        .sees-title {
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+            font-size: .7rem;
+            border-bottom: 1px solid rgba(255, 255, 255, .1);
+            padding-bottom: 4px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .sb-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .6rem;
+            color: #fff;
+            float: right;
+            font-weight: 600;
+        }
+
+        /* ONION PACKET */
+        .onion {
+            position: absolute;
+            top: 65%;
+            width: 48px;
+            height: 48px;
+            transform: translate(-50%, -50%);
+            transition: left 1.2s ease-in-out, opacity .4s;
+            z-index: 15;
+            border-radius: 50%;
+            opacity: 0;
+        }
+
+        .layer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        .l3 {
+            width: 46px;
+            height: 46px;
+            background: rgba(239, 68, 68, .9);
+            border: 1px solid #f87171;
+            box-shadow: 0 0 12px rgba(239, 68, 68, .5);
+            z-index: 1;
+        }
+
+        .l2 {
+            width: 34px;
+            height: 34px;
+            background: rgba(250, 204, 21, .9);
+            border: 1px solid #fde047;
+            box-shadow: 0 0 12px rgba(250, 204, 21, .5);
+            z-index: 2;
+        }
+
+        .l1 {
+            width: 22px;
+            height: 22px;
+            background: rgba(74, 222, 128, .9);
+            border: 1px solid #86efac;
+            box-shadow: 0 0 12px rgba(74, 222, 128, .5);
+            z-index: 3;
+        }
+
+        .payload {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: .5rem;
+            font-weight: 800;
+            background: rgba(255, 255, 255, .95);
+            color: #0f172a;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            z-index: 4;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, .5);
+            white-space: nowrap;
+        }
+
+        .peeled {
+            background: transparent !important;
+            border: 1px dashed rgba(255, 255, 255, .5) !important;
+            box-shadow: none !important;
+            transform: translate(-50%, -50%) scale(1.3) !important;
+            opacity: .4;
+        }
+
+        /* ══════════ DETAILS & MATRIX ══════════ */
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .k-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .82rem;
+        }
+
+        .k-table th {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, .1);
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .k-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .k-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .ok {
+            color: var(--neon-green);
+            font-weight: 700;
+        }
+
+        .bad {
+            color: var(--neon-red);
+            font-weight: 700;
+        }
+
+        .warn {
+            color: var(--neon-orange);
+            font-weight: 700;
+        }
+
+        /* Feed */
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 24px;
+            height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 10px 24px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 12px 18px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .92rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .85rem;
+        }
+
+        .type-info {
+            border-left-color: var(--c-user);
+        }
+
+        .type-entry {
+            border-left-color: var(--c-entry);
+            background: rgba(239, 68, 68, .05);
+        }
+
+        .type-middle {
+            border-left-color: var(--c-mid);
+            background: rgba(250, 204, 21, .05);
+        }
+
+        .type-exit {
+            border-left-color: var(--c-exit);
+            background: rgba(74, 222, 128, .05);
+        }
+
+        .type-dest {
+            border-left-color: var(--c-dest);
+            background: rgba(217, 70, 239, .05);
+        }
+
+        .type-err {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, .08);
+        }
+
+        .type-success {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .05);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+
+            .node-name {
+                display: none;
+            }
+
+            .sees-box {
+                width: 110px;
+                font-size: 0.55rem;
+            }
+
+            .node-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>The Tor Network (Onion Routing)</h1>
+    <p class="subtitle">Tor provides anonymity by wrapping your data in multiple layers of encryption (like an onion)
+        and bouncing it through a relay circuit. At each stop, one layer is peeled off. <strong>No single node knows
+            both who you are and where you are going.</strong></p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Choose Scenario</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Select a routing scenario —</option>
+                <option value="standard">🧅 Standard Tor Route (HTTPS)</option>
+                <option value="evil">👹 The Evil Exit Node (HTTP Warning)</option>
+                <option value="isp">👁️ ISP Surveillance Blocking</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to watch the packet bounce through the relays.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">🚀 Send Data</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- THE STAGE -->
+        <div class="stage">
+            <div class="road-line"></div>
+            <div class="road-line-dash"></div>
+
+            <!-- Nodes -->
+            <div class="node n-user" style="left:8%;">
+                <div class="node-icon">🧑‍💻</div>
+                <div class="node-name">Alice</div>
+                <div class="node-sub">192.168.1.5</div>
+            </div>
+            <div class="node n-entry" style="left:28%;">
+                <div class="node-icon">🛡️</div>
+                <div class="node-name">Entry Node</div>
+                <div class="node-sub">France</div>
+            </div>
+            <div class="node n-mid" style="left:50%;">
+                <div class="node-icon">🔄</div>
+                <div class="node-name">Middle Node</div>
+                <div class="node-sub">Germany</div>
+            </div>
+            <div class="node n-exit" style="left:72%;">
+                <div class="node-icon" id="n-exit-icon">🚪</div>
+                <div class="node-name">Exit Node</div>
+                <div class="node-sub">Japan</div>
+            </div>
+            <div class="node n-dest" style="left:92%;">
+                <div class="node-icon">🌐</div>
+                <div class="node-name" id="n-dest-name">Wikipedia</div>
+                <div class="node-sub" id="n-dest-ip">103.11.2.3</div>
+            </div>
+
+            <!-- Onion Packet -->
+            <div class="onion" id="onion">
+                <div class="layer l3" id="l3"></div>
+                <div class="layer l2" id="l2"></div>
+                <div class="layer l1" id="l1"></div>
+                <div class="payload" id="onion-payload">DATA</div>
+            </div>
+
+            <!-- Knowledge Boxes -->
+            <div class="sees-box" id="sees-isp" style="left:18%; border-color:rgba(255,255,255,0.4); top:35%;">
+                <div class="sees-title">👁️ Local ISP</div>
+                <div>Src: <span class="sb-val bad">Alice</span></div>
+                <div>Dest: <span class="sb-val ok">Entry</span></div>
+                <div>Data: <span class="sb-val ok">Encrypted</span></div>
+            </div>
+            <div class="sees-box" id="sees-entry" style="left:28%; border-color:var(--c-entry);">
+                <div class="sees-title">🛡️ Entry Sees</div>
+                <div>Src: <span class="sb-val bad">Alice</span></div>
+                <div>Dest: <span class="sb-val ok">Middle</span></div>
+                <div>Data: <span class="sb-val ok">Encrypted</span></div>
+            </div>
+            <div class="sees-box" id="sees-mid" style="left:50%; border-color:var(--c-mid);">
+                <div class="sees-title">🔄 Middle Sees</div>
+                <div>Src: <span class="sb-val ok">Entry</span></div>
+                <div>Dest: <span class="sb-val ok">Exit</span></div>
+                <div>Data: <span class="sb-val ok">Encrypted</span></div>
+            </div>
+            <div class="sees-box" id="sees-exit" style="left:72%; border-color:var(--c-exit);">
+                <div class="sees-title">🚪 Exit Sees</div>
+                <div>Src: <span class="sb-val ok">Middle</span></div>
+                <div>Dest: <span class="sb-val bad" id="exit-dest">Website</span></div>
+                <div>Data: <span class="sb-val" id="exit-data" style="color:var(--text-muted)">...</span></div>
+            </div>
+        </div>
+
+        <div class="split-view">
+            <!-- ANONYMITY MATRIX -->
+            <div class="detail-card">
+                <div class="panel-title">🧠 The Anonymity Matrix</div>
+                <table class="k-table">
+                    <tr>
+                        <th>Observer</th>
+                        <th>Knows User IP?</th>
+                        <th>Knows Destination?</th>
+                        <th>Sees Data Content?</th>
+                    </tr>
+                    <tr>
+                        <td>🕵️ ISP</td>
+                        <td><span class="bad">Yes</span></td>
+                        <td><span class="ok">No</span></td>
+                        <td><span class="ok">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>🛡️ Entry Node</td>
+                        <td><span class="bad">Yes</span></td>
+                        <td><span class="ok">No</span></td>
+                        <td><span class="ok">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>🔄 Middle Node</td>
+                        <td><span class="ok">No</span></td>
+                        <td><span class="ok">No</span></td>
+                        <td><span class="ok">No</span></td>
+                    </tr>
+                    <tr>
+                        <td>🚪 Exit Node</td>
+                        <td><span class="ok">No</span></td>
+                        <td><span class="bad">Yes</span></td>
+                        <td><span class="warn" id="kx-data">Unencrypted</span></td>
+                    </tr>
+                    <tr>
+                        <td>🌐 Website</td>
+                        <td><span class="ok">No</span></td>
+                        <td><span class="bad">Yes</span></td>
+                        <td><span class="bad">Yes</span></td>
+                    </tr>
+                </table>
+                <div style="font-size:.78rem; color:var(--text-muted); margin-top:12px; line-height:1.5;">
+                    <strong>The Tor Guarantee:</strong> The chain deliberately breaks the link between identity and
+                    destination. To de-anonymize a user, an attacker would have to control BOTH the specific Entry Node
+                    and Exit Node being used simultaneously.
+                </div>
+            </div>
+
+            <!-- ANALOGY -->
+            <div class="detail-card">
+                <div class="panel-title">📖 Analogies & Concepts</div>
+                <div style="font-size:.85rem; line-height:1.6; color:var(--text-muted);">
+                    <strong>📬 The Nested Envelopes:</strong><br>
+                    Imagine putting a letter in an envelope addressed to <span style="color:var(--c-exit)">Japan</span>.
+                    You put <em>that</em> envelope inside another one addressed to <span
+                        style="color:var(--c-mid)">Germany</span>. You put <em>that</em> one inside a final envelope
+                    addressed to <span style="color:var(--c-entry)">France</span>.<br><br>
+                    You hand the stack to France. France opens the outer envelope, sees "Send to Germany," and forwards
+                    it. Germany opens it, sees "Send to Japan." Japan opens it, finds the final letter and delivers it
+                    to the website.<br><br>
+                    <strong>No one along the way saw the whole picture!</strong>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a scenario to explore Onion Routing.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            standard: { name: 'Standard Tor Route (HTTPS)', icon: '🧅' },
+            evil: { name: 'The Evil Exit Node (HTTP)', icon: '👹' },
+            isp: { name: 'ISP Surveillance Blocking', icon: '👁️' }
+        };
+
+        const POS = { alice: '8%', isp: '18%', entry: '28%', middle: '50%', exit: '72%', dest: '92%' };
+        let animating = false;
+
+        const els = {
+            sel: document.getElementById('select-scenario'),
+            compat: document.getElementById('compat-status'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            btnGo: document.getElementById('btn-go'),
+            feed: document.getElementById('feed'),
+            onion: document.getElementById('onion'),
+            payload: document.getElementById('onion-payload')
+        };
+
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function clearLogs() { els.feed.innerHTML = ''; }
+
+        function resetUI() {
+            els.onion.style.opacity = '0';
+            els.onion.style.transition = 'none';
+            els.onion.style.left = POS.alice;
+
+            // reset boxes
+            ['isp', 'entry', 'mid', 'exit'].forEach(id => {
+                document.getElementById(`sees-${id}`).style.opacity = '0';
+            });
+
+            // reset exit node visuals
+            document.getElementById('n-exit-icon').textContent = '🚪';
+            document.getElementById('sees-exit').style.borderColor = 'var(--c-exit)';
+            document.getElementById('kx-data').textContent = 'Unencrypted';
+            document.getElementById('kx-data').className = 'warn';
+
+            // setTimeout to re-enable transitions
+            setTimeout(() => {
+                els.onion.style.transition = 'left 1s ease-in-out, opacity 0.3s';
+            }, 50);
+        }
+
+        async function buildOnion(payloadText) {
+            els.onion.style.opacity = '1';
+            els.payload.textContent = payloadText;
+
+            // reset layers
+            ['l1', 'l2', 'l3'].forEach(id => {
+                const l = document.getElementById(id);
+                l.className = `layer ${id}`;
+                l.style.opacity = '0';
+                l.style.transform = 'translate(-50%, -50%) scale(0.3)';
+            });
+
+            addStory('🧅', `Alice's Tor client downloads public keys for 3 random relays and begins encrypting the packet (nested from inside out)...`, 'type-info');
+            await delay(600);
+
+            // Build Green (L1)
+            let l = document.getElementById('l1');
+            l.style.opacity = '1'; l.style.transform = 'translate(-50%, -50%) scale(1)';
+            addStory('🔒', `<strong>Layer 1 (Green):</strong> Encrypts the payload for the Exit Node.`, 'type-exit');
+            await delay(500);
+
+            // Build Yellow (L2)
+            l = document.getElementById('l2');
+            l.style.opacity = '1'; l.style.transform = 'translate(-50%, -50%) scale(1)';
+            addStory('🔒', `<strong>Layer 2 (Yellow):</strong> Encrypts everything for the Middle Node.`, 'type-middle');
+            await delay(500);
+
+            // Build Red (L3)
+            l = document.getElementById('l3');
+            l.style.opacity = '1'; l.style.transform = 'translate(-50%, -50%) scale(1)';
+            addStory('🔒', `<strong>Layer 3 (Red):</strong> Encrypts everything for the Entry Node. <strong>The Onion is ready.</strong>`, 'type-entry');
+            await delay(800);
+        }
+
+        function moveOnion(target) {
+            els.onion.style.left = POS[target];
+            return delay(1000); // 1s transition
+        }
+
+        async function peelLayer(layerId) {
+            const el = document.getElementById(layerId);
+            el.classList.add('peeled');
+            await delay(600); // Wait to observe the peeling visually
+        }
+
+        function showSees(id) {
+            document.getElementById(`sees-${id}`).style.opacity = '1';
+        }
+
+        function onSelectionChange() {
+            const v = els.sel.value;
+            if (!v) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${SCENARIOS[v].icon} ${SCENARIOS[v].name}</span>`;
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = `🚀 Run Simulation`; els.btnGo.disabled = false;
+            clearLogs(); resetUI();
+            addStory(SCENARIOS[v].icon, `Ready to run <strong>${SCENARIOS[v].name}</strong>. Click 'Run Simulation'.`, 'type-info');
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            clearLogs(); resetUI();
+
+            const v = els.sel.value;
+            if (v === 'standard') await demoStandard();
+            else if (v === 'evil') await demoEvil();
+            else if (v === 'isp') await demoISP();
+
+            animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+
+        // ══════════ SCENARIO 1: STANDARD ══════════
+        async function demoStandard() {
+            document.getElementById('n-dest-name').textContent = 'Wikipedia';
+            document.getElementById('n-dest-ip').textContent = '103.11.2.3';
+
+            await buildOnion('🔒 HTTPS /');
+
+            // Entry
+            addStory('🚀', `Alice sends the onion to the Entry Node...`, 'type-info');
+            await moveOnion('entry');
+            showSees('entry');
+            addStory('🛡️', `<strong>Entry Node:</strong> Uses its private key to peel the Red layer. It uncovers instructions to forward to the Middle Node. It knows Alice's IP, but has NO idea what the final destination is.`, 'type-entry');
+            await peelLayer('l3');
+            await delay(600);
+
+            // Middle
+            addStory('🚀', `Forwarding to Middle Node...`, 'type-info');
+            await moveOnion('middle');
+            showSees('mid');
+            addStory('🔄', `<strong>Middle Node:</strong> Peels the Yellow layer. It knows the packet came from Entry and goes to Exit. <strong>It knows absolutely nothing else.</strong>`, 'type-middle');
+            await peelLayer('l2');
+            await delay(600);
+
+            // Exit
+            addStory('🚀', `Forwarding to Exit Node...`, 'type-info');
+            await moveOnion('exit');
+            document.getElementById('exit-dest').innerHTML = '<span class="bad">Wikipedia</span>';
+            document.getElementById('exit-data').innerHTML = '<span class="ok">🔒 TLS Encrypted</span>';
+            showSees('exit');
+
+            addStory('🚪', `<strong>Exit Node:</strong> Peels the final layer. It now sees the destination (Wikipedia). But it doesn't know Alice exists!`, 'type-exit');
+            await peelLayer('l1');
+
+            addStory('🛡️', `Furthermore, because Alice is using HTTPS, the inner payload is <strong>still encrypted</strong>. The Exit Node cannot read the actual data.`, 'type-success');
+            await delay(1000);
+
+            // Dest
+            await moveOnion('dest');
+            addStory('✅', `<strong>Wikipedia receives the request.</strong> It fulfills it, completely unaware that Alice is the original requester. It thinks the Exit Node is the user!`, 'type-dest');
+        }
+
+        // ══════════ SCENARIO 2: EVIL EXIT NODE ══════════
+        async function demoEvil() {
+            document.getElementById('kx-data').textContent = 'EXPOSED!';
+            document.getElementById('kx-data').className = 'bad';
+            document.getElementById('n-dest-name').textContent = 'Shady Forum';
+
+            addStory('👹', `<strong>Evil Exit Nodes!</strong> Anyone can run a Tor node, including malicious hackers or intelligence agencies. Let's see what happens if Alice forgets to use HTTPS.`, 'type-info');
+
+            await buildOnion('🔓 GET /password=123');
+
+            // Move fast through entry/mid
+            await moveOnion('entry'); peelLayer('l3'); showSees('entry');
+            await moveOnion('middle'); peelLayer('l2'); showSees('mid');
+
+            // Exit
+            await moveOnion('exit');
+            document.getElementById('n-exit-icon').textContent = '👹'; // Turn face evil
+            document.getElementById('n-exit-icon').style.borderColor = 'var(--neon-red)';
+            document.getElementById('sees-exit').style.borderColor = 'var(--neon-red)';
+            document.getElementById('exit-dest').innerHTML = '<span class="bad">Shady Forum</span>';
+            document.getElementById('exit-data').innerHTML = '<span class="bad">password=123</span>';
+            showSees('exit');
+
+            addStory('🚪', `<strong>Exit Node:</strong> Removes the final layer of Tor encryption.`, 'type-exit');
+            await peelLayer('l1');
+
+            addStory('🚨', `<strong>UH OH!</strong> Because Alice sent plain HTTP traffic, the data is completely "naked" once the Tor layers are peeled. The Evil Exit Node operator logs her password!`, 'type-err');
+            await delay(1500);
+
+            addStory('💡', `<strong>Tor provides ANONYMITY, but not End-to-End SECURITY.</strong> The Exit Node doesn't know who Alice is, but they stole the password to that forum account. Always use HTTPS!`, 'type-warn');
+        }
+
+        // ══════════ SCENARIO 3: ISP SURVEILLANCE ══════════
+        async function demoISP() {
+            addStory('👁️', `<strong>ISP / Government Surveillance</strong>. Let's see what local eavesdroppers can see.`, 'type-info');
+
+            await buildOnion('🔒 HTTPS /');
+            addStory('🚀', `Alice sends the packet away...`, 'type-info');
+
+            // Intercept at ISP
+            els.onion.style.left = POS.isp;
+            await delay(600);
+            showSees('isp');
+
+            addStory('📡', `<strong>ISP Interception:</strong> Alice's local internet provider logs everything. They see she is connecting to <span class="val-red">Node 742 (The Entry Node)</span>. They know she is using Tor.`, 'type-warn');
+            await delay(2000);
+
+            addStory('🛡️', `<strong>However...</strong> because of the 3 layers of encryption, the ISP has zero idea what is inside the packet, or where it is ultimately going!`, 'type-success');
+            await delay(2000);
+
+            // Fast Travel to end
+            document.getElementById('sees-isp').style.opacity = '0';
+            els.onion.style.transition = 'left 0.4s linear, opacity 0.3s';
+
+            await moveFast('entry'); peelLayer('l3');
+            await moveFast('middle'); peelLayer('l2');
+            await moveFast('exit'); peelLayer('l1');
+            await moveFast('dest');
+
+            els.onion.style.transition = 'left 1.2s ease-in-out, opacity 0.4s';
+            addStory('✅', `The Tor network safely delivers the data outside the ISP's view. Local censorship/monitoring defeated.`, 'type-success');
+        }
+        const moveFast = t => new Promise(r => { els.onion.style.left = POS[t]; setTimeout(r, 450); });
+
+    </script>
+
+</body>
+
+</html>

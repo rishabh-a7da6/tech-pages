@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How a JWT Works — Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualizer for JSON Web Tokens (JWT). Watch how the Header, Payload, and Signature combine to create a tamper-proof digital passport.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-cyan: #22d3ee;
+            --neon-purple: #d946ef;
+            --neon-red: #ef4444;
+            --neon-yellow: #facc15;
+            --neon-green: #4ade80;
+            --neon-blue: #0ea5e9;
+            --neon-indigo: #818cf8;
+            --text-muted: #94a3b8;
+            --j-red: #ef4444;
+            --j-purple: #d946ef;
+            --j-blue: #0ea5e9;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--j-purple), var(--j-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 780px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 280px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(217, 70, 239, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--j-purple);
+            box-shadow: 0 0 0 3px rgba(217, 70, 239, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 860px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(217, 70, 239, .08);
+            border: 1px solid rgba(217, 70, 239, .25);
+            color: var(--j-purple);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: .92rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(217, 70, 239, .2), rgba(14, 165, 233, .2));
+            border-color: var(--j-purple);
+            box-shadow: 0 0 15px rgba(217, 70, 239, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(217, 70, 239, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 1200px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        /* ══════════ PASSPORT (JWT) ══════════ */
+        .passport-card {
+            background: rgba(15, 23, 42, .8);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+            height: 100%;
+        }
+
+        .p-block {
+            margin-bottom: 14px;
+            border-radius: 10px;
+            padding: 14px;
+            background: rgba(0, 0, 0, .4);
+            border-left: 4px solid white;
+        }
+
+        .hdr-block {
+            border-left-color: var(--j-red);
+        }
+
+        .pld-block {
+            border-left-color: var(--j-purple);
+        }
+
+        .sig-block {
+            border-left-color: var(--j-blue);
+        }
+
+        .pb-type {
+            font-size: .65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 5px;
+            color: #fff;
+            font-size: .55rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .content-editable {
+            background: rgba(0, 0, 0, .4);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .82rem;
+            color: var(--neon-cyan);
+            white-space: pre-wrap;
+            outline: none;
+            border: 1px solid transparent;
+            transition: all .3s;
+            margin: 0;
+        }
+
+        .content-editable[contenteditable="true"] {
+            border-color: rgba(255, 255, 255, .3);
+            background: rgba(0, 0, 0, .6);
+            cursor: text;
+        }
+
+        .content-editable[contenteditable="true"]:focus {
+            border-color: var(--j-purple);
+            box-shadow: 0 0 15px rgba(217, 70, 239, .25);
+        }
+
+        .seal-container {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-top: 10px;
+        }
+
+        .sig-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .65rem;
+            color: var(--j-blue);
+            word-break: break-all;
+            flex: 1;
+            background: rgba(0, 0, 0, .5);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(14, 165, 233, .2);
+        }
+
+        .seal {
+            width: 64px;
+            height: 64px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, var(--j-blue), #0284c7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(14, 165, 233, .5);
+            transition: all .5s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, .2);
+        }
+
+        .seal-emoji {
+            font-size: 1.6rem;
+            filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .5));
+        }
+
+        .seal-text {
+            font-size: .5rem;
+            font-weight: 700;
+            margin-top: 2px;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        .seal.broken {
+            background: radial-gradient(circle at 30% 30%, var(--j-red), #991b1b);
+            box-shadow: 0 0 20px rgba(239, 68, 68, .5);
+            transform: rotate(12deg) scale(0.95);
+            border-color: rgba(239, 68, 68, .5);
+        }
+
+        /* ══════════ RAW & SERVER ══════════ */
+        .t-red {
+            color: var(--j-red);
+            word-break: break-all;
+            transition: color .3s;
+        }
+
+        .t-purp {
+            color: var(--j-purple);
+            word-break: break-all;
+            transition: color .3s;
+        }
+
+        .t-blue {
+            color: var(--j-blue);
+            word-break: break-all;
+            transition: color .3s;
+        }
+
+        .t-yellow {
+            color: var(--neon-yellow);
+        }
+
+        .jwt-string-render {
+            background: rgba(0, 0, 0, .5);
+            padding: 18px;
+            border-radius: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .85rem;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, .1);
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, .5);
+        }
+
+        .styled-input-sm {
+            background: rgba(0, 0, 0, .5);
+            border: 1px solid rgba(255, 255, 255, .15);
+            color: var(--neon-yellow);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+            width: 150px;
+            outline: none;
+            transition: all .3s;
+        }
+
+        .styled-input-sm:focus {
+            border-color: var(--neon-yellow);
+            box-shadow: 0 0 10px rgba(250, 204, 21, .2);
+        }
+
+        /* Feed */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+            margin-top: 24px;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 24px;
+            height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 10px 24px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 12px 18px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .98rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .85rem;
+        }
+
+        .type-main {
+            border-left-color: var(--j-red);
+            background: rgba(239, 68, 68, .04);
+        }
+
+        .type-feat {
+            border-left-color: var(--j-purple);
+            background: rgba(217, 70, 239, .04);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-yellow);
+            background: rgba(250, 204, 21, .04);
+        }
+
+        .type-err {
+            border-left-color: var(--j-red);
+            background: rgba(239, 68, 68, .08);
+        }
+
+        .type-success {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--j-blue);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:1000px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How a JWT Works</h1>
+    <p class="subtitle">A JSON Web Token (JWT) is a portable digital passport. It tells the server who you are, what you
+        can do, and carries a <strong>Digital Wax Seal</strong> that breaks instantly if anyone alters the data.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Scenario</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a scenario —</option>
+                <option value="login">🛂 Issue Passport (Login)</option>
+                <option value="tamper">🕵️ Hack the Token (Tampering)</option>
+                <option value="decode">📖 Decoding (No Secrets)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario to inspect the anatomy of a JWT.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">🛂 Run Simulation</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <div class="split-view">
+            <!-- ══════════ PASSPORT (LEFT) ══════════ -->
+            <div class="passport-card">
+                <div class="panel-title" style="margin-bottom:18px;font-size:1.1rem;color:#f8fafc;">🛂 Digital Identity
+                    Passport</div>
+
+                <div class="p-block hdr-block">
+                    <div class="pb-type">HEADER <span class="badge" style="background:var(--j-red);">Format Info</span>
+                    </div>
+                    <pre class="content-editable" id="disp-hdr" contenteditable="false">...</pre>
+                </div>
+
+                <div class="p-block pld-block">
+                    <div class="pb-type">PAYLOAD <span class="badge" style="background:var(--j-purple);">User
+                            Data</span></div>
+                    <pre class="content-editable" id="disp-pld" contenteditable="false" spellcheck="false">...</pre>
+                </div>
+
+                <div class="p-block sig-block">
+                    <div class="pb-type">SIGNATURE <span class="badge" style="background:var(--j-blue);">Wax Seal</span>
+                    </div>
+                    <div class="seal-container">
+                        <div class="seal" id="wax-seal">
+                            <div class="seal-emoji" id="seal-emoji">🏅</div>
+                            <div class="seal-text" id="seal-text">VALID</div>
+                        </div>
+                        <div class="sig-val" id="disp-sig">Waiting for issuance...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════ SERVER / RAW (RIGHT) ══════════ -->
+            <div class="server-side">
+                <div class="detail-card" style="margin-bottom: 24px;">
+                    <div class="panel-title" style="color:#f8fafc;">🧶 Encoded Token (HTTP Header)</div>
+                    <div class="jwt-string-render">
+                        <span id="raw-hdr" class="t-red"></span>.<span id="raw-pld" class="t-purp"></span>.<span
+                            id="raw-sig" class="t-blue"></span>
+                    </div>
+                    <div style="font-size: .7rem; color: var(--text-muted); margin-top: 8px;">Format: Base64Url<span
+                            class="t-red">(Header)</span> . Base64Url<span class="t-purp">(Payload)</span> . <span
+                            class="t-blue">Signature</span></div>
+                </div>
+
+                <div class="detail-card">
+                    <div class="panel-title" style="color:#f8fafc;">🖥️ Server-Side Verification</div>
+                    <div class="mini-box">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <span style="font-size:.85rem; font-weight:600;">Server Secret Key:</span>
+                            <input type="text" id="inp-secret" value="cyber_key_99" class="styled-input-sm" readonly>
+                        </div>
+                        <div
+                            style="font-size:.78rem; color:var(--text-muted); line-height:1.6; border-top:1px solid rgba(255,255,255,.1); padding-top:12px;">
+                            <div style="font-family:'JetBrains Mono',monospace;">
+                                expected = HMAC<span style="color:#fff;">(</span><br>
+                                &nbsp;&nbsp;<span class="t-red">Header</span> + "." + <span
+                                    class="t-purp">Payload</span>,<br>
+                                &nbsp;&nbsp;<span class="t-yellow">Secret</span><br>
+                                <span style="color:#fff;">)</span><br><br>
+                                <span style="background:rgba(0,0,0,.5);padding:4px 8px;border-radius:4px;">expected ==
+                                    <span class="t-blue">Signature</span> ?</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════ FEED ══════════ -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select a scenario to explore how JSON Web Tokens work.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        const SCENARIOS = {
+            login: { name: 'Issue Passport (Login)', icon: '🛂' },
+            tamper: { name: 'Hack the Token (Tampering)', icon: '🕵️' },
+            decode: { name: 'Decoding (No Secrets)', icon: '📖' }
+        };
+
+        let animating = false;
+        window.isHacking = false;
+
+        const els = {
+            sel: document.getElementById('select-scenario'),
+            compat: document.getElementById('compat-status'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            btnGo: document.getElementById('btn-go'),
+            feed: document.getElementById('feed'),
+
+            hdrDisp: document.getElementById('disp-hdr'),
+            pldDisp: document.getElementById('disp-pld'),
+            sigDisp: document.getElementById('disp-sig'),
+            secret: document.getElementById('inp-secret'),
+
+            rawHdr: document.getElementById('raw-hdr'),
+            rawPld: document.getElementById('raw-pld'),
+            rawSig: document.getElementById('raw-sig'),
+
+            seal: document.getElementById('wax-seal'),
+            sealEmoji: document.getElementById('seal-emoji'),
+            sealText: document.getElementById('seal-text')
+        };
+
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function clearLogs() { els.feed.innerHTML = ''; }
+
+        // JWT Cryptography Logic
+        let currentHeaderStr = `{\n  "alg": "HS256",\n  "typ": "JWT"\n}`;
+        let currentPayloadStr = `{\n  "sub": "12345",\n  "name": "Alice",\n  "role": "user"\n}`;
+        let serverSecret = "cyber_key_99";
+        let currentTokenSignature = ""; // The seal physically printed on the token
+
+        function b64uEncodeStr(str) {
+            const b64 = btoa(unescape(encodeURIComponent(str)));
+            return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        async function generateSignature(hB64, pB64, secretString) {
+            const enc = new TextEncoder();
+            const key = await crypto.subtle.importKey("raw", enc.encode(secretString), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+            const signature = await crypto.subtle.sign("HMAC", key, enc.encode(hB64 + "." + pB64));
+
+            const bytes = new Uint8Array(signature);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        async function updateToken(issueNewSignature = false) {
+            const hB64 = b64uEncodeStr(currentHeaderStr);
+            const pB64 = b64uEncodeStr(currentPayloadStr);
+
+            els.rawHdr.textContent = hB64;
+            els.rawPld.textContent = pB64;
+            els.hdrDisp.textContent = currentHeaderStr;
+
+            if (issueNewSignature) {
+                // Only the server can do this, updating the actual 'wax seal' value
+                currentTokenSignature = await generateSignature(hB64, pB64, serverSecret);
+                els.rawSig.textContent = currentTokenSignature;
+                els.sigDisp.textContent = currentTokenSignature;
+            }
+
+            await verifyCurrentToken();
+        }
+
+        async function verifyCurrentToken() {
+            const hB64 = els.rawHdr.textContent;
+            const pB64 = els.rawPld.textContent;
+
+            // Server calculates what the signature SHOULD be, based on the current data + secret
+            const expectedSig = await generateSignature(hB64, pB64, serverSecret);
+
+            // Compare expected against the token's physical signature
+            const isValid = (expectedSig === currentTokenSignature && currentTokenSignature !== "");
+
+            if (isValid) {
+                els.seal.className = 'seal';
+                els.sealEmoji.textContent = '🏅';
+                els.sealText.textContent = 'VALID';
+            } else {
+                els.seal.className = 'seal broken';
+                els.sealEmoji.textContent = '💥';
+                els.sealText.textContent = 'BROKEN';
+            }
+        }
+
+        // Live editing of Payload (The Hack)
+        els.pldDisp.addEventListener('input', async (e) => {
+            const el = e.target;
+            try {
+                currentPayloadStr = el.innerText;
+                JSON.parse(currentPayloadStr); // syntax check
+                el.style.borderColor = 'var(--j-purple)';
+
+                // Update Base64 string but DO NOT issue a new signature
+                await updateToken(false);
+
+                if (window.isHacking && els.sealText.textContent === 'BROKEN') {
+                    window.isHacking = false;
+                    addStory('💥', `<strong>TAMPER DETECTED!</strong> You altered the payload, instantly changing the <span class="t-purp">Purple Base64</span> string. The server recalculated the hash using its secret... but it doesn't match the old <span class="t-blue">Blue Signature</span> anymore!`, 'type-err');
+                    addStory('🛡️', `Since you don't know the Server's Secret Key (<span class="mono">cyber_key_99</span>), you can't forge a new signature. Authentication drops the request. <strong>Hack perfectly prevented!</strong>`, 'type-success');
+                }
+            } catch (err) {
+                // Invalid JSON, turn border red to guide user
+                el.style.borderColor = 'var(--neon-red)';
+            }
+        });
+
+
+        function onSelectionChange() {
+            const v = els.sel.value;
+            if (!v) { els.compat.className = 'compat-status compat-empty'; els.compat.innerHTML = '<span>👆 Select a scenario to begin.</span>'; els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return; }
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${SCENARIOS[v].icon} ${SCENARIOS[v].name}</span>`;
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'flex';
+            els.btnGo.innerHTML = `${SCENARIOS[v].icon} Run Simulation`; els.btnGo.disabled = false;
+            clearLogs();
+
+            // Reset defaults just for UI prep
+            window.isHacking = false;
+            els.pldDisp.contentEditable = "false";
+            els.pldDisp.style.borderColor = "transparent";
+            currentPayloadStr = `{\n  "sub": "12345",\n  "name": "Alice",\n  "role": "user"\n}`;
+            els.pldDisp.innerText = currentPayloadStr;
+            updateToken(true); // pre-validate
+
+            addStory(SCENARIOS[v].icon, `Ready to run <strong>${SCENARIOS[v].name}</strong> scenario. Click 'Run Simulation'.`, 'type-info');
+        }
+
+        async function startDemo() {
+            if (animating) return; animating = true;
+            els.btnGo.disabled = true; els.btnGo.innerHTML = '⏳ Running...';
+            clearLogs();
+
+            const v = els.sel.value;
+            if (v === 'login') await demoLogin();
+            else if (v === 'tamper') await demoTamper();
+            else if (v === 'decode') await demoDecode();
+
+            animating = false; els.btnGo.innerHTML = '🔄 Run Again'; els.btnGo.disabled = false;
+        }
+
+        // ══════════ SCENARIO 1: LOGIN ══════════
+        async function demoLogin() {
+            addStory('🛂', `<strong>User logs in.</strong> The server authenticates Alice and begins building her Digital Passport.`, 'type-info');
+
+            // Blank slate
+            currentTokenSignature = "Waiting for issuance...";
+            els.rawHdr.textContent = "..."; els.rawPld.textContent = "..."; els.rawSig.textContent = "...";
+            els.sigDisp.textContent = "Waiting for issuance...";
+            await verifyCurrentToken(); // Forces broken
+            await delay(800);
+
+            addStory('📝', `<strong>1. Header & Payload:</strong> Server writes Alice's identity as JSON and encodes it to Base64 (<span class="t-red">Red</span> and <span class="t-purp">Purple</span> parts).`, 'type-feat');
+            const hB64 = b64uEncodeStr(currentHeaderStr);
+            const pB64 = b64uEncodeStr(currentPayloadStr);
+            els.rawHdr.textContent = hB64; els.rawPld.textContent = pB64;
+            await delay(1200);
+
+            addStory('🔒', `<strong>2. The Wax Seal:</strong> Server takes the Encoded Header + Payload, adds its Private Secret (<span class="mono t-yellow">cyber_key_99</span>), and hashes them using HMAC-SHA256 to create the <span class="t-blue">Signature</span>.`, 'type-info');
+            await updateToken(true); // Issues sig
+            await delay(800);
+
+            addStory('✅', `<strong>Token Issued!</strong> This 3-part string is sent to Alice's browser. She stores it and sends it back to the server on every future request.`, 'type-success');
+        }
+
+        // ══════════ SCENARIO 2: TAMPERING ══════════
+        async function demoTamper() {
+            addStory('🕵️', `<strong>Hacking Attempt!</strong> Alice's browser has received the token string. Note that <strong>it is NOT encrypted!</strong> It's simply encoded in Base64 so it can fit in URLs and HTTP headers.`, 'type-info');
+            await updateToken(true); // Ensure stable token
+            await delay(1200);
+
+            addStory('😈', `Alice is malicious. She decodes the JSON and spots <span class="mono">"role": "user"</span>. She wants to be an <span class="mono">admin</span>.<br><br>👉 <strong>YOUR TURN:</strong> Click into the Payload Data box (Purple) and edit "user" to "admin". Watch what happens!`, 'type-warn');
+
+            els.pldDisp.contentEditable = "true";
+            els.pldDisp.focus();
+
+            // The input event listener handles the rest
+            window.isHacking = true;
+        }
+
+        // ══════════ SCENARIO 3: DECODE ══════════
+        async function demoDecode() {
+            addStory('📖', `<strong>Tokens are Transparent</strong><br>A dangerous but common developer mistake is storing sensitive data inside the JWT Payload.`, 'type-info');
+
+            currentPayloadStr = `{\n  "name": "Alice",\n  "password": "my_super_secret_pw",\n  "role": "user"\n}`;
+            els.pldDisp.innerText = currentPayloadStr;
+            await updateToken(true);
+            await delay(1500);
+
+            addStory('⚠️', `Anyone who intercepts this token string (or if a user simply hits F12 in their browser) can decode the Base64 instantly. They don't need the server secret to <strong>read</strong> the data, only to <strong>forge</strong> seals!`, 'type-err');
+            await delay(1000);
+
+            addStory('💡', `<strong>Rule of thumb:</strong> JWTs are Identity Badges (Passport), not Secure Vaults. Never store passwords, SSNs, or API keys inside the payload.`, 'type-success');
+            els.pldDisp.contentEditable = "false";
+        }
+
+        // Init
+        window.onload = () => { updateToken(true); };
+    </script>
+
+</body>
+
+</html>

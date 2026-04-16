@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How a VPN Works — The Secure Tunnel Visualized</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of how VPNs encrypt your traffic into a secure tunnel, hiding data from your ISP. Watch packets travel with and without a VPN side-by-side.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, .7);
+            --panel-border: rgba(255, 255, 255, .1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-emerald: #34d399;
+            --neon-indigo: #818cf8;
+            --neon-rose: #fb7185;
+            --text-muted: #94a3b8;
+            --exposed: #f87171;
+            --secured: #4ade80;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-rose), var(--neon-emerald));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 760px;
+            line-height: 1.6;
+        }
+
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 230px;
+        }
+
+        .select-card label {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, .95);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all .3s;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(52, 211, 153, .4);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-emerald);
+            box-shadow: 0 0 0 3px rgba(52, 211, 153, .15);
+        }
+
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: .95rem;
+            transition: all .4s;
+            max-width: 800px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, .05);
+            border: 1px solid rgba(255, 255, 255, .06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(52, 211, 153, .08);
+            border: 1px solid rgba(52, 211, 153, .25);
+            color: var(--neon-emerald);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all .3s;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .1);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(251, 113, 133, .2), rgba(52, 211, 153, .2));
+            border-color: var(--neon-emerald);
+            box-shadow: 0 0 15px rgba(52, 211, 153, .3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(52, 211, 153, .5);
+            border-color: #fff;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            width: 100%;
+            max-width: 1240px;
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ══════════ SPLIT VIEW ══════════ */
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .lane-col {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .lane-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        .lane-header.exposed {
+            background: rgba(248, 113, 113, .06);
+            border: 1px solid rgba(248, 113, 113, .2);
+        }
+
+        .lane-header.secured {
+            background: rgba(74, 222, 128, .06);
+            border: 1px solid rgba(74, 222, 128, .2);
+        }
+
+        .lane-icon {
+            font-size: 1.6rem;
+        }
+
+        .lane-info {
+            flex: 1;
+        }
+
+        .lane-name {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .lane-name.exp-c {
+            color: var(--exposed);
+        }
+
+        .lane-name.sec-c {
+            color: var(--secured);
+        }
+
+        .lane-desc {
+            font-size: .75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .lane-badge {
+            padding: 5px 14px;
+            border-radius: 8px;
+            font-size: .68rem;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .badge-exp {
+            background: rgba(248, 113, 113, .15);
+            color: var(--exposed);
+            border: 1px solid rgba(248, 113, 113, .3);
+        }
+
+        .badge-sec {
+            background: rgba(74, 222, 128, .15);
+            color: var(--secured);
+            border: 1px solid rgba(74, 222, 128, .3);
+        }
+
+        /* ══════════ ROAD ══════════ */
+        .road-wrap {
+            position: relative;
+            height: 200px;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, .35);
+            border: 1px solid var(--panel-border);
+            overflow: hidden;
+        }
+
+        /* Road line */
+        .road-surface {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 24px;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, .03);
+            border-top: 2px dashed rgba(255, 255, 255, .06);
+            border-bottom: 2px dashed rgba(255, 255, 255, .06);
+        }
+
+        /* Tunnel (VPN only) */
+        .tunnel {
+            position: absolute;
+            top: 50%;
+            left: 22%;
+            right: 22%;
+            height: 50px;
+            transform: translateY(-50%);
+            border-radius: 14px;
+            background: linear-gradient(90deg, rgba(52, 211, 153, .08), rgba(52, 211, 153, .04), rgba(52, 211, 153, .08));
+            border: 2px solid rgba(52, 211, 153, .2);
+            opacity: 0;
+            transition: all .6s ease;
+            z-index: 2;
+        }
+
+        .tunnel.visible {
+            opacity: 1;
+            box-shadow: 0 0 30px rgba(52, 211, 153, .1);
+        }
+
+        .tunnel-label {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: .58rem;
+            font-weight: 700;
+            color: var(--neon-emerald);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .tunnel-pattern {
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            opacity: .3;
+        }
+
+        .tunnel-pattern::before {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(52, 211, 153, .1) 10px, rgba(52, 211, 153, .1) 20px);
+            animation: tunnelMove 2s linear infinite;
+        }
+
+        @keyframes tunnelMove {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-20px);
+            }
+        }
+
+        /* Nodes along the road */
+        .road-node {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            z-index: 5;
+            transition: all .5s;
+        }
+
+        .rn-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, .95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, .5);
+            transition: all .5s;
+        }
+
+        .rn-label {
+            font-size: .6rem;
+            font-weight: 600;
+            text-align: center;
+            max-width: 60px;
+        }
+
+        .rn-sub {
+            font-size: .5rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            max-width: 80px;
+            word-break: break-all;
+        }
+
+        .road-node.active .rn-icon {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 14px rgba(34, 211, 238, .25);
+        }
+
+        .road-node.watching .rn-icon {
+            border-color: var(--exposed);
+            box-shadow: 0 0 14px rgba(248, 113, 113, .25);
+        }
+
+        .road-node.hidden .rn-icon {
+            border-color: var(--neon-emerald);
+            box-shadow: 0 0 14px rgba(52, 211, 153, .25);
+        }
+
+        /* ISP eye */
+        .isp-eye {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.3rem;
+            z-index: 6;
+            transition: all .5s;
+            filter: grayscale(0);
+        }
+
+        .isp-eye.blocked {
+            filter: grayscale(1);
+            opacity: .4;
+        }
+
+        /* ISP sees panel */
+        .isp-sees {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: rgba(0, 0, 0, .7);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: .55rem;
+            z-index: 6;
+            max-width: 140px;
+            transition: all .4s;
+            line-height: 1.4;
+        }
+
+        .isp-sees .sees-title {
+            font-weight: 700;
+            margin-bottom: 3px;
+            font-size: .58rem;
+        }
+
+        .isp-sees.exposed-sees {
+            border-color: rgba(248, 113, 113, .3);
+        }
+
+        .isp-sees.secured-sees {
+            border-color: rgba(52, 211, 153, .3);
+        }
+
+        /* Flying packet */
+        .packet {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: .55rem;
+            font-weight: 700;
+            z-index: 8;
+            opacity: 0;
+            transition: left .8s ease-in-out, opacity .3s;
+            white-space: nowrap;
+        }
+
+        .packet.exposed-pkt {
+            background: rgba(248, 113, 113, .9);
+            color: #1e1e1e;
+            border: 1px solid var(--exposed);
+        }
+
+        .packet.encrypted-pkt {
+            background: rgba(52, 211, 153, .9);
+            color: #1e1e1e;
+            border: 1px solid var(--neon-emerald);
+        }
+
+        .packet.masked-pkt {
+            background: rgba(167, 139, 250, .9);
+            color: #1e1e1e;
+            border: 1px solid var(--neon-purple);
+        }
+
+        /* ══════════ DETAILS ══════════ */
+        .details-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .detail-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .detail-card .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-box {
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .mini-header {
+            color: var(--text-muted);
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: .82rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .val-emerald {
+            color: var(--neon-emerald);
+            font-weight: 600;
+        }
+
+        .val-rose {
+            color: var(--neon-rose);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .76rem;
+        }
+
+        /* ══════════ FEED ══════════ */
+        .feed-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, .4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 480px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, .5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .3s;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, .1);
+            border-color: rgba(248, 113, 113, .3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp .4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: .96rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-exposed {
+            border-left-color: var(--exposed);
+            background: rgba(248, 113, 113, .04);
+        }
+
+        .type-vpn {
+            border-left-color: var(--neon-emerald);
+            background: rgba(52, 211, 153, .04);
+        }
+
+        .type-compare {
+            border-left-color: var(--neon-cyan);
+            background: rgba(34, 211, 238, .04);
+        }
+
+        .type-info {
+            border-left-color: var(--neon-indigo);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-yellow);
+            background: rgba(250, 204, 21, .04);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, .04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media(max-width:900px) {
+
+            .split-view,
+            .details-row {
+                grid-template-columns: 1fr;
+            }
+
+            .road-wrap {
+                height: 180px;
+            }
+        }
+
+        @media(max-width:600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.7rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+    <h1>How a VPN Works</h1>
+    <p class="subtitle">Without a VPN, your ISP can see <strong>every website you visit</strong> and every byte you
+        send.
+        A VPN creates an <strong>encrypted tunnel</strong> — your ISP only sees scrambled data going to one IP address.
+        Your real location is hidden; the website sees the VPN server's IP, not yours.</p>
+
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Activity</label>
+            <select id="select-activity" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose your activity —</option>
+                <option value="browse">🌐 Browsing a Website</option>
+                <option value="stream">🎬 Streaming Video</option>
+                <option value="bank">🏦 Online Banking</option>
+                <option value="wifi">☕ Public Wi-Fi</option>
+            </select>
+        </div>
+        <div class="select-card">
+            <label>VPN Protocol</label>
+            <select id="select-proto" class="styled-select" onchange="onSelectionChange()">
+                <option value="wireguard">⚡ WireGuard (Modern)</option>
+                <option value="openvpn">🔒 OpenVPN (Classic)</option>
+                <option value="ikev2">📱 IKEv2 (Mobile)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select an activity to see your traffic with and without a VPN.</span>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">🛡️ Run Side-by-Side Comparison</button>
+    </div>
+
+    <div class="main-grid" id="dashboard" style="display:none">
+        <!-- ══════════ SPLIT ROADS ══════════ -->
+        <div class="split-view">
+            <!-- WITHOUT VPN -->
+            <div class="lane-col">
+                <div class="lane-header exposed">
+                    <div class="lane-icon">🚫</div>
+                    <div class="lane-info">
+                        <div class="lane-name exp-c">Without VPN</div>
+                        <div class="lane-desc">Your ISP sees everything</div>
+                    </div>
+                    <div class="lane-badge badge-exp">EXPOSED</div>
+                </div>
+                <div class="road-wrap" id="road-exposed">
+                    <div class="road-surface"></div>
+                    <div class="isp-eye" id="isp-eye-exp">👁️</div>
+                    <div class="isp-sees exposed-sees" id="isp-sees-exp">
+                        <div class="sees-title" style="color:var(--exposed);">👁️ ISP Can See:</div>
+                        <div id="isp-data-exp" style="color:var(--text-muted);">Waiting...</div>
+                    </div>
+                    <div class="road-node" id="exp-you" style="left:4%;top:50%;transform:translateY(-50%);">
+                        <div class="rn-icon">🧑‍💻</div>
+                        <div class="rn-label">You</div>
+                        <div class="rn-sub" id="exp-your-ip">192.168.1.42</div>
+                    </div>
+                    <div class="road-node" id="exp-isp" style="left:42%;top:50%;transform:translate(-50%,-50%);">
+                        <div class="rn-icon">🏢</div>
+                        <div class="rn-label">Your ISP</div>
+                        <div class="rn-sub">Sees all traffic</div>
+                    </div>
+                    <div class="road-node" id="exp-site" style="right:4%;top:50%;transform:translateY(-50%);">
+                        <div class="rn-icon" id="exp-site-icon">🌐</div>
+                        <div class="rn-label" id="exp-site-name">Website</div>
+                        <div class="rn-sub" id="exp-site-ip">93.184.216.34</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WITH VPN -->
+            <div class="lane-col">
+                <div class="lane-header secured">
+                    <div class="lane-icon">🛡️</div>
+                    <div class="lane-info">
+                        <div class="lane-name sec-c">With VPN</div>
+                        <div class="lane-desc">ISP sees only encrypted noise</div>
+                    </div>
+                    <div class="lane-badge badge-sec">PROTECTED</div>
+                </div>
+                <div class="road-wrap" id="road-vpn">
+                    <div class="road-surface"></div>
+                    <div class="tunnel" id="tunnel">
+                        <div class="tunnel-label">🔒 ENCRYPTED TUNNEL</div>
+                        <div class="tunnel-pattern"></div>
+                    </div>
+                    <div class="isp-eye blocked" id="isp-eye-vpn">👁️‍🗨️</div>
+                    <div class="isp-sees secured-sees" id="isp-sees-vpn">
+                        <div class="sees-title" style="color:var(--neon-emerald);">👁️‍🗨️ ISP Can See:</div>
+                        <div id="isp-data-vpn" style="color:var(--text-muted);">Waiting...</div>
+                    </div>
+                    <div class="road-node" id="vpn-you" style="left:4%;top:50%;transform:translateY(-50%);">
+                        <div class="rn-icon">🧑‍💻</div>
+                        <div class="rn-label">You</div>
+                        <div class="rn-sub" id="vpn-your-ip">192.168.1.42</div>
+                    </div>
+                    <div class="road-node" id="vpn-isp" style="left:30%;top:50%;transform:translate(-50%,-50%);">
+                        <div class="rn-icon">🏢</div>
+                        <div class="rn-label">Your ISP</div>
+                        <div class="rn-sub">Can't read traffic</div>
+                    </div>
+                    <div class="road-node" id="vpn-server" style="left:62%;top:50%;transform:translate(-50%,-50%);">
+                        <div class="rn-icon">🛡️</div>
+                        <div class="rn-label">VPN Server</div>
+                        <div class="rn-sub" id="vpn-srv-loc">🇳🇱 Amsterdam</div>
+                    </div>
+                    <div class="road-node" id="vpn-site" style="right:4%;top:50%;transform:translateY(-50%);">
+                        <div class="rn-icon" id="vpn-site-icon">🌐</div>
+                        <div class="rn-label" id="vpn-site-name">Website</div>
+                        <div class="rn-sub" id="vpn-site-ip">93.184.216.34</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════ DETAILS ══════════ -->
+        <div class="details-row">
+            <div class="detail-card" id="panel-left">
+                <div class="panel-title"><span style="color:var(--exposed);">🚫</span> Without VPN</div>
+                <div class="mini-box">
+                    <div class="mini-header">Your ISP Records</div>
+                    <div class="data-row"><span>Your IP:</span><span id="d-exp-ip" class="mono val-rose">—</span></div>
+                    <div class="data-row"><span>Destination:</span><span id="d-exp-dest" class="val-red">—</span></div>
+                    <div class="data-row"><span>DNS Query:</span><span id="d-exp-dns" class="val-red">—</span></div>
+                    <div class="data-row"><span>Data Visible:</span><span id="d-exp-data" class="val-red">—</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">Website Sees</div>
+                    <div class="data-row"><span>Your Real IP:</span><span id="d-exp-site-ip" class="val-red">—</span>
+                    </div>
+                    <div class="data-row"><span>Location:</span><span id="d-exp-loc" class="val-red">—</span></div>
+                </div>
+            </div>
+            <div class="detail-card" id="panel-right">
+                <div class="panel-title"><span style="color:var(--neon-emerald);">🛡️</span> With VPN</div>
+                <div class="mini-box">
+                    <div class="mini-header">Your ISP Records</div>
+                    <div class="data-row"><span>Your IP:</span><span id="d-vpn-ip" class="mono">—</span></div>
+                    <div class="data-row"><span>Destination:</span><span id="d-vpn-dest">—</span></div>
+                    <div class="data-row"><span>DNS Query:</span><span id="d-vpn-dns">—</span></div>
+                    <div class="data-row"><span>Data Visible:</span><span id="d-vpn-data">—</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">Website Sees</div>
+                    <div class="data-row"><span>Apparent IP:</span><span id="d-vpn-site-ip" class="val-green">—</span>
+                    </div>
+                    <div class="data-row"><span>Location:</span><span id="d-vpn-loc" class="val-green">—</span></div>
+                </div>
+                <div class="mini-box">
+                    <div class="mini-header">VPN Protocol</div>
+                    <div class="data-row"><span>Protocol:</span><span id="d-vpn-proto" class="val-emerald">—</span>
+                    </div>
+                    <div class="data-row"><span>Cipher:</span><span id="d-vpn-cipher" class="mono">—</span></div>
+                    <div class="data-row"><span>Handshake:</span><span id="d-vpn-hs" class="mono">—</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">👋</span><span
+                        class="log-text">Welcome! Select an activity and click "Run" to see your traffic with and
+                        without a VPN.</span></div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const ACTIVITIES = {
+            browse: {
+                id: 'browse', name: 'Browsing a Website', icon: '🌐', site: 'reddit.com', siteIcon: '🌐',
+                siteIp: '151.101.1.140', dns: 'reddit.com',
+                dataExp: 'Page content, search terms, clicked links',
+                dataHidden: 'URLs, cookies, form data',
+                risk: 'ISP builds a profile of every site you visit and can sell browsing history to advertisers.',
+                yourIp: '192.168.1.42', realLoc: '📍 Mumbai, India',
+            },
+            stream: {
+                id: 'stream', name: 'Streaming Video', icon: '🎬', site: 'netflix.com', siteIcon: '🎬',
+                siteIp: '54.231.200.45', dns: 'netflix.com',
+                dataExp: 'Which shows you watch, how long, video quality',
+                dataHidden: 'Streaming content, viewing habits',
+                risk: 'ISP can throttle (slow down) streaming traffic when they detect Netflix/YouTube packets. They call this "traffic shaping."',
+                yourIp: '192.168.1.42', realLoc: '📍 Mumbai, India',
+            },
+            bank: {
+                id: 'bank', name: 'Online Banking', icon: '🏦', site: 'chase.com', siteIcon: '🏦',
+                siteIp: '159.53.224.10', dns: 'chase.com',
+                dataExp: 'That you visited your bank, session duration, login times',
+                dataHidden: 'Account details already encrypted by HTTPS',
+                risk: 'Even with HTTPS, the ISP knows WHEN and HOW OFTEN you use your bank, which is still sensitive metadata.',
+                yourIp: '192.168.1.42', realLoc: '📍 Mumbai, India',
+            },
+            wifi: {
+                id: 'wifi', name: 'Public Wi-Fi', icon: '☕', site: 'mail.google.com', siteIcon: '📧',
+                siteIp: '142.250.191.5', dns: 'mail.google.com',
+                dataExp: 'All DNS queries, unencrypted traffic, device info',
+                dataHidden: 'Content (if HTTPS), but metadata exposed',
+                risk: '☠️ CRITICAL: The Wi-Fi owner IS your "ISP" on public networks. Attackers on the same network can perform man-in-the-middle attacks, DNS poisoning, and session hijacking.',
+                yourIp: '10.0.0.87', realLoc: '📍 Starbucks, Mumbai',
+            },
+        };
+
+        const PROTOCOLS = {
+            wireguard: { name: 'WireGuard', cipher: 'ChaCha20-Poly1305', hs: 'Noise_IK (1-RTT)', speed: '⚡ Fastest', overhead: '~32 bytes', port: 'UDP 51820' },
+            openvpn: { name: 'OpenVPN', cipher: 'AES-256-GCM', hs: 'TLS 1.3 + HMAC', speed: '🔒 Moderate', overhead: '~69 bytes', port: 'UDP 1194 / TCP 443' },
+            ikev2: { name: 'IKEv2/IPsec', cipher: 'AES-256-CBC + SHA-384', hs: 'IKE_SA_INIT + IKE_AUTH', speed: '📱 Mobile-optimized', overhead: '~50 bytes', port: 'UDP 500/4500' },
+        };
+
+        const VPN_SERVERS = [
+            { loc: '🇳🇱 Amsterdam', ip: '185.65.134.' + (Math.floor(Math.random() * 200) + 20) },
+            { loc: '🇺🇸 New York', ip: '104.238.170.' + (Math.floor(Math.random() * 200) + 20) },
+            { loc: '🇯🇵 Tokyo', ip: '103.224.182.' + (Math.floor(Math.random() * 200) + 20) },
+            { loc: '🇨🇭 Zürich', ip: '82.169.41.' + (Math.floor(Math.random() * 200) + 20) },
+        ];
+
+        /* ═══════════════════════════════════════════
+           STATE & ELEMENTS
+           ═══════════════════════════════════════════ */
+        let animating = false;
+        const selActivity = document.getElementById('select-activity');
+        const selProto = document.getElementById('select-proto');
+        const els = {
+            btnGo: document.getElementById('btn-go'), controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'), compat: document.getElementById('compat-status'),
+            feed: document.getElementById('feed'), tunnel: document.getElementById('tunnel'),
+            roadExp: document.getElementById('road-exposed'), roadVpn: document.getElementById('road-vpn'),
+        };
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        function addStory(i, t, c = '') { const el = document.createElement('div'); el.className = `log-msg ${c}`; el.innerHTML = `<span class="log-icon">${i}</span><span class="log-text">${t}</span>`; els.feed.appendChild(el); els.feed.scrollTop = els.feed.scrollHeight; }
+        function setField(id, t, c) { const el = document.getElementById(id); if (el) { el.innerText = t; if (c) el.className = c; } }
+        function clearLogs() { els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🧹</span><span class="log-text">Logs cleared.</span></div>`; }
+
+        function animPacket(roadId, cssClass, label, startPct, endPct, duration) {
+            return new Promise(resolve => {
+                const road = document.getElementById(roadId);
+                const pkt = document.createElement('div');
+                pkt.className = `packet ${cssClass}`;
+                pkt.textContent = label;
+                pkt.style.left = startPct + '%';
+                pkt.style.opacity = '1';
+                pkt.style.transitionDuration = duration + 'ms';
+                road.appendChild(pkt);
+                requestAnimationFrame(() => requestAnimationFrame(() => { pkt.style.left = endPct + '%'; }));
+                setTimeout(() => { pkt.style.opacity = '0'; setTimeout(() => { pkt.remove(); resolve(); }, 250); }, duration);
+            });
+        }
+
+        function setNodeState(id, cls) {
+            const el = document.getElementById(id);
+            if (el) el.className = `road-node ${cls}`;
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const aId = selActivity.value;
+            if (!aId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select an activity to begin.</span>';
+                els.controls.style.display = 'none'; els.dashboard.style.display = 'none'; return;
+            }
+            const act = ACTIVITIES[aId], proto = PROTOCOLS[selProto.value];
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${act.icon} ${act.name} — ${proto.name} tunnel</span>`;
+
+            // Update road nodes
+            document.getElementById('exp-site-icon').textContent = act.siteIcon;
+            document.getElementById('exp-site-name').textContent = act.site;
+            document.getElementById('exp-site-ip').textContent = act.siteIp;
+            document.getElementById('vpn-site-icon').textContent = act.siteIcon;
+            document.getElementById('vpn-site-name').textContent = act.site;
+            document.getElementById('vpn-site-ip').textContent = act.siteIp;
+            document.getElementById('exp-your-ip').textContent = act.yourIp;
+            document.getElementById('vpn-your-ip').textContent = act.yourIp;
+
+            const vpnSrv = VPN_SERVERS[Math.floor(Math.random() * VPN_SERVERS.length)];
+            document.getElementById('vpn-srv-loc').textContent = vpnSrv.loc;
+
+            // Reset
+            els.tunnel.className = 'tunnel';
+            ['exp-you', 'exp-isp', 'exp-site', 'vpn-you', 'vpn-isp', 'vpn-server', 'vpn-site'].forEach(id => setNodeState(id, ''));
+            document.getElementById('isp-eye-exp').className = 'isp-eye';
+            document.getElementById('isp-eye-vpn').className = 'isp-eye blocked';
+            document.getElementById('isp-data-exp').textContent = 'Waiting...';
+            document.getElementById('isp-data-vpn').textContent = 'Waiting...';
+
+            // Reset panels
+            ['d-exp-ip', 'd-exp-dest', 'd-exp-dns', 'd-exp-data', 'd-exp-site-ip', 'd-exp-loc'].forEach(id => setField(id, '—', ''));
+            ['d-vpn-ip', 'd-vpn-dest', 'd-vpn-dns', 'd-vpn-data', 'd-vpn-site-ip', 'd-vpn-loc', 'd-vpn-proto', 'd-vpn-cipher', 'd-vpn-hs'].forEach(id => setField(id, '—', ''));
+
+            els.controls.style.display = 'flex'; els.dashboard.style.display = 'grid';
+            els.btnGo.innerHTML = '🛡️ Run Side-by-Side Comparison'; els.btnGo.disabled = false;
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;"><span class="log-icon">🎯</span><span class="log-text">Ready! Click "Run" to watch your traffic to <strong>${act.icon} ${act.site}</strong> — exposed vs tunneled.</span></div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           DEMO
+           ═══════════════════════════════════════════ */
+        async function startDemo() {
+            if (animating) return;
+            animating = true;
+            els.btnGo.disabled = true;
+            els.btnGo.innerHTML = '⏳ Running...';
+            const act = ACTIVITIES[selActivity.value];
+            const proto = PROTOCOLS[selProto.value];
+            const vpnSrv = VPN_SERVERS[Math.floor(Math.random() * VPN_SERVERS.length)];
+            document.getElementById('vpn-srv-loc').textContent = vpnSrv.loc;
+
+            /* ── Step 1: DNS ── */
+            addStory('1️⃣', `<strong>Step 1: DNS Lookup — "Where is ${act.site}?"</strong>`, 'type-info');
+            await sleep(300);
+
+            // Exposed
+            addStory('🚫', `<strong>Without VPN:</strong> Your device sends a DNS query in <span class="val-red">plain text</span> through your ISP:<br>
+        <span class="mono">"Resolve ${act.dns} please"</span><br>
+        Your ISP sees exactly which domain you're looking up.`, 'type-exposed');
+            setNodeState('exp-you', 'active');
+            setNodeState('exp-isp', 'watching');
+            document.getElementById('isp-eye-exp').className = 'isp-eye';
+            document.getElementById('isp-data-exp').innerHTML = `<span style="color:var(--exposed);">DNS: ${act.dns}</span>`;
+            setField('d-exp-dns', act.dns, 'val-red');
+            await animPacket('road-exposed', 'exposed-pkt', `DNS: ${act.dns}`, 8, 48, 700);
+            await animPacket('road-exposed', 'exposed-pkt', `→ ${act.siteIp}`, 48, 8, 600);
+            await sleep(200);
+
+            // VPN
+            addStory('🛡️', `<strong>With VPN:</strong> DNS is sent <em>inside the encrypted tunnel</em> to the VPN server. Your ISP sees only encrypted noise going to ${vpnSrv.ip}. The VPN server does the DNS lookup for you.`, 'type-vpn');
+            setNodeState('vpn-you', 'active');
+            setNodeState('vpn-isp', 'hidden');
+            els.tunnel.className = 'tunnel visible';
+            setField('d-vpn-dns', '🔒 Encrypted', 'val-green');
+            document.getElementById('isp-data-vpn').innerHTML = `<span style="color:var(--neon-emerald);">Encrypted traffic<br>to ${vpnSrv.ip}</span>`;
+            await animPacket('road-vpn', 'encrypted-pkt', '🔒 Encrypted DNS', 8, 65, 700);
+            await animPacket('road-vpn', 'masked-pkt', `DNS → ${act.siteIp}`, 65, 95, 500);
+            await sleep(400);
+
+            /* ── Step 2: Connection ── */
+            addStory('2️⃣', `<strong>Step 2: Connecting to ${act.site}</strong>`, 'type-info');
+            await sleep(200);
+
+            // Exposed
+            setField('d-exp-ip', act.yourIp, 'mono val-rose');
+            setField('d-exp-dest', act.site + ' (' + act.siteIp + ')', 'val-red');
+            setField('d-exp-site-ip', act.yourIp, 'val-red');
+            setField('d-exp-loc', act.realLoc, 'val-red');
+            setField('d-exp-data', act.dataExp, 'val-red');
+            document.getElementById('isp-data-exp').innerHTML = `<span style="color:var(--exposed);">DNS: ${act.dns}<br>Dest: ${act.siteIp}<br>Your IP: ${act.yourIp}</span>`;
+            setNodeState('exp-site', 'active');
+
+            addStory('🚫', `<strong>Without VPN:</strong> ISP sees your connection to <span class="mono val-red">${act.siteIp}</span> (${act.site}).<br>
+        <strong>The website sees:</strong> Your real IP <span class="mono val-red">${act.yourIp}</span> → <span class="val-red">${act.realLoc}</span>.<br>
+        ${act.dataExp}`, 'type-exposed');
+
+            await animPacket('road-exposed', 'exposed-pkt', `GET ${act.site}`, 8, 92, 800);
+            setNodeState('exp-site', 'active');
+            await animPacket('road-exposed', 'exposed-pkt', '200 OK + Data', 92, 8, 700);
+            await sleep(300);
+
+            // VPN
+            setField('d-vpn-ip', act.yourIp, 'mono');
+            setField('d-vpn-dest', `🔒 ${vpnSrv.ip} (VPN only)`, 'val-green');
+            setField('d-vpn-data', '🔒 Encrypted noise', 'val-green');
+            setField('d-vpn-site-ip', vpnSrv.ip, 'val-green');
+            setField('d-vpn-loc', vpnSrv.loc, 'val-green');
+            setField('d-vpn-proto', proto.name, 'val-emerald');
+            setField('d-vpn-cipher', proto.cipher, 'mono');
+            setField('d-vpn-hs', proto.hs, 'mono');
+            setNodeState('vpn-server', 'active');
+            setNodeState('vpn-site', 'active');
+
+            addStory('🛡️', `<strong>With VPN (${proto.name}):</strong><br>
+        • Your device encrypts ALL traffic with <span class="mono val-emerald">${proto.cipher}</span><br>
+        • ISP sees: encrypted packets going to <span class="mono">${vpnSrv.ip}</span> on <span class="mono">${proto.port}</span><br>
+        • ISP does NOT see: ${act.site}, URLs, content, or your DNS queries<br>
+        • <strong>The website sees:</strong> VPN's IP <span class="mono val-green">${vpnSrv.ip}</span> → <span class="val-green">${vpnSrv.loc}</span>`, 'type-vpn');
+
+            await animPacket('road-vpn', 'encrypted-pkt', '🔒 Encrypted', 8, 35, 400);
+            await animPacket('road-vpn', 'encrypted-pkt', '🔒 [tunnel]', 35, 65, 500);
+            await animPacket('road-vpn', 'masked-pkt', `🎭 ${vpnSrv.ip}`, 65, 95, 400);
+            await sleep(200);
+            await animPacket('road-vpn', 'masked-pkt', '200 OK', 95, 65, 400);
+            await animPacket('road-vpn', 'encrypted-pkt', '🔒 [tunnel]', 65, 35, 500);
+            await animPacket('road-vpn', 'encrypted-pkt', '🔓 Decrypted', 35, 8, 400);
+            await sleep(400);
+
+            /* ── Step 3: What the ISP logged ── */
+            addStory('3️⃣', `<strong>Step 3: What your ISP actually recorded</strong>`, 'type-info');
+            await sleep(200);
+
+            addStory('👁️', `<strong>Without VPN — ISP's log:</strong><br>
+        <span class="mono" style="font-size:.8rem;">
+        ${new Date().toISOString()} | SRC: <span class="val-red">${act.yourIp}</span> | DST: <span class="val-red">${act.siteIp}</span> | DNS: <span class="val-red">${act.dns}</span> | Proto: HTTPS | Bytes: 42,891
+        </span><br>
+        <br>⚠️ ${act.risk}`, 'type-exposed');
+            await sleep(400);
+
+            addStory('👁️‍🗨️', `<strong>With VPN — ISP's log:</strong><br>
+        <span class="mono" style="font-size:.8rem;">
+        ${new Date().toISOString()} | SRC: ${act.yourIp} | DST: <span class="val-green">${vpnSrv.ip}</span> | DNS: <span class="val-green">N/A</span> | Proto: <span class="val-green">UDP/${proto.port.split(' ')[1] || '51820'}</span> | Bytes: 43,200
+        </span><br>
+        <br>✅ The ISP sees you connected to one IP address and transferred some encrypted bytes. That's it. They have NO idea you visited ${act.site}.`, 'type-vpn');
+            await sleep(500);
+
+            /* ── Tunnel Analogy ── */
+            addStory('🛣️', `<strong>The Road & Tunnel Analogy:</strong><br>
+        <br>🚗 <strong>Without VPN:</strong> You drive on an open highway. Every toll booth (ISP) can see your license plate (IP), where you came from, where you're going, and even peek at what's in the car (unencrypted data).<br>
+        <br>🔒 <strong>With VPN:</strong> You enter a covered tunnel at the start. The toll booth sees your car enter the tunnel, but can't see where you exit or what you're carrying. At the other end, you emerge with <em>different license plates</em> (VPN server's IP) in a completely different city.`, 'type-compare');
+            await sleep(500);
+
+            /* ── Important Caveats ── */
+            addStory('⚠️', `<strong>What a VPN does NOT protect:</strong><br>
+        • ❌ <strong>VPN provider can see your traffic</strong> — you're trusting THEM instead of your ISP. Choose a no-log provider.<br>
+        • ❌ <strong>Website tracking</strong> — cookies, fingerprinting, and login sessions still identify you<br>
+        • ❌ <strong>Malware & phishing</strong> — a VPN doesn't scan content, just encrypts the pipe<br>
+        • ❌ <strong>Your device</strong> — if your machine is compromised, VPN can't help<br>
+        • ❌ <strong>DNS leaks</strong> — poorly configured VPNs may still send DNS queries outside the tunnel`, 'type-warn');
+            await sleep(400);
+
+            addStory('📊', `<strong>VPN Protocol Comparison:</strong><br>
+        <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:.82rem;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,.1);"><td style="padding:5px;color:var(--text-muted);">Protocol</td><td style="padding:5px;">Speed</td><td style="padding:5px;">Cipher</td><td style="padding:5px;">Best For</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">⚡ WireGuard</td><td style="padding:5px;color:var(--neon-green);">Fastest</td><td style="padding:5px;font-family:'JetBrains Mono',monospace;font-size:.7rem;">ChaCha20</td><td style="padding:5px;">Modern default, Linux</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.05);"><td style="padding:5px;">🔒 OpenVPN</td><td style="padding:5px;">Moderate</td><td style="padding:5px;font-family:'JetBrains Mono',monospace;font-size:.7rem;">AES-256-GCM</td><td style="padding:5px;">Max compatibility</td></tr>
+        <tr><td style="padding:5px;">📱 IKEv2</td><td style="padding:5px;">Fast</td><td style="padding:5px;font-family:'JetBrains Mono',monospace;font-size:.7rem;">AES-256-CBC</td><td style="padding:5px;">Mobile (auto-reconnect)</td></tr>
+        </table>`, 'type-info');
+            await sleep(400);
+
+            addStory('💡', `<strong>Real-world uses:</strong><br>
+        • 🏢 <strong>Corporate VPN:</strong> Employees access internal servers from home as if they're in the office<br>
+        • 🌍 <strong>Geo-unblocking:</strong> Stream content only available in other countries<br>
+        • ☕ <strong>Public Wi-Fi:</strong> Critical protection on untrusted networks (airports, cafés)<br>
+        • 🏛️ <strong>Censorship bypass:</strong> Access blocked websites in restrictive countries<br>
+        • 🛡️ <strong>Privacy:</strong> Prevent ISPs from selling your browsing history`, 'type-secure');
+
+            animating = false;
+            els.btnGo.innerHTML = '🔄 Run Again';
+            els.btnGo.disabled = false;
+        }
+    </script>
+
+</body>
+
+</html>

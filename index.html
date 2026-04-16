@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech-Pages</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="A robust collection of interactive visualizers spanning Cryptography, Web Identity, Networking Protocols, and Infrastructure Architecture.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, 0.6);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --neon-cyan: #22d3ee;
+            --neon-purple: #d946ef;
+            --neon-green: #4ade80;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 4rem 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 50px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 15px 0;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.25rem;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .category-group {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .category-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-bottom: 2px solid var(--panel-border);
+            padding-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #f8fafc;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.05), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 15px 35px rgba(34, 211, 238, 0.15);
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin: 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card-icon {
+            font-size: 1.4rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .metrics-bar {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid var(--panel-border);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 3rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <h1>Tech-Pages</h1>
+            <p>An interactive, natively-animated encyclopedia of complex engineering and infrastructure systems,
+                visualized elegantly inside the browser without external dependencies.</p>
+        </div>
+
+        <!-- CATEGORY: SECURITY & CRYPTO -->
+        <div class="category-group">
+            <div class="category-title">🔐 Security & Cryptography</div>
+            <div class="grid">
+                <a href="e2ee.html" class="card">
+                    <div class="card-title"><span class="card-icon">🔏</span> End-to-End Encryption</div>
+                    <p class="card-desc">Visualize precisely why central servers are cryptographically 'blind' to E2EE
+                        messaging payloads.</p>
+                </a>
+                <a href="encryption.html" class="card">
+                    <div class="card-title"><span class="card-icon">🔐</span> Sym / Asym Encyption</div>
+                    <p class="card-desc">Symmetric vs Asymmetric encryption rules and how TLS Hybrid Handshakes combine
+                        them.</p>
+                </a>
+                <a href="public-key-crypto.html" class="card">
+                    <div class="card-title"><span class="card-icon">🔑</span> Public Key Cryptography</div>
+                    <p class="card-desc">The core analogy of how public keys "lock" data and only private keys can
+                        "unlock" them.</p>
+                </a>
+                <a href="rsa-math.html" class="card">
+                    <div class="card-title"><span class="card-icon">🧮</span> RSA Key Generation</div>
+                    <p class="card-desc">The underlying prime factorization math that makes asymmetric PKI inherently
+                        unbreakable.</p>
+                </a>
+                <a href="ssl-tls.html" class="card">
+                    <div class="card-title"><span class="card-icon">🤝</span> SSL/TLS Handshake</div>
+                    <p class="card-desc">A deep-dive breakdown of how secure web sessions are systematically negotiated.
+                    </p>
+                </a>
+                <a href="ca-notary.html" class="card">
+                    <div class="card-title"><span class="card-icon">🏛️</span> Certificate Authorities</div>
+                    <p class="card-desc">How hierarchical Notaries stamp server passports, yielding the coveted Green
+                        Padlock.</p>
+                </a>
+                <a href="mitm.html" class="card">
+                    <div class="card-title"><span class="card-icon">🦹‍♀️</span> Man-in-the-Middle</div>
+                    <p class="card-desc">How network attackers intercept generic traffic utilizing dynamically spoofed
+                        masks.</p>
+                </a>
+                <a href="fido2-passkeys.html" class="card">
+                    <div class="card-title"><span class="card-icon">📲</span> FIDO2 / Passkeys</div>
+                    <p class="card-desc">A simulation of passwordless, phishing-resistant physical hardware key
+                        cryptographic handshakes.</p>
+                </a>
+                <a href="jwt.html" class="card">
+                    <div class="card-title"><span class="card-icon">🎫</span> Json Web Tokens (JWT)</div>
+                    <p class="card-desc">How digitally signed stateless server-identity passports are crafted and
+                        verified.</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- CATEGORY: AUTHENTICATION -->
+        <div class="category-group">
+            <div class="category-title">👤 Authentication & Access Rules</div>
+            <div class="grid">
+                <a href="mfa-factors.html" class="card">
+                    <div class="card-title"><span class="card-icon">🛡️</span> MFA Mechanics</div>
+                    <p class="card-desc">The structural differences between what you Know, what you Have, and what you
+                        Are.</p>
+                </a>
+                <a href="mfa-totp.html" class="card">
+                    <div class="card-title"><span class="card-icon">⏰</span> Time-Based OTP (TOTP)</div>
+                    <p class="card-desc">The synchronized air-gapped cryptographic time magic driving Authenticator apps
+                        limitlessly.</p>
+                </a>
+                <a href="oauth.html" class="card">
+                    <div class="card-title"><span class="card-icon">🎟️</span> OAuth 2.0 Auth Flow</div>
+                    <p class="card-desc">How 3rd-party applications explicitly safely harvest your data utilizing
+                        delegation tokens.</p>
+                </a>
+                <a href="cookies-localstorage.html" class="card">
+                    <div class="card-title"><span class="card-icon">🍪</span> Browser State Storage</div>
+                    <p class="card-desc">Visual comparison mapping between Cookies, LocalStorage, and explicitly
+                        SessionStorage logic.</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- CATEGORY: NETWORKING -->
+        <div class="category-group">
+            <div class="category-title">🌍 Networking & Anonymity Maps</div>
+            <div class="grid">
+                <a href="dns.html" class="card">
+                    <div class="card-title"><span class="card-icon">📖</span> DNS Resolution</div>
+                    <p class="card-desc">How the massive decentralized internet-wide phonebook seamlessly resolves
+                        recursive lookups.</p>
+                </a>
+                <a href="proxy.html" class="card">
+                    <div class="card-title"><span class="card-icon">🕵️‍♂️</span> Proxy Servers</div>
+                    <p class="card-desc">Mechanics evaluating explicit Forward screening versus generic Reverse
+                        aggregation.</p>
+                </a>
+                <a href="vpn.html" class="card">
+                    <div class="card-title"><span class="card-icon">🚇</span> Virtual Private Networks</div>
+                    <p class="card-desc">How a VPN inherently wraps execution packets tunneling broadly across public
+                        Wi-Fi grids.</p>
+                </a>
+                <a href="tor-network.html" class="card">
+                    <div class="card-title"><span class="card-icon">🧅</span> Tor Network (Onion)</div>
+                    <p class="card-desc">Visualizing massively layered cryptographic node bouncing to ensure ultimate
+                        anonymity.</p>
+                </a>
+                <a href="websocket-vs-http.html" class="card">
+                    <div class="card-title"><span class="card-icon">⚡</span> WebSocket vs HTTP</div>
+                    <p class="card-desc">Continuous bi-directional streaming natively matched against traditional
+                        request polling overhead.</p>
+                </a>
+                <a href="ssh.html" class="card">
+                    <div class="card-title"><span class="card-icon">💻</span> SSH Protocol</div>
+                    <p class="card-desc">Demystifying exactly how Secure Shell cryptographic logic natively bootstraps
+                        itself robustly.</p>
+                </a>
+                <a href="ssh-agent.html" class="card">
+                    <div class="card-title"><span class="card-icon">🗝️</span> SSH Agent Forwarding</div>
+                    <p class="card-desc">How explicit Bastion instances globally relay proxy requests natively avoiding
+                        local key copying.</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- CATEGORY: INFRASTRUCTURE -->
+        <div class="category-group">
+            <div class="category-title">🏗️ Infrastructure Architecture</div>
+            <div class="grid">
+                <a href="load-balancer.html" class="card">
+                    <div class="card-title"><span class="card-icon">⚖️</span> Load Balancing</div>
+                    <p class="card-desc">How Round Robin algorithms natively rapidly disperse intensive traffic globally
+                        seamlessly.</p>
+                </a>
+                <a href="cdn.html" class="card">
+                    <div class="card-title"><span class="card-icon">🌍</span> Content Delivery (CDN)</div>
+                    <p class="card-desc">Why routing explicitly caching logic natively at Edge Servers guarantees
+                        uninhibited speed.</p>
+                </a>
+                <a href="containers-vs-vms.html" class="card">
+                    <div class="card-title"><span class="card-icon">🐳</span> Containers vs VMs</div>
+                    <p class="card-desc">Demonstrating lightweight kernel-sharing against explicitly heavy explicit
+                        hypervisor partitioning.</p>
+                </a>
+                <a href="db-indexing.html" class="card">
+                    <div class="card-title"><span class="card-icon">🗄️</span> Database Indexing</div>
+                    <p class="card-desc">Exactly how underlying B-Trees implicitly radically expedite data access
+                        queries immediately.</p>
+                </a>
+                <a href="raid.html" class="card">
+                    <div class="card-title"><span class="card-icon">💾</span> RAID Storage</div>
+                    <p class="card-desc">Interactive execution rendering drive mirroring, intensive block striping,
+                        seamlessly paired with parity rules.</p>
+                </a>
+                <a href="blockchain.html" class="card">
+                    <div class="card-title"><span class="card-icon">⛓️</span> Blockchain Mechanics</div>
+                    <p class="card-desc">How rigorous cryptographic hashing inherently tightly binds ledgers flawlessly,
+                        guaranteeing immutability.</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- CATEGORY: ENGINEERING -->
+        <div class="category-group">
+            <div class="category-title">🛠️ Software & Hardware Dev</div>
+            <div class="grid">
+                <a href="git-branching.html" class="card">
+                    <div class="card-title"><span class="card-icon">🌿</span> Git Branching</div>
+                    <p class="card-desc">Illustrating parallel universe timelines allowing simultaneous branch workflows
+                        completely safely.</p>
+                </a>
+                <a href="dark-mode-css.html" class="card">
+                    <div class="card-title"><span class="card-icon">🌗</span> CSS Component Theming</div>
+                    <p class="card-desc">How global Native CSS Custom Variables natively securely enable robust rapid
+                        theme iteration mapping.</p>
+                </a>
+                <a href="typec.html" class="card">
+                    <div class="card-title"><span class="card-icon">🔌</span> USB-C Mapping Architecture</div>
+                    <p class="card-desc">The physical pinout wizardry definitively allowing cables naturally to
+                        successfully dynamically connect fundamentally universally.</p>
+                </a>
+            </div>
+        </div>
+
+        <!-- FOOTER METRICS -->
+        <div class="metrics-bar">
+            29 Self-Contained Educational Simulators • 100% Native Browser Functionality
+        </div>
+    </div>
+</body>
+
+</html>

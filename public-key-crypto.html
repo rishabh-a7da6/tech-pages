@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Public Key Cryptography Works — The Locked Box Analogy</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of public key cryptography using the locked box analogy. Watch step-by-step how public and private keys work to encrypt messages and verify identities.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #a78bfa;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-pink: #f472b6;
+            --neon-gold: #fbbf24;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-gold), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 740px;
+            line-height: 1.6;
+        }
+
+        /* ── Selectors ── */
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 230px;
+        }
+
+        .select-card label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(251, 191, 36, 0.4);
+            box-shadow: 0 4px 25px rgba(251, 191, 36, 0.1);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-gold);
+            box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
+        }
+
+        /* ── Status Badge ── */
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.4s ease;
+            max-width: 800px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            color: var(--neon-gold);
+        }
+
+        /* ── Controls ── */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(167, 139, 250, 0.2));
+            border-color: var(--neon-gold);
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.5);
+            border-color: #fff;
+        }
+
+        /* ── Dashboard ── */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1300px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 22px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 12px;
+        }
+
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 13px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-header {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 7px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.88rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-gold {
+            color: var(--neon-gold);
+            font-weight: 600;
+        }
+
+        .val-pink {
+            color: var(--neon-pink);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* ══════════════════════════════════════
+           VISUAL STAGE — THE BOX SCENE
+           ══════════════════════════════════════ */
+        .stage {
+            position: relative;
+            width: 100%;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Person Nodes */
+        .person {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            z-index: 5;
+            transition: all 0.5s ease;
+        }
+
+        .person-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.95);
+            border: 3px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            transition: all 0.5s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .person-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .person-role {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .person.active .person-avatar {
+            border-color: var(--neon-gold);
+            box-shadow: 0 0 25px rgba(251, 191, 36, 0.3);
+        }
+
+        .person.done .person-avatar {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+        }
+
+        /* Keys display under person */
+        .key-holder {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .key-badge {
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            border: 1px solid;
+        }
+
+        .key-public {
+            background: rgba(74, 222, 128, 0.1);
+            border-color: rgba(74, 222, 128, 0.3);
+            color: var(--neon-green);
+        }
+
+        .key-private {
+            background: rgba(248, 113, 113, 0.1);
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--neon-red);
+        }
+
+        /* The animated box */
+        .crypto-box {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .box-body {
+            width: 90px;
+            height: 70px;
+            background: linear-gradient(135deg, #92400e, #b45309);
+            border-radius: 6px;
+            border: 2px solid #d97706;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+            transition: all 0.5s ease;
+        }
+
+        .box-body::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            height: 18px;
+            background: linear-gradient(135deg, #a16207, #ca8a04);
+            border-radius: 6px 6px 0 0;
+            border: 2px solid #d97706;
+            border-bottom: 1px solid #92400e;
+        }
+
+        .box-content {
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.5);
+            z-index: 1;
+            text-align: center;
+            margin-top: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            max-width: 70px;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .box-content.visible {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .box-content.encrypted {
+            color: var(--neon-red);
+            font-size: 0.55rem;
+        }
+
+        /* Padlock */
+        .padlock {
+            position: absolute;
+            top: -8px;
+            right: -14px;
+            font-size: 1.6rem;
+            z-index: 12;
+            transition: all 0.5s ease;
+            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+        }
+
+        .padlock.locked {
+            animation: lockShake 0.5s ease;
+        }
+
+        @keyframes lockShake {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-10deg);
+            }
+
+            75% {
+                transform: rotate(10deg);
+            }
+        }
+
+        .box-label {
+            margin-top: 8px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-align: center;
+            max-width: 120px;
+            transition: all 0.4s ease;
+        }
+
+        /* Floating key animation */
+        .floating-key {
+            position: absolute;
+            font-size: 2rem;
+            z-index: 15;
+            opacity: 0;
+            transition: all 1.1s cubic-bezier(0.34, 1.56, 0.64, 1);
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+        }
+
+        .floating-key.visible {
+            opacity: 1;
+        }
+
+        /* Connecting line */
+        .connect-line {
+            position: absolute;
+            top: 38%;
+            left: 15%;
+            right: 15%;
+            height: 2px;
+            background: #1e293b;
+            transform: translateY(-50%);
+            z-index: 1;
+            transition: all 0.5s ease;
+        }
+
+        .connect-line.active {
+            background: rgba(251, 191, 36, 0.3);
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.15);
+        }
+
+        .connect-line.secure {
+            background: rgba(74, 222, 128, 0.4);
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.2);
+        }
+
+        /* Step indicator */
+        .step-indicator {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 6px 18px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--neon-gold);
+            z-index: 6;
+            white-space: nowrap;
+            transition: all 0.4s ease;
+        }
+
+        /* ── Story Feed ── */
+        .feed-wrapper {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, 0.1);
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp 0.4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: 0.98rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-alice {
+            border-left-color: var(--neon-blue);
+        }
+
+        .type-bob {
+            border-left-color: var(--neon-purple);
+        }
+
+        .type-key {
+            border-left-color: var(--neon-gold);
+            background: rgba(251, 191, 36, 0.04);
+        }
+
+        .type-lock {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, 0.04);
+        }
+
+        .type-unlock {
+            border-left-color: var(--neon-red);
+        }
+
+        .type-math {
+            border-left-color: var(--neon-cyan);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, 0.04);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1100px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                max-width: 520px;
+            }
+
+            .stage {
+                min-height: 350px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+
+    <h1>Public Key Cryptography</h1>
+    <p class="subtitle">Imagine sending an <strong>open box with a padlock</strong> to someone. They put a secret
+        inside, snap the padlock shut, and send it back. Only <em>you</em> have the key to open it — even though
+        the whole world saw the box in transit. That's public key cryptography.</p>
+
+    <!-- ── Selectors ── -->
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Scenario</label>
+            <select id="select-scenario" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose a scenario —</option>
+                <option value="encrypt">📦 Send an Encrypted Message</option>
+                <option value="sign">✍️ Verify a Digital Signature</option>
+                <option value="both">🔒 Encrypt + Sign (Real-World)</option>
+            </select>
+        </div>
+
+        <div class="select-card">
+            <label>Characters</label>
+            <select id="select-chars" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose characters —</option>
+                <option value="alice-bob">👩 Alice & 👨 Bob (Classic)</option>
+                <option value="you-bank">🧑 You & 🏦 Your Bank</option>
+                <option value="dev-server">👩‍💻 Developer & 🖥️ Server</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ── Status ── -->
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select a scenario and characters to begin the demonstration.</span>
+    </div>
+
+    <!-- ── Controls ── -->
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDemo()">▶️ Start Demonstration</button>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div class="dashboard" id="dashboard" style="display:none">
+
+        <!-- Sender Panel -->
+        <div class="panel" id="panel-sender"></div>
+
+        <!-- Animation Stage -->
+        <div class="stage" id="stage">
+            <div class="step-indicator" id="step-indicator">Step 0 / 0</div>
+
+            <div class="connect-line" id="connect-line"></div>
+
+            <!-- Sender Person -->
+            <div class="person" id="person-sender" style="left:8%;top:65%;transform:translateY(-50%);">
+                <div class="person-avatar" id="avatar-sender">👩</div>
+                <div class="person-name" id="name-sender">Alice</div>
+                <div class="person-role" id="role-sender">Sender</div>
+                <div class="key-holder" id="keys-sender">
+                    <span class="key-badge key-public">🔓 Public</span>
+                    <span class="key-badge key-private">🔑 Private</span>
+                </div>
+            </div>
+
+            <!-- The Box -->
+            <div class="crypto-box" id="crypto-box">
+                <div class="box-body" id="box-body">
+                    <div class="padlock" id="padlock">🔓</div>
+                    <div class="box-content" id="box-content"></div>
+                </div>
+                <div class="box-label" id="box-label">The Box</div>
+            </div>
+
+            <!-- Floating key for animations -->
+            <div class="floating-key" id="floating-key">🔑</div>
+
+            <!-- Receiver Person -->
+            <div class="person" id="person-receiver" style="right:8%;top:65%;transform:translateY(-50%);">
+                <div class="person-avatar" id="avatar-receiver">👨</div>
+                <div class="person-name" id="name-receiver">Bob</div>
+                <div class="person-role" id="role-receiver">Receiver</div>
+                <div class="key-holder" id="keys-receiver">
+                    <span class="key-badge key-public">🔓 Public</span>
+                    <span class="key-badge key-private">🔑 Private</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receiver Panel -->
+        <div class="panel" id="panel-receiver"></div>
+
+        <!-- Story Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;">
+                    <span class="log-icon">👋</span>
+                    <span class="log-text">Welcome! Select a scenario and characters above, then click "Start" to
+                        watch the magic of public key cryptography unfold.</span>
+                </div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const CHARS = {
+            'alice-bob': {
+                sender: { name: 'Alice', icon: '👩', role: 'Sender' },
+                receiver: { name: 'Bob', icon: '👨', role: 'Receiver' },
+                message: 'Meet me at the café at 5pm ☕',
+                signedDoc: 'Contract: I agree to pay $1,000',
+            },
+            'you-bank': {
+                sender: { name: 'You', icon: '🧑', role: 'Customer' },
+                receiver: { name: 'Your Bank', icon: '🏦', role: 'Financial Institution' },
+                message: 'Transfer $500 to account #7291',
+                signedDoc: 'Transaction receipt: $500 sent',
+            },
+            'dev-server': {
+                sender: { name: 'Developer', icon: '👩‍💻', role: 'Client' },
+                receiver: { name: 'Server', icon: '🖥️', role: 'Remote Host' },
+                message: 'deploy --production v4.2.0',
+                signedDoc: 'Git commit: "fix critical bug"',
+            },
+        };
+
+        /* ═══════════════════════════════════════════
+           STATE & ELEMENTS
+           ═══════════════════════════════════════════ */
+        const state = { animating: false };
+
+        const selScenario = document.getElementById('select-scenario');
+        const selChars = document.getElementById('select-chars');
+
+        const els = {
+            btnGo: document.getElementById('btn-go'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compat: document.getElementById('compat-status'),
+            panelS: document.getElementById('panel-sender'),
+            panelR: document.getElementById('panel-receiver'),
+            feed: document.getElementById('feed'),
+            stage: document.getElementById('stage'),
+            stepIndicator: document.getElementById('step-indicator'),
+            connectLine: document.getElementById('connect-line'),
+            personSender: document.getElementById('person-sender'),
+            personReceiver: document.getElementById('person-receiver'),
+            avatarSender: document.getElementById('avatar-sender'),
+            avatarReceiver: document.getElementById('avatar-receiver'),
+            nameSender: document.getElementById('name-sender'),
+            nameReceiver: document.getElementById('name-receiver'),
+            roleSender: document.getElementById('role-sender'),
+            roleReceiver: document.getElementById('role-receiver'),
+            keysSender: document.getElementById('keys-sender'),
+            keysReceiver: document.getElementById('keys-receiver'),
+            cryptoBox: document.getElementById('crypto-box'),
+            boxBody: document.getElementById('box-body'),
+            padlock: document.getElementById('padlock'),
+            boxContent: document.getElementById('box-content'),
+            boxLabel: document.getElementById('box-label'),
+            floatingKey: document.getElementById('floating-key'),
+        };
+
+        /* ═══════════════════════════════════════════
+           HELPERS
+           ═══════════════════════════════════════════ */
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function addStory(icon, text, type = '') {
+            const el = document.createElement('div');
+            el.className = `log-msg ${type}`;
+            el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
+            els.feed.appendChild(el);
+            els.feed.scrollTop = els.feed.scrollHeight;
+        }
+
+        function setField(id, text, cls) {
+            const el = document.getElementById(id);
+            if (el) { el.innerText = text; if (cls) el.className = cls; }
+        }
+
+        function clearLogs() {
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+                <span class="log-icon">🧹</span>
+                <span class="log-text">Logs cleared.</span>
+            </div>`;
+        }
+
+        function randomHex(len) {
+            return Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        }
+
+        function setStep(n, total, label) {
+            els.stepIndicator.textContent = `Step ${n} / ${total} — ${label}`;
+        }
+
+        function moveBox(position) {
+            // Position: 'center', 'sender', 'receiver'
+            const box = els.cryptoBox;
+            if (position === 'sender') {
+                box.style.left = '18%';
+            } else if (position === 'receiver') {
+                box.style.left = '82%';
+            } else {
+                box.style.left = '50%';
+            }
+        }
+
+        function setBoxState(locked, content, label) {
+            els.padlock.textContent = locked ? '🔒' : '🔓';
+            if (locked) els.padlock.classList.add('locked');
+            else els.padlock.classList.remove('locked');
+            if (content !== undefined) {
+                els.boxContent.textContent = content;
+            }
+            if (label !== undefined) {
+                els.boxLabel.textContent = label;
+            }
+        }
+
+        function resetStage() {
+            moveBox('center');
+            setBoxState(false, '', 'The Box');
+            els.boxContent.className = 'box-content';
+            els.personSender.className = 'person';
+            els.personReceiver.className = 'person';
+            els.connectLine.className = 'connect-line';
+            els.floatingKey.className = 'floating-key';
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const sId = selScenario.value;
+            const cId = selChars.value;
+
+            if (!sId || !cId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select a scenario and characters to begin.</span>';
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
+
+            const chars = CHARS[cId];
+            const scenarioNames = {
+                encrypt: '📦 Encrypted Message',
+                sign: '✍️ Digital Signature',
+                both: '🔒 Encrypt + Sign',
+            };
+
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${chars.sender.icon} ${chars.sender.name} ↔ ${chars.receiver.icon} ${chars.receiver.name} — ${scenarioNames[sId]}</span>`;
+
+            // Setup stage
+            els.avatarSender.textContent = chars.sender.icon;
+            els.nameSender.textContent = chars.sender.name;
+            els.roleSender.textContent = chars.sender.role;
+            els.avatarReceiver.textContent = chars.receiver.icon;
+            els.nameReceiver.textContent = chars.receiver.name;
+            els.roleReceiver.textContent = chars.receiver.role;
+
+            // Setup panels
+            els.panelS.innerHTML = renderSenderPanel(chars.sender, sId);
+            els.panelR.innerHTML = renderReceiverPanel(chars.receiver, sId);
+
+            // Setup keys display
+            if (sId === 'encrypt') {
+                // Bob's public key is used, so Bob has both keys, Alice gets Bob's public
+                els.keysSender.innerHTML = `<span class="key-badge key-public">🔓 ${chars.receiver.name}'s Public</span>`;
+                els.keysReceiver.innerHTML = `<span class="key-badge key-public">🔓 Public</span><span class="key-badge key-private">🔑 Private</span>`;
+            } else if (sId === 'sign') {
+                // Alice signs with her private key
+                els.keysSender.innerHTML = `<span class="key-badge key-public">🔓 Public</span><span class="key-badge key-private">🔑 Private</span>`;
+                els.keysReceiver.innerHTML = `<span class="key-badge key-public">🔓 ${chars.sender.name}'s Public</span>`;
+            } else {
+                els.keysSender.innerHTML = `<span class="key-badge key-public">🔓 Public</span><span class="key-badge key-private">🔑 Private</span>`;
+                els.keysReceiver.innerHTML = `<span class="key-badge key-public">🔓 Public</span><span class="key-badge key-private">🔑 Private</span>`;
+            }
+
+            resetStage();
+
+            els.controls.style.display = 'flex';
+            els.dashboard.style.display = 'grid';
+            els.btnGo.innerHTML = '▶️ Start Demonstration';
+            els.btnGo.className = 'primary';
+            els.btnGo.disabled = false;
+
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+                <span class="log-icon">👋</span>
+                <span class="log-text">Ready! Click <strong>"Start Demonstration"</strong> to watch ${chars.sender.icon} ${chars.sender.name} and ${chars.receiver.icon} ${chars.receiver.name} use public key cryptography.</span>
+            </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           PANEL RENDERERS
+           ═══════════════════════════════════════════ */
+        function renderSenderPanel(s, scenario) {
+            return `
+            <div class="panel-title">${s.icon} ${s.name} — ${s.role}</div>
+            <div class="status-box">
+                <div class="status-header">Key Pair</div>
+                <div class="data-row"><span>Public Key:</span> <span id="s-pubkey" class="mono" style="font-size:0.72rem;">Not generated</span></div>
+                <div class="data-row"><span>Private Key:</span> <span id="s-privkey" class="mono" style="font-size:0.72rem;">Not generated</span></div>
+                <div class="data-row"><span>Algorithm:</span> <span id="s-algo">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">${scenario === 'sign' ? 'Document' : 'Message'}</div>
+                <div class="data-row"><span>Plaintext:</span></div>
+                <div id="s-plain" style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;font-style:italic;">—</div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Status</div>
+                <div class="data-row"><span>Phase:</span> <span id="s-phase">Idle</span></div>
+                <div class="data-row"><span>Action:</span> <span id="s-action">—</span></div>
+            </div>`;
+        }
+
+        function renderReceiverPanel(r, scenario) {
+            return `
+            <div class="panel-title">${r.icon} ${r.name} — ${r.role}</div>
+            <div class="status-box">
+                <div class="status-header">Key Pair</div>
+                <div class="data-row"><span>Public Key:</span> <span id="r-pubkey" class="mono" style="font-size:0.72rem;">Not generated</span></div>
+                <div class="data-row"><span>Private Key:</span> <span id="r-privkey" class="mono" style="font-size:0.72rem;">Not generated</span></div>
+                <div class="data-row"><span>Algorithm:</span> <span id="r-algo">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Received</div>
+                <div class="data-row"><span>${scenario === 'sign' ? 'Document:' : 'Ciphertext:'}</span></div>
+                <div id="r-cipher" style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--text-muted);margin-top:4px;word-break:break-all;">—</div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Status</div>
+                <div class="data-row"><span>Phase:</span> <span id="r-phase">Idle</span></div>
+                <div class="data-row"><span>${scenario === 'sign' ? 'Signature:' : 'Decrypted:'}</span> <span id="r-result">—</span></div>
+            </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           START DEMO
+           ═══════════════════════════════════════════ */
+        async function startDemo() {
+            if (state.animating) return;
+            state.animating = true;
+            els.btnGo.innerHTML = '⏳ Running...';
+            els.btnGo.disabled = true;
+
+            const scenario = selScenario.value;
+            const chars = CHARS[selChars.value];
+            resetStage();
+
+            if (scenario === 'encrypt') await demoEncrypt(chars);
+            else if (scenario === 'sign') await demoSign(chars);
+            else await demoBoth(chars);
+
+            state.animating = false;
+            els.btnGo.innerHTML = '🔄 Run Again';
+            els.btnGo.className = 'primary';
+            els.btnGo.disabled = false;
+        }
+
+        /* ═══════════════════════════════════════════
+           DEMO: ENCRYPT
+           ═══════════════════════════════════════════ */
+        async function demoEncrypt(chars) {
+            const S = chars.sender, R = chars.receiver;
+            const msg = chars.message;
+            const totalSteps = 6;
+            const pubKey = randomHex(16);
+            const privKey = randomHex(16);
+            const ciphertext = randomHex(32);
+
+            /* Step 1: Key Generation */
+            setStep(1, totalSteps, 'Key Generation');
+            els.personReceiver.className = 'person active';
+
+            addStory('🔑', `<strong>Step 1: ${R.icon} ${R.name} generates a key pair</strong><br>
+                This creates two mathematically linked keys:<br>
+                • <span class="val-green">🔓 Public Key</span> — can be shared with <em>everyone</em> (like an open padlock)<br>
+                • <span class="val-red">🔑 Private Key</span> — kept <em>secret forever</em> (the only key that opens the padlock)<br>
+                <br>Algorithm: <span class="mono">RSA-2048</span> — based on the difficulty of factoring very large prime numbers.`, 'type-key');
+
+            setField('r-pubkey', pubKey + '...', 'mono val-green');
+            setField('r-privkey', '••••••••' + privKey.slice(-4), 'mono val-red');
+            setField('r-algo', 'RSA-2048', 'val-purple');
+            setField('r-phase', 'Keys Generated', 'val-green');
+            await sleep(2500);
+
+            /* Step 2: Share Public Key */
+            setStep(2, totalSteps, 'Share Public Key');
+            els.connectLine.className = 'connect-line active';
+
+            addStory('📤', `<strong>Step 2: ${R.icon} ${R.name} shares the public key</strong><br>
+                Think of this as sending an <strong>open padlock</strong> to ${S.name}. Anyone can see it, anyone can have a copy — that's fine! The padlock can only <em>lock</em> things, never open them.<br>
+                <br><span class="mono val-green">🔓 Public Key: ${pubKey}...</span>`, 'type-bob');
+
+            // Animate: box with open padlock moves to sender
+            setBoxState(false, '', `${R.name}'s open padlock`);
+            moveBox('receiver');
+            await sleep(1000);
+            moveBox('sender');
+            await sleep(1500);
+
+            setField('s-pubkey', pubKey + '...', 'mono val-green');
+            setField('s-algo', 'RSA-2048', 'val-purple');
+            setField('s-phase', 'Has Public Key', 'val-green');
+            els.personSender.className = 'person active';
+            await sleep(1200);
+
+            /* Step 3: Write Message */
+            setStep(3, totalSteps, 'Write the Secret');
+            moveBox('sender');
+
+            addStory('✉️', `<strong>Step 3: ${S.icon} ${S.name} writes the secret message</strong><br>
+                <span style="padding:6px 12px;background:rgba(56,189,248,0.1);border-radius:6px;display:inline-block;margin-top:4px;">"${msg}"</span><br>
+                <br>This message needs to reach ${R.name} without anyone else reading it.`, 'type-alice');
+
+            els.boxContent.textContent = msg.substring(0, 12) + '...';
+            els.boxContent.className = 'box-content visible';
+            els.boxLabel.textContent = 'Message inside box';
+            setField('s-plain', `"${msg}"`, '');
+            setField('s-action', 'Wrote message', 'val-blue');
+            await sleep(2000);
+
+            /* Step 4: Lock with Public Key */
+            setStep(4, totalSteps, 'Lock the Box');
+
+            addStory('🔒', `<strong>Step 4: ${S.icon} ${S.name} locks the box with ${R.name}'s public key</strong><br>
+                ${S.name} snaps the padlock (public key) shut. The box is now <strong>sealed</strong>.<br>
+                <br><em>Key insight:</em> Once locked, <strong>not even ${S.name} can open it</strong>! Only ${R.name}'s private key can unlock it.<br>
+                <br>In crypto terms: <span class="mono">ciphertext = encrypt(message, publicKey)</span><br>
+                <span class="mono val-red">${ciphertext}...</span>`, 'type-lock');
+
+            setBoxState(true, '🔐 Encrypted', 'Locked with public key');
+            els.boxContent.className = 'box-content encrypted';
+            els.boxBody.style.borderColor = '#ef4444';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(239,68,68,0.2), inset 0 2px 4px rgba(255,255,255,0.1)';
+            setField('s-action', 'Encrypted ✅', 'val-green');
+            await sleep(2500);
+
+            /* Step 5: Send to Receiver */
+            setStep(5, totalSteps, 'Send the Locked Box');
+
+            addStory('📦', `<strong>Step 5: ${S.icon} ${S.name} sends the locked box</strong><br>
+                The box travels across the internet. Even if an eavesdropper 🕵️ intercepts it, they see only:<br>
+                <span class="mono" style="color:var(--text-muted);">${ciphertext}...</span><br>
+                Without ${R.name}'s private key, the contents are <strong>completely unreadable</strong> — even with all the computers on Earth.`, 'type-alice');
+
+            moveBox('receiver');
+            await sleep(1500);
+            setField('r-phase', 'Box Received', 'val-blue');
+            document.getElementById('r-cipher').textContent = ciphertext + '...';
+            document.getElementById('r-cipher').style.color = 'var(--neon-red)';
+            await sleep(1200);
+
+            /* Step 6: Unlock with Private Key */
+            setStep(6, totalSteps, 'Unlock with Private Key');
+            els.personReceiver.className = 'person active';
+
+            addStory('🔓', `<strong>Step 6: ${R.icon} ${R.name} unlocks with the private key</strong><br>
+                ${R.name} uses the <span class="val-red">🔑 private key</span> — the <em>only</em> key in the universe that can open this padlock.<br>
+                <br><span class="mono">plaintext = decrypt(ciphertext, privateKey)</span><br>
+                <br>The message is revealed:<br>
+                <span style="padding:6px 12px;background:rgba(74,222,128,0.1);border-radius:6px;display:inline-block;margin-top:4px;">"${msg}"</span>`, 'type-unlock');
+
+            setBoxState(false, msg.substring(0, 12) + '...', 'Unlocked! Message revealed');
+            els.boxContent.className = 'box-content visible';
+            els.boxBody.style.borderColor = '#4ade80';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(74,222,128,0.2), inset 0 2px 4px rgba(255,255,255,0.1)';
+            setField('r-phase', '✅ Decrypted', 'val-green');
+            setField('r-result', `"${msg.substring(0, 20)}..."`, 'val-green');
+            els.personReceiver.className = 'person done';
+            els.personSender.className = 'person done';
+            els.connectLine.className = 'connect-line secure';
+            await sleep(2000);
+
+            /* Summary */
+            addStory('🎯', `<strong>The magic:</strong><br>
+                • The <span class="val-green">public key</span> (padlock) was shared openly — no secret channel needed<br>
+                • The <span class="val-red">private key</span> never left ${R.name}'s device<br>
+                • Even ${S.name} can't decrypt the message after sending it<br>
+                • An eavesdropper with the ciphertext AND the public key <em>still</em> can't read it`, 'type-secure');
+            await sleep(600);
+
+            addStory('💡', `<strong>Real-world math:</strong> RSA security relies on the fact that multiplying two large primes is easy (0.001s), but <em>factoring</em> the result back into those primes is practically impossible (billions of years). Your public key is the product; your private key is the primes.`, 'type-math');
+            await sleep(400);
+
+            addStory('🌍', `<strong>This is happening right now!</strong> Every time you see 🔒 in your browser's URL bar, public key cryptography just set up an encrypted tunnel. HTTPS, SSH, Signal, WhatsApp — they all start with this exact padlock concept.`, 'type-secure');
+        }
+
+        /* ═══════════════════════════════════════════
+           DEMO: DIGITAL SIGNATURE
+           ═══════════════════════════════════════════ */
+        async function demoSign(chars) {
+            const S = chars.sender, R = chars.receiver;
+            const doc = chars.signedDoc;
+            const totalSteps = 5;
+            const pubKey = randomHex(16);
+            const privKey = randomHex(16);
+            const signature = randomHex(32);
+            const docHash = randomHex(32);
+
+            /* Step 1: Key Generation */
+            setStep(1, totalSteps, 'Key Generation');
+            els.personSender.className = 'person active';
+
+            addStory('🔑', `<strong>Step 1: ${S.icon} ${S.name} generates a key pair</strong><br>
+                For digital signatures, the roles are <em>reversed</em>:<br>
+                • <span class="val-red">🔑 Private Key</span> — used to <em>sign</em> (like a personal wax seal)<br>
+                • <span class="val-green">🔓 Public Key</span> — shared with everyone so they can <em>verify</em> the seal<br>
+                <br>Algorithm: <span class="mono">Ed25519</span> — a fast, modern signature scheme.`, 'type-key');
+
+            setField('s-pubkey', pubKey + '...', 'mono val-green');
+            setField('s-privkey', '••••••••' + privKey.slice(-4), 'mono val-red');
+            setField('s-algo', 'Ed25519', 'val-purple');
+            setField('s-phase', 'Keys Generated', 'val-green');
+            await sleep(2000);
+
+            /* Step 2: Hash the Document */
+            setStep(2, totalSteps, 'Hash the Document');
+            moveBox('sender');
+
+            addStory('📝', `<strong>Step 2: ${S.icon} ${S.name} creates a hash of the document</strong><br>
+                Document: <span style="padding:4px 10px;background:rgba(56,189,248,0.1);border-radius:6px;">"${doc}"</span><br>
+                <br>A <strong>hash</strong> is a fixed-size "fingerprint" of the document. Any change — even one letter — produces a completely different hash.<br>
+                <span class="mono">SHA-256("${doc}") → ${docHash.substring(0, 24)}...</span>`, 'type-alice');
+
+            els.boxContent.textContent = doc.substring(0, 10) + '...';
+            els.boxContent.className = 'box-content visible';
+            els.boxLabel.textContent = 'Document + Hash';
+            setField('s-plain', `"${doc}"`, '');
+            setField('s-action', 'Hashed ✅', 'val-blue');
+            await sleep(2000);
+
+            /* Step 3: Sign with Private Key */
+            setStep(3, totalSteps, 'Sign with Private Key');
+
+            addStory('✍️', `<strong>Step 3: ${S.icon} ${S.name} signs the hash with the private key</strong><br>
+                This is like pressing a <strong>personal wax seal</strong> onto the document — something only ${S.name} can produce.<br>
+                <br><span class="mono">signature = sign(hash, privateKey)</span><br>
+                <span class="mono val-gold">Signature: ${signature}...</span><br>
+                <br>The document is NOT encrypted — anyone can read it. The signature proves <em>who wrote it</em> and that it <em>hasn't been tampered with</em>.`, 'type-lock');
+
+            els.padlock.textContent = '✍️';
+            els.boxLabel.textContent = 'Signed document';
+            els.boxBody.style.borderColor = '#fbbf24';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(251,191,36,0.2), inset 0 2px 4px rgba(255,255,255,0.1)';
+            setField('s-action', 'Signed ✅', 'val-gold');
+            await sleep(2500);
+
+            /* Step 4: Send */
+            setStep(4, totalSteps, 'Send Document + Signature');
+
+            addStory('📤', `<strong>Step 4: ${S.icon} ${S.name} sends the document + signature</strong><br>
+                Both travel together — the document is plaintext (readable), and the signature is attached alongside it.<br>
+                An attacker 🕵️ could read it, but they <strong>cannot forge the signature</strong> without ${S.name}'s private key.`, 'type-alice');
+
+            moveBox('receiver');
+            await sleep(1500);
+            setField('r-phase', 'Received', 'val-blue');
+            document.getElementById('r-cipher').textContent = `Doc: "${doc}" + Sig: ${signature.substring(0, 20)}...`;
+            document.getElementById('r-cipher').style.color = 'var(--neon-gold)';
+            els.personReceiver.className = 'person active';
+            await sleep(1200);
+
+            /* Step 5: Verify with Public Key */
+            setStep(5, totalSteps, 'Verify Signature');
+
+            addStory('🔍', `<strong>Step 5: ${R.icon} ${R.name} verifies using ${S.name}'s public key</strong><br>
+                ${R.name} performs two checks:<br>
+                1️⃣ <strong>Re-hash the document</strong>: <span class="mono">SHA-256("${doc}")</span><br>
+                2️⃣ <strong>Verify the signature</strong>: <span class="mono">verify(signature, hash, publicKey)</span><br>
+                <br>If the hash matches what the signature decrypts to → ✅ <strong>Authentic!</strong><br>
+                This proves:<br>
+                • <span class="val-green">Identity</span> — Only ${S.name} could have produced this signature<br>
+                • <span class="val-green">Integrity</span> — The document hasn't been modified since signing<br>
+                • <span class="val-green">Non-repudiation</span> — ${S.name} can't deny signing it`, 'type-lock');
+
+            setField('r-pubkey', pubKey + '...', 'mono val-green');
+            setField('r-algo', 'Ed25519', 'val-purple');
+            await sleep(1200);
+
+            els.padlock.textContent = '✅';
+            els.boxBody.style.borderColor = '#4ade80';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(74,222,128,0.2), inset 0 2px 4px rgba(255,255,255,0.1)';
+            els.boxLabel.textContent = 'Verified! Authentic ✅';
+            setField('r-phase', '✅ Verified', 'val-green');
+            setField('r-result', '✅ Authentic', 'val-green');
+            els.personReceiver.className = 'person done';
+            els.personSender.className = 'person done';
+            els.connectLine.className = 'connect-line secure';
+            await sleep(1500);
+
+            addStory('🎯', `<strong>Encryption vs Signatures — reversed keys!</strong><br>
+                • <strong>Encryption:</strong> Lock with <span class="val-green">public key</span>, unlock with <span class="val-red">private key</span> (secrecy)<br>
+                • <strong>Signatures:</strong> Sign with <span class="val-red">private key</span>, verify with <span class="val-green">public key</span> (authenticity)<br>
+                Same key pair, opposite operations!`, 'type-secure');
+            await sleep(800);
+
+            addStory('💡', `<strong>Real-world use:</strong> Every software update you install, every git commit, every cryptocurrency transaction is digitally signed. Your phone verifies Apple/Google's signature before installing any app — if the signature doesn't match, the install is blocked.`, 'type-math');
+        }
+
+        /* ═══════════════════════════════════════════
+           DEMO: ENCRYPT + SIGN (REAL WORLD)
+           ═══════════════════════════════════════════ */
+        async function demoBoth(chars) {
+            const S = chars.sender, R = chars.receiver;
+            const msg = chars.message;
+            const totalSteps = 7;
+            const sPub = randomHex(12), sPriv = randomHex(12);
+            const rPub = randomHex(12), rPriv = randomHex(12);
+            const signature = randomHex(24);
+            const ciphertext = randomHex(32);
+
+            /* Step 1 */
+            setStep(1, totalSteps, 'Both Generate Keys');
+            els.personSender.className = 'person active';
+            els.personReceiver.className = 'person active';
+
+            addStory('🔑', `<strong>Step 1: Both parties generate key pairs</strong><br>
+                In the real world, <em>both</em> sides have their own key pair:<br>
+                <br>${S.icon} <strong>${S.name}:</strong> 🔓 <span class="mono">${sPub}...</span> / 🔑 <span class="mono">••••${sPriv.slice(-4)}</span><br>
+                ${R.icon} <strong>${R.name}:</strong> 🔓 <span class="mono">${rPub}...</span> / 🔑 <span class="mono">••••${rPriv.slice(-4)}</span><br>
+                <br>They exchange <em>only</em> public keys.`, 'type-key');
+
+            setField('s-pubkey', sPub + '...', 'mono val-green');
+            setField('s-privkey', '••••' + sPriv.slice(-4), 'mono val-red');
+            setField('s-algo', 'Ed25519 + X25519', 'val-purple');
+            setField('r-pubkey', rPub + '...', 'mono val-green');
+            setField('r-privkey', '••••' + rPriv.slice(-4), 'mono val-red');
+            setField('r-algo', 'Ed25519 + X25519', 'val-purple');
+            setField('s-phase', 'Keys Ready', 'val-green');
+            setField('r-phase', 'Keys Ready', 'val-green');
+            els.connectLine.className = 'connect-line active';
+            await sleep(2500);
+
+            /* Step 2 */
+            setStep(2, totalSteps, 'Compose Message');
+            moveBox('sender');
+
+            addStory('✉️', `<strong>Step 2: ${S.icon} ${S.name} writes the message</strong><br>
+                <span style="padding:6px 12px;background:rgba(56,189,248,0.1);border-radius:6px;display:inline-block;">"${msg}"</span>`, 'type-alice');
+
+            els.boxContent.textContent = msg.substring(0, 10) + '...';
+            els.boxContent.className = 'box-content visible';
+            els.boxLabel.textContent = 'Plaintext message';
+            setField('s-plain', `"${msg}"`, '');
+            setField('s-action', 'Composed', 'val-blue');
+            await sleep(1500);
+
+            /* Step 3: Sign */
+            setStep(3, totalSteps, 'Sign with Sender\'s Private Key');
+
+            addStory('✍️', `<strong>Step 3: Sign with ${S.name}'s private key</strong><br>
+                <span class="mono">signature = sign(hash(msg), ${S.name}_privateKey)</span><br>
+                <span class="mono val-gold">${signature}...</span><br>
+                This proves ${S.name} wrote it.`, 'type-lock');
+
+            els.padlock.textContent = '✍️';
+            els.boxBody.style.borderColor = '#fbbf24';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(251,191,36,0.15), inset 0 2px 4px rgba(255,255,255,0.1)';
+            els.boxLabel.textContent = 'Signed ✍️';
+            setField('s-action', 'Signed ✅', 'val-gold');
+            await sleep(1500);
+
+            /* Step 4: Encrypt */
+            setStep(4, totalSteps, 'Encrypt with Receiver\'s Public Key');
+
+            addStory('🔒', `<strong>Step 4: Encrypt with ${R.name}'s public key</strong><br>
+                <span class="mono">ciphertext = encrypt(msg + signature, ${R.name}_publicKey)</span><br>
+                <span class="mono val-red">${ciphertext}...</span><br>
+                Now it's both <strong>signed</strong> (authentic) AND <strong>encrypted</strong> (secret). Double protection!`, 'type-lock');
+
+            setBoxState(true, '🔐', 'Signed + Encrypted');
+            els.boxContent.className = 'box-content encrypted';
+            els.boxBody.style.borderColor = '#ef4444';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(239,68,68,0.2), inset 0 2px 4px rgba(255,255,255,0.1)';
+            setField('s-action', 'Encrypted ✅', 'val-green');
+            await sleep(2000);
+
+            /* Step 5: Send */
+            setStep(5, totalSteps, 'Send');
+
+            addStory('📦', `<strong>Step 5: Send the locked, signed box</strong><br>
+                An eavesdropper 🕵️ sees: <span class="mono" style="color:var(--text-muted);">${ciphertext}...</span><br>
+                They can't read it (encrypted) and can't forge it (signed).`, 'type-alice');
+
+            moveBox('receiver');
+            await sleep(1500);
+            document.getElementById('r-cipher').textContent = ciphertext + '...';
+            document.getElementById('r-cipher').style.color = 'var(--neon-red)';
+            setField('r-phase', 'Received', 'val-blue');
+            await sleep(1000);
+
+            /* Step 6: Decrypt */
+            setStep(6, totalSteps, 'Decrypt with Private Key');
+
+            addStory('🔓', `<strong>Step 6: ${R.icon} ${R.name} decrypts with private key</strong><br>
+                <span class="mono">plaintext + signature = decrypt(ciphertext, ${R.name}_privateKey)</span><br>
+                Message revealed + signature extracted.`, 'type-unlock');
+
+            setBoxState(false, msg.substring(0, 10) + '...', 'Decrypted ✅');
+            els.boxContent.className = 'box-content visible';
+            els.boxBody.style.borderColor = '#a78bfa';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(167,139,250,0.2), inset 0 2px 4px rgba(255,255,255,0.1)';
+            setField('r-phase', 'Decrypted', 'val-purple');
+            await sleep(1500);
+
+            /* Step 7: Verify Signature */
+            setStep(7, totalSteps, 'Verify Signature');
+
+            addStory('✅', `<strong>Step 7: Verify ${S.name}'s signature</strong><br>
+                <span class="mono">verify(signature, hash(msg), ${S.name}_publicKey) → ✅</span><br>
+                <br>Result:<br>
+                • 🔒 <strong>Confidentiality:</strong> Only ${R.name} could read it<br>
+                • ✍️ <strong>Authenticity:</strong> Definitely from ${S.name}<br>
+                • 🛡️ <strong>Integrity:</strong> Not tampered with<br>
+                • 📜 <strong>Non-repudiation:</strong> ${S.name} can't deny sending it`, 'type-secure');
+
+            els.padlock.textContent = '✅';
+            els.boxBody.style.borderColor = '#4ade80';
+            els.boxBody.style.boxShadow = '0 8px 30px rgba(74,222,128,0.2), inset 0 2px 4px rgba(255,255,255,0.1)';
+            els.boxLabel.textContent = 'Verified + Decrypted ✅';
+            setField('r-phase', '✅ Verified', 'val-green');
+            setField('r-result', `"${msg.substring(0, 18)}..."`, 'val-green');
+            els.personReceiver.className = 'person done';
+            els.personSender.className = 'person done';
+            els.connectLine.className = 'connect-line secure';
+            await sleep(1500);
+
+            addStory('🌍', `<strong>This is exactly how TLS/HTTPS works!</strong><br>
+                1. Server sends its <span class="val-green">public key</span> (in a certificate)<br>
+                2. Your browser encrypts a session key with it → only the server can decrypt<br>
+                3. The server <span class="val-gold">signs</span> everything → proves it's really your bank, not an impostor<br>
+                4. All subsequent data is encrypted with the shared session key<br>
+                <br>Public key crypto bootstraps the trust — then hands off to faster symmetric encryption for the actual data.`, 'type-secure');
+            await sleep(500);
+
+            addStory('💡', `<strong>Why not use public key crypto for everything?</strong> It's ~1000× slower than symmetric encryption (AES). So in practice, public key crypto is used only to exchange a <em>symmetric key</em> — then AES takes over for the fast bulk encryption. This hybrid approach gives you the best of both worlds!`, 'type-math');
+        }
+    </script>
+</body>
+
+</html>

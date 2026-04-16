@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How CDNs Work — Content Delivery Network Visualizer</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <meta name="description"
+        content="Interactive visualization of how CDNs deliver content from edge servers worldwide. Watch step-by-step how your request is routed, cached, and served from the nearest point of presence.">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #0f172a;
+            --bg-end: #020617;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --neon-blue: #38bdf8;
+            --neon-green: #4ade80;
+            --neon-purple: #c084fc;
+            --neon-red: #f87171;
+            --neon-yellow: #facc15;
+            --neon-orange: #fb923c;
+            --neon-cyan: #22d3ee;
+            --neon-pink: #f472b6;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--neon-pink), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 740px;
+            line-height: 1.6;
+        }
+
+        /* ── Selectors ── */
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .select-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 210px;
+        }
+
+        .select-card label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding-left: 4px;
+        }
+
+        .styled-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            padding: 14px 44px 14px 18px;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            color-scheme: dark;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .styled-select:hover {
+            border-color: rgba(244, 114, 182, 0.4);
+            box-shadow: 0 4px 25px rgba(244, 114, 182, 0.1);
+        }
+
+        .styled-select:focus {
+            outline: none;
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.15);
+        }
+
+        .arrow-icon {
+            padding-top: 22px;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes arrowPulse {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* ── Toggles ── */
+        .toggle-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .toggle-group-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+        }
+
+        .toggle-bar {
+            display: flex;
+            gap: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 9px 16px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 0;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .toggle-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, rgba(244, 114, 182, 0.15), rgba(34, 211, 238, 0.15));
+            color: var(--neon-pink);
+        }
+
+        .toggle-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: var(--neon-pink);
+            border-radius: 2px;
+        }
+
+        /* ── Status Badge ── */
+        .compat-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 12px 28px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.4s ease;
+            max-width: 800px;
+            line-height: 1.5;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .compat-empty {
+            background: rgba(148, 163, 184, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+        }
+
+        .compat-ok {
+            background: rgba(244, 114, 182, 0.08);
+            border: 1px solid rgba(244, 114, 182, 0.25);
+            color: var(--neon-pink);
+        }
+
+        /* ── Controls ── */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 2rem;
+            z-index: 10;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, rgba(244, 114, 182, 0.2), rgba(34, 211, 238, 0.2));
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 15px rgba(244, 114, 182, 0.3);
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(244, 114, 182, 0.5);
+            border-color: #fff;
+        }
+
+        /* ── Dashboard ── */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1300px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 22px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 12px;
+        }
+
+        .status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 13px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-header {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 7px;
+            font-weight: 600;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.88rem;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .val-green {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .val-blue {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .val-yellow {
+            color: var(--neon-yellow);
+            font-weight: 600;
+        }
+
+        .val-red {
+            color: var(--neon-red);
+            font-weight: 600;
+        }
+
+        .val-orange {
+            color: var(--neon-orange);
+            font-weight: 600;
+        }
+
+        .val-purple {
+            color: var(--neon-purple);
+            font-weight: 600;
+        }
+
+        .val-cyan {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        .val-pink {
+            color: var(--neon-pink);
+            font-weight: 600;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* ── Animation Stage ── */
+        .stage {
+            position: relative;
+            width: 100%;
+            min-height: 380px;
+            overflow: hidden;
+        }
+
+        .cdn-node {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            z-index: 5;
+            transition: all 0.5s ease;
+        }
+
+        .cdn-node-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.5s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .cdn-node-label {
+            text-align: center;
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            line-height: 1.3;
+            font-weight: 500;
+            max-width: 80px;
+        }
+
+        .cdn-node.active .cdn-node-icon {
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 20px rgba(244, 114, 182, 0.3);
+        }
+
+        .cdn-node.done .cdn-node-icon {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(74, 222, 128, 0.2);
+        }
+
+        .cdn-node.hit .cdn-node-icon {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.35);
+        }
+
+        .cdn-node.miss .cdn-node-icon {
+            border-color: var(--neon-orange);
+            box-shadow: 0 0 15px rgba(251, 146, 60, 0.3);
+        }
+
+        .cdn-node.idle .cdn-node-icon {
+            opacity: 0.35;
+        }
+
+        /* Edge rings around edge nodes */
+        .edge-ring {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 1px dashed rgba(244, 114, 182, 0.15);
+            pointer-events: none;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+        }
+
+        .cdn-node.active .edge-ring {
+            border-color: rgba(244, 114, 182, 0.4);
+            animation: edgePulse 2s ease-in-out infinite;
+        }
+
+        .cdn-node.hit .edge-ring {
+            border-color: rgba(74, 222, 128, 0.4);
+            animation: edgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes edgePulse {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.6;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.25);
+                opacity: 0.2;
+            }
+        }
+
+        /* Flying packets */
+        .cdn-packet {
+            position: absolute;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            z-index: 8;
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.65s ease-in-out;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Latency badge */
+        .latency-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            z-index: 6;
+            transition: all 0.4s ease;
+        }
+
+        .latency-badge.fast {
+            color: var(--neon-green);
+            border-color: rgba(74, 222, 128, 0.3);
+        }
+
+        .latency-badge.slow {
+            color: var(--neon-orange);
+            border-color: rgba(251, 146, 60, 0.3);
+        }
+
+        /* ── Story Feed ── */
+        .feed-wrapper {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .story-feed {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .clear-logs-btn {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 0 0 12px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .clear-logs-btn:hover {
+            background: rgba(248, 113, 113, 0.1);
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--neon-red);
+        }
+
+        .log-msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            animation: slideUp 0.4s forwards;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--text-muted);
+        }
+
+        .log-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .log-text {
+            font-size: 0.98rem;
+            line-height: 1.5;
+        }
+
+        .log-text .mono {
+            display: inline;
+        }
+
+        .type-user {
+            border-left-color: var(--neon-blue);
+        }
+
+        .type-edge {
+            border-left-color: var(--neon-pink);
+        }
+
+        .type-origin {
+            border-left-color: var(--neon-purple);
+        }
+
+        .type-cache-hit {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, 0.04);
+        }
+
+        .type-cache-miss {
+            border-left-color: var(--neon-orange);
+            background: rgba(251, 146, 60, 0.04);
+        }
+
+        .type-perf {
+            border-left-color: var(--neon-cyan);
+        }
+
+        .type-secure {
+            border-left-color: var(--neon-green);
+            background: rgba(74, 222, 128, 0.04);
+        }
+
+        .type-warn {
+            border-left-color: var(--neon-red);
+            background: rgba(248, 113, 113, 0.04);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1100px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                max-width: 520px;
+            }
+
+            .stage {
+                min-height: 300px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .selector-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .select-card {
+                min-width: unset;
+                width: 100%;
+            }
+
+            .arrow-icon {
+                display: none;
+            }
+
+            .toggle-row {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" id="back-home"
+        style="position:fixed;top:20px;left:20px;z-index:9999;display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.25s ease;"
+        onmouseover="this.style.borderColor='#22d3ee';this.style.boxShadow='0 4px 25px rgba(34,211,238,0.25)';this.style.color='#22d3ee';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.4)';this.style.color='#f8fafc';">&#8592;
+        Tech-Pages</a>
+
+    <h1>How CDNs Actually Work</h1>
+    <p class="subtitle">When you stream a video or load a webpage, the content doesn't come from one far-away server —
+        it's served from the <strong>nearest edge node</strong> in a global network of thousands. Pick a scenario
+        below and watch how a CDN routes, caches, and delivers content at blazing speed.</p>
+
+    <!-- ── Selectors ── -->
+    <div class="selector-row">
+        <div class="select-card">
+            <label>Your Location</label>
+            <select id="select-user" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose your location —</option>
+                <option value="mumbai">🇮🇳 Mumbai, India</option>
+                <option value="newyork">🇺🇸 New York, USA</option>
+                <option value="london">🇬🇧 London, UK</option>
+                <option value="tokyo">🇯🇵 Tokyo, Japan</option>
+                <option value="sydney">🇦🇺 Sydney, Australia</option>
+                <option value="saopaulo">🇧🇷 São Paulo, Brazil</option>
+            </select>
+        </div>
+
+        <div class="arrow-icon">→</div>
+
+        <div class="select-card">
+            <label>Content Type</label>
+            <select id="select-content" class="styled-select" onchange="onSelectionChange()">
+                <option value="">— Choose content —</option>
+                <option value="video">🎬 Video Stream (Netflix-style)</option>
+                <option value="ecommerce">🛒 E-Commerce Product Images</option>
+                <option value="staticsite">📄 Static Website (Blog/Docs)</option>
+                <option value="api">⚡ API Response (JSON)</option>
+                <option value="download">📦 Software Download (100 MB)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ── Toggles ── -->
+    <div class="toggle-row">
+        <div class="toggle-group">
+            <span class="toggle-group-label">CDN Provider</span>
+            <div class="toggle-bar" id="cdn-toggle">
+                <button class="toggle-btn active" data-cdn="cloudflare" onclick="setCDN('cloudflare')">☁️
+                    Cloudflare</button>
+                <button class="toggle-btn" data-cdn="cloudfront" onclick="setCDN('cloudfront')">🔶 CloudFront</button>
+                <button class="toggle-btn" data-cdn="akamai" onclick="setCDN('akamai')">🔷 Akamai</button>
+                <button class="toggle-btn" data-cdn="fastly" onclick="setCDN('fastly')">⚡ Fastly</button>
+            </div>
+        </div>
+
+        <div class="toggle-group">
+            <span class="toggle-group-label">Cache Scenario</span>
+            <div class="toggle-bar" id="cache-toggle">
+                <button class="toggle-btn active" data-cache="hit" onclick="setCache('hit')">✅ Cache HIT</button>
+                <button class="toggle-btn" data-cache="miss" onclick="setCache('miss')">❌ Cache MISS</button>
+                <button class="toggle-btn" data-cache="stale" onclick="setCache('stale')">⏳ Stale Revalidate</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Status ── -->
+    <div id="compat-status" class="compat-status compat-empty">
+        <span>👆 Select your location and content type to begin the CDN simulation.</span>
+    </div>
+
+    <!-- ── Controls ── -->
+    <div class="controls" id="controls" style="display:none">
+        <button id="btn-go" class="primary" onclick="startDelivery()">🚀 Request Content</button>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div class="dashboard" id="dashboard" style="display:none">
+        <div class="panel" id="panel-user"></div>
+
+        <!-- Animation Stage -->
+        <div class="stage" id="stage">
+            <div class="latency-badge" id="latency-badge">Latency: —</div>
+
+            <!-- User Node -->
+            <div class="cdn-node" id="node-user" style="left:3%;top:50%;transform:translateY(-50%);">
+                <div class="cdn-node-icon" id="icon-user">👤</div>
+                <div class="cdn-node-label" id="lbl-user">Your Device</div>
+            </div>
+
+            <!-- Nearest Edge -->
+            <div class="cdn-node" id="node-edge" style="left:28%;top:50%;transform:translateY(-50%);">
+                <div class="edge-ring"></div>
+                <div class="cdn-node-icon">🌐</div>
+                <div class="cdn-node-label" id="lbl-edge">Edge PoP</div>
+            </div>
+
+            <!-- Other Edge Nodes (decorative) -->
+            <div class="cdn-node idle" id="node-edge2" style="left:22%;top:12%;">
+                <div class="cdn-node-icon" style="width:36px;height:36px;font-size:0.9rem;border-radius:10px;">🌐</div>
+                <div class="cdn-node-label" style="font-size:0.55rem;" id="lbl-edge2">Edge</div>
+            </div>
+            <div class="cdn-node idle" id="node-edge3" style="left:22%;top:85%;">
+                <div class="cdn-node-icon" style="width:36px;height:36px;font-size:0.9rem;border-radius:10px;">🌐</div>
+                <div class="cdn-node-label" style="font-size:0.55rem;" id="lbl-edge3">Edge</div>
+            </div>
+            <div class="cdn-node idle" id="node-edge4" style="left:42%;top:10%;">
+                <div class="cdn-node-icon" style="width:36px;height:36px;font-size:0.9rem;border-radius:10px;">🌐</div>
+                <div class="cdn-node-label" style="font-size:0.55rem;" id="lbl-edge4">Edge</div>
+            </div>
+            <div class="cdn-node idle" id="node-edge5" style="left:42%;top:88%;">
+                <div class="cdn-node-icon" style="width:36px;height:36px;font-size:0.9rem;border-radius:10px;">🌐</div>
+                <div class="cdn-node-label" style="font-size:0.55rem;" id="lbl-edge5">Edge</div>
+            </div>
+
+            <!-- Shield / Mid-Tier Cache -->
+            <div class="cdn-node" id="node-shield" style="left:58%;top:50%;transform:translateY(-50%);">
+                <div class="cdn-node-icon">🛡️</div>
+                <div class="cdn-node-label" id="lbl-shield">Shield / Mid-Tier</div>
+            </div>
+
+            <!-- Origin Server -->
+            <div class="cdn-node" id="node-origin" style="left:85%;top:50%;transform:translate(-50%,-50%);">
+                <div class="cdn-node-icon">🏢</div>
+                <div class="cdn-node-label" id="lbl-origin">Origin Server</div>
+            </div>
+        </div>
+
+        <div class="panel" id="panel-cdn"></div>
+
+        <!-- Story Feed -->
+        <div class="feed-wrapper">
+            <div class="story-feed" id="feed">
+                <div class="log-msg" style="border-left-color:#64748b;">
+                    <span class="log-icon">👋</span>
+                    <span class="log-text">Welcome! Select your location and content type, then click "Request Content"
+                        to watch the CDN deliver it.</span>
+                </div>
+            </div>
+            <button class="clear-logs-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════
+           DEFINITIONS
+           ═══════════════════════════════════════════ */
+        const USERS = {
+            mumbai: { id: 'mumbai', name: 'Mumbai', flag: '🇮🇳', lat: 19, lng: 73, nearestEdge: 'Mumbai PoP', edgeCity: 'Mumbai', distToOrigin: '13,200 km', distToEdge: '< 5 km', edgeLatency: 3, originLatency: 180 },
+            newyork: { id: 'newyork', name: 'New York', flag: '🇺🇸', lat: 40, lng: -74, nearestEdge: 'New York PoP', edgeCity: 'Newark, NJ', distToOrigin: '80 km', distToEdge: '< 10 km', edgeLatency: 2, originLatency: 12 },
+            london: { id: 'london', name: 'London', flag: '🇬🇧', lat: 51, lng: 0, nearestEdge: 'London PoP', edgeCity: 'London Docklands', distToOrigin: '5,570 km', distToEdge: '< 8 km', edgeLatency: 2, originLatency: 75 },
+            tokyo: { id: 'tokyo', name: 'Tokyo', flag: '🇯🇵', lat: 35, lng: 139, nearestEdge: 'Tokyo PoP', edgeCity: 'Otemachi', distToOrigin: '10,850 km', distToEdge: '< 3 km', edgeLatency: 2, originLatency: 165 },
+            sydney: { id: 'sydney', name: 'Sydney', flag: '🇦🇺', lat: -33, lng: 151, nearestEdge: 'Sydney PoP', edgeCity: 'Sydney CBD', distToOrigin: '16,000 km', distToEdge: '< 5 km', edgeLatency: 3, originLatency: 210 },
+            saopaulo: { id: 'saopaulo', name: 'São Paulo', flag: '🇧🇷', lat: -23, lng: -46, nearestEdge: 'São Paulo PoP', edgeCity: 'São Paulo', distToOrigin: '7,700 km', distToEdge: '< 6 km', edgeLatency: 4, originLatency: 120 },
+        };
+
+        const CONTENT = {
+            video: {
+                id: 'video', name: 'Video Stream', icon: '🎬',
+                file: '/movies/action-hero-4k.m3u8', size: '4K HLS Segment (~6 MB)',
+                mimeType: 'application/vnd.apple.mpegurl', cacheControl: 'public, max-age=86400',
+                ttl: '24 hours', originUrl: 'origin.streaming-cdn.com',
+                compressionType: 'N/A (already encoded)', optimizations: ['Adaptive Bitrate', 'HTTP/2 Push', 'Chunked Transfer'],
+            },
+            ecommerce: {
+                id: 'ecommerce', name: 'Product Images', icon: '🛒',
+                file: '/img/products/shoe-nike-air-max.webp', size: '~180 KB (WebP)',
+                mimeType: 'image/webp', cacheControl: 'public, max-age=2592000, immutable',
+                ttl: '30 days', originUrl: 'origin.shop-example.com',
+                compressionType: 'WebP (lossy, q=85)', optimizations: ['Image Resizing', 'Format Negotiation (WebP/AVIF)', 'Lazy Load Hints'],
+            },
+            staticsite: {
+                id: 'staticsite', name: 'Static Website', icon: '📄',
+                file: '/blog/how-dns-works/index.html', size: '~45 KB (gzipped)',
+                mimeType: 'text/html', cacheControl: 'public, max-age=3600, stale-while-revalidate=86400',
+                ttl: '1 hour', originUrl: 'origin.techblog.dev',
+                compressionType: 'Brotli (br)', optimizations: ['Brotli Compression', 'HTML Minification', 'Early Hints (103)'],
+            },
+            api: {
+                id: 'api', name: 'API Response', icon: '⚡',
+                file: '/api/v2/products?page=1', size: '~8 KB (JSON)',
+                mimeType: 'application/json', cacheControl: 'public, max-age=10, s-maxage=60',
+                ttl: '60s (shared) / 10s (browser)', originUrl: 'api.shop-example.com',
+                compressionType: 'gzip', optimizations: ['Edge Compute', 'JSON Minification', 'Stale-While-Revalidate'],
+            },
+            download: {
+                id: 'download', name: 'Software Download', icon: '📦',
+                file: '/releases/v4.2.0/app-installer.dmg', size: '~100 MB',
+                mimeType: 'application/octet-stream', cacheControl: 'public, max-age=604800, immutable',
+                ttl: '7 days', originUrl: 'releases.app-example.com',
+                compressionType: 'N/A (binary)', optimizations: ['Range Requests (resume)', 'Multi-Connection Download', 'Checksum Verification'],
+            },
+        };
+
+        const CDNS = {
+            cloudflare: {
+                id: 'cloudflare', name: 'Cloudflare', icon: '☁️',
+                pops: 330, countries: 120, network: '330+ cities, 120+ countries',
+                shieldName: 'Tiered Caching (Smart Routing)',
+                features: ['Argo Smart Routing', 'Polish (image optimization)', 'Workers (edge compute)', 'Railgun (origin compression)'],
+                freeHTTPS: true,
+            },
+            cloudfront: {
+                id: 'cloudfront', name: 'AWS CloudFront', icon: '🔶',
+                pops: 600, countries: 50, network: '600+ PoPs, 50+ countries',
+                shieldName: 'Origin Shield',
+                features: ['Lambda@Edge', 'Origin Shield', 'Real-time Logs', 'Field-Level Encryption'],
+                freeHTTPS: true,
+            },
+            akamai: {
+                id: 'akamai', name: 'Akamai', icon: '🔷',
+                pops: 4200, countries: 136, network: '4,200+ PoPs, 136 countries',
+                shieldName: 'NetStorage (Mid-Tier)',
+                features: ['Edge Workers', 'Image Manager', 'Adaptive Media Delivery', 'Bot Manager'],
+                freeHTTPS: false,
+            },
+            fastly: {
+                id: 'fastly', name: 'Fastly', icon: '⚡',
+                pops: 90, countries: 30, network: '90+ PoPs, 30+ countries',
+                shieldName: 'Origin Shield',
+                features: ['Compute@Edge (WASM)', 'Instant Purge (<150ms)', 'Real-time Streaming Logs', 'VCL (custom routing)'],
+                freeHTTPS: true,
+            },
+        };
+
+        /* ═══════════════════════════════════════════
+           STATE
+           ═══════════════════════════════════════════ */
+        const state = { animating: false, cdn: 'cloudflare', cacheScenario: 'hit' };
+
+        const selUser = document.getElementById('select-user');
+        const selContent = document.getElementById('select-content');
+
+        const els = {
+            btnGo: document.getElementById('btn-go'),
+            controls: document.getElementById('controls'),
+            dashboard: document.getElementById('dashboard'),
+            compat: document.getElementById('compat-status'),
+            panelU: document.getElementById('panel-user'),
+            panelC: document.getElementById('panel-cdn'),
+            feed: document.getElementById('feed'),
+            stage: document.getElementById('stage'),
+            latBadge: document.getElementById('latency-badge'),
+            iconUser: document.getElementById('icon-user'),
+            lblUser: document.getElementById('lbl-user'),
+            lblEdge: document.getElementById('lbl-edge'),
+            lblEdge2: document.getElementById('lbl-edge2'),
+            lblEdge3: document.getElementById('lbl-edge3'),
+            lblEdge4: document.getElementById('lbl-edge4'),
+            lblEdge5: document.getElementById('lbl-edge5'),
+            lblShield: document.getElementById('lbl-shield'),
+            lblOrigin: document.getElementById('lbl-origin'),
+            nodes: {
+                user: document.getElementById('node-user'),
+                edge: document.getElementById('node-edge'),
+                shield: document.getElementById('node-shield'),
+                origin: document.getElementById('node-origin'),
+            },
+        };
+
+        /* ═══════════════════════════════════════════
+           TOGGLES
+           ═══════════════════════════════════════════ */
+        function setCDN(c) {
+            state.cdn = c;
+            document.querySelectorAll('#cdn-toggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.cdn === c));
+            onSelectionChange();
+        }
+
+        function setCache(c) {
+            state.cacheScenario = c;
+            document.querySelectorAll('#cache-toggle .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.cache === c));
+            onSelectionChange();
+        }
+
+        /* ═══════════════════════════════════════════
+           SELECTION
+           ═══════════════════════════════════════════ */
+        function onSelectionChange() {
+            const uId = selUser.value;
+            const cId = selContent.value;
+            resetNodes();
+
+            if (!uId || !cId) {
+                els.compat.className = 'compat-status compat-empty';
+                els.compat.innerHTML = '<span>👆 Select your location and content type to begin.</span>';
+                els.controls.style.display = 'none';
+                els.dashboard.style.display = 'none';
+                return;
+            }
+
+            const user = USERS[uId];
+            const content = CONTENT[cId];
+            const cdn = CDNS[state.cdn];
+            const scenario = state.cacheScenario;
+
+            els.compat.className = 'compat-status compat-ok';
+            els.compat.innerHTML = `<span>✅ ${user.flag} ${user.name} → ${content.icon} ${content.name} via ${cdn.icon} ${cdn.name} (${scenario === 'hit' ? 'Cache HIT' : scenario === 'miss' ? 'Cache MISS' : 'Stale Revalidate'})</span>`;
+
+            els.panelU.innerHTML = renderUserPanel(user, content);
+            els.panelC.innerHTML = renderCDNPanel(cdn, content);
+
+            els.iconUser.textContent = user.flag;
+            els.lblUser.innerHTML = `${user.name}`;
+            els.lblEdge.innerHTML = `${user.nearestEdge}<br><span style="font-size:0.55rem;">${user.distToEdge} away</span>`;
+            els.lblShield.innerHTML = `${cdn.shieldName}`;
+            els.lblOrigin.innerHTML = `Origin<br><span style="font-size:0.55rem;">${content.originUrl.substring(0, 22)}</span>`;
+
+            // decorative edges
+            const otherCities = Object.values(USERS).filter(u => u.id !== uId).slice(0, 4);
+            [els.lblEdge2, els.lblEdge3, els.lblEdge4, els.lblEdge5].forEach((lbl, i) => {
+                if (otherCities[i]) lbl.textContent = otherCities[i].edgeCity;
+            });
+
+            els.latBadge.textContent = 'Latency: —';
+            els.latBadge.className = 'latency-badge';
+
+            els.controls.style.display = 'flex';
+            els.dashboard.style.display = 'grid';
+            els.btnGo.innerHTML = '🚀 Request Content';
+            els.btnGo.className = 'primary';
+            els.btnGo.disabled = false;
+
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+                <span class="log-icon">👋</span>
+                <span class="log-text">Ready! Click <strong>"Request Content"</strong> to watch ${cdn.icon} ${cdn.name} deliver ${content.icon} ${content.name} to ${user.flag} ${user.name}.</span>
+            </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           PANEL RENDERERS
+           ═══════════════════════════════════════════ */
+        function renderUserPanel(u, c) {
+            return `
+            <div class="panel-title">${u.flag} ${u.name} — User</div>
+            <div class="status-box">
+                <div class="status-header">Request</div>
+                <div class="data-row"><span>URL:</span> <span class="mono" style="font-size:0.72rem;">${c.file}</span></div>
+                <div class="data-row"><span>Type:</span> <span class="val-pink">${c.name}</span></div>
+                <div class="data-row"><span>Size:</span> <span>${c.size}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Routing</div>
+                <div class="data-row"><span>Nearest Edge:</span> <span class="val-cyan">${u.nearestEdge}</span></div>
+                <div class="data-row"><span>Dist to Edge:</span> <span class="val-green">${u.distToEdge}</span></div>
+                <div class="data-row"><span>Dist to Origin:</span> <span class="val-orange">${u.distToOrigin}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Performance</div>
+                <div class="data-row"><span>Edge Latency:</span> <span id="u-elat">~${u.edgeLatency}ms</span></div>
+                <div class="data-row"><span>Origin Latency:</span> <span id="u-olat">~${u.originLatency}ms</span></div>
+                <div class="data-row"><span>Status:</span> <span id="u-status">Idle</span></div>
+                <div class="data-row"><span>Total Time:</span> <span id="u-total">—</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Response</div>
+                <div class="data-row"><span>Cache:</span> <span id="u-cache">—</span></div>
+                <div class="data-row"><span>HTTP Status:</span> <span id="u-http">—</span></div>
+                <div class="data-row"><span>Headers:</span> <span id="u-headers">—</span></div>
+            </div>`;
+        }
+
+        function renderCDNPanel(cdn, c) {
+            return `
+            <div class="panel-title">${cdn.icon} ${cdn.name} — CDN</div>
+            <div class="status-box">
+                <div class="status-header">Network</div>
+                <div class="data-row"><span>PoPs:</span> <span class="val-pink">${cdn.pops.toLocaleString()}</span></div>
+                <div class="data-row"><span>Coverage:</span> <span style="font-size:0.78rem;">${cdn.network}</span></div>
+                <div class="data-row"><span>Shield:</span> <span style="font-size:0.78rem;">${cdn.shieldName}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Features</div>
+                ${cdn.features.map(f => `<div class="data-row"><span>•</span> <span style="font-size:0.82rem;">${f}</span></div>`).join('')}
+            </div>
+            <div class="status-box">
+                <div class="status-header">Content Config</div>
+                <div class="data-row"><span>Cache-Control:</span></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--neon-yellow);margin:4px 0 6px;word-break:break-all;">${c.cacheControl}</div>
+                <div class="data-row"><span>TTL:</span> <span class="val-yellow">${c.ttl}</span></div>
+                <div class="data-row"><span>Compression:</span> <span>${c.compressionType}</span></div>
+            </div>
+            <div class="status-box">
+                <div class="status-header">Edge Status</div>
+                <div class="data-row"><span>Cache State:</span> <span id="cdn-state">Waiting...</span></div>
+                <div class="data-row"><span>Age:</span> <span id="cdn-age">—</span></div>
+                <div class="data-row"><span>X-Cache:</span> <span id="cdn-xcache" class="mono">—</span></div>
+            </div>`;
+        }
+
+        /* ═══════════════════════════════════════════
+           HELPERS
+           ═══════════════════════════════════════════ */
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function addStory(icon, text, type = 'type-user') {
+            const el = document.createElement('div');
+            el.className = `log-msg ${type}`;
+            el.innerHTML = `<span class="log-icon">${icon}</span><span class="log-text">${text}</span>`;
+            els.feed.appendChild(el);
+            els.feed.scrollTop = els.feed.scrollHeight;
+        }
+
+        function setField(id, text, cls) {
+            const el = document.getElementById(id);
+            if (el) { el.innerText = text; if (cls) el.className = cls; }
+        }
+
+        function clearLogs() {
+            els.feed.innerHTML = `<div class="log-msg" style="border-left-color:#64748b;">
+                <span class="log-icon">🧹</span>
+                <span class="log-text">Logs cleared.</span>
+            </div>`;
+        }
+
+        function setNodeState(name, state) {
+            els.nodes[name].className = `cdn-node ${state}`;
+        }
+
+        function resetNodes() {
+            Object.keys(els.nodes).forEach(n => els.nodes[n].className = 'cdn-node');
+        }
+
+        function animatePacket(fromNode, toNode, label, color) {
+            return new Promise(resolve => {
+                const from = els.nodes[fromNode].querySelector('.cdn-node-icon');
+                const to = els.nodes[toNode].querySelector('.cdn-node-icon');
+                const stageRect = els.stage.getBoundingClientRect();
+                const fromRect = from.getBoundingClientRect();
+                const toRect = to.getBoundingClientRect();
+
+                const startX = fromRect.left + fromRect.width / 2 - stageRect.left;
+                const startY = fromRect.top + fromRect.height / 2 - stageRect.top;
+                const endX = toRect.left + toRect.width / 2 - stageRect.left;
+                const endY = toRect.top + toRect.height / 2 - stageRect.top;
+
+                const colors = {
+                    blue: 'rgba(56, 189, 248, 0.92)',
+                    purple: 'rgba(192, 132, 252, 0.92)',
+                    green: 'rgba(74, 222, 128, 0.92)',
+                    yellow: 'rgba(250, 204, 21, 0.92)',
+                    orange: 'rgba(251, 146, 60, 0.92)',
+                    cyan: 'rgba(34, 211, 238, 0.92)',
+                    pink: 'rgba(244, 114, 182, 0.92)',
+                    red: 'rgba(248, 113, 113, 0.92)',
+                };
+
+                const pkt = document.createElement('div');
+                pkt.className = 'cdn-packet';
+                pkt.textContent = label;
+                pkt.style.background = colors[color] || colors.pink;
+                pkt.style.left = startX + 'px';
+                pkt.style.top = startY + 'px';
+                pkt.style.opacity = '1';
+                els.stage.appendChild(pkt);
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        pkt.style.left = endX + 'px';
+                        pkt.style.top = endY + 'px';
+                    });
+                });
+
+                setTimeout(() => {
+                    pkt.style.opacity = '0';
+                    setTimeout(() => { pkt.remove(); resolve(); }, 300);
+                }, 650);
+            });
+        }
+
+        /* ═══════════════════════════════════════════
+           CDN DELIVERY SIMULATION
+           ═══════════════════════════════════════════ */
+        async function startDelivery() {
+            if (state.animating) return;
+            state.animating = true;
+            els.btnGo.innerHTML = '⏳ Delivering...';
+            els.btnGo.disabled = true;
+
+            const user = USERS[selUser.value];
+            const content = CONTENT[selContent.value];
+            const cdn = CDNS[state.cdn];
+            const scenario = state.cacheScenario;
+
+            let totalTime = 0;
+
+            /* ── Step 1: User Request ── */
+            setNodeState('user', 'active');
+            setField('u-status', 'Requesting...', 'val-blue');
+
+            addStory('⌨️', `${user.flag} User in <strong>${user.name}</strong> requests <span class="mono">${content.file}</span>`, '');
+            await sleep(500);
+
+            /* ── Step 2: DNS → Anycast to nearest edge ── */
+            addStory('🌐', `<strong>DNS Resolution</strong> — The domain resolves to a CDN Anycast IP. The internet's BGP routing automatically steers the request to the <strong>nearest ${cdn.name} PoP</strong> (${user.nearestEdge}, ${user.distToEdge} away).<br>
+                <span style="font-size:0.85rem;color:var(--text-muted);">${cdn.name} has <strong>${cdn.pops.toLocaleString()}</strong> PoPs in ${cdn.countries}+ countries — so there's almost always one within a few milliseconds of you.</span>`, 'type-edge');
+            await sleep(600);
+
+            /* ── Step 3: Request hits edge ── */
+            setNodeState('edge', 'active');
+            setField('u-status', 'Reaching Edge...', 'val-pink');
+            totalTime += user.edgeLatency;
+
+            addStory('📤', `<strong>Request reaches ${user.nearestEdge}</strong> in <span class="val-green">~${user.edgeLatency}ms</span>. The edge server checks its local cache...`, 'type-edge');
+            await animatePacket('user', 'edge', 'GET ' + content.file.substring(0, 18), 'pink');
+            await sleep(400);
+
+            els.latBadge.textContent = `Edge: ~${user.edgeLatency}ms`;
+            els.latBadge.className = 'latency-badge fast';
+
+            /* ═══════════════ CACHE HIT ═══════════════ */
+            if (scenario === 'hit') {
+                setNodeState('edge', 'hit');
+                setField('cdn-state', '✅ HIT', 'val-green');
+                setField('cdn-xcache', 'HIT', 'mono val-green');
+                setField('cdn-age', '1,247s (of ' + content.ttl + ')', '');
+                totalTime += 1; // cache read time
+
+                addStory('⚡', `<strong>CACHE HIT!</strong> The content is already cached at this edge PoP (has been for 1,247 seconds). No need to contact the origin server at all!`, 'type-cache-hit');
+                await sleep(500);
+
+                addStory('📦', `Edge server prepares the response:<br>
+                    • <span class="mono">HTTP/2 200 OK</span><br>
+                    • <span class="mono">Content-Type: ${content.mimeType}</span><br>
+                    • <span class="mono">Cache-Control: ${content.cacheControl}</span><br>
+                    • <span class="mono">CF-Cache-Status: HIT</span> (or <span class="mono">X-Cache: Hit from cloudfront</span>)<br>
+                    • <span class="mono">Age: 1247</span><br>
+                    • ${content.compressionType !== 'N/A (binary)' && content.compressionType !== 'N/A (already encoded)' ? 'Compressed with <span class="mono">' + content.compressionType + '</span>' : 'Served as-is (binary)'}`, 'type-edge');
+                await sleep(500);
+
+                addStory('📥', `<strong>Content delivered to ${user.flag} ${user.name}</strong> in <span class="val-green">~${totalTime}ms total</span>!`, 'type-cache-hit');
+                setNodeState('user', 'done');
+                await animatePacket('edge', 'user', '200 OK (' + content.size + ')', 'green');
+
+                setField('u-status', '✅ Delivered', 'val-green');
+                setField('u-total', `~${totalTime}ms`, 'val-green');
+                setField('u-cache', '✅ Edge HIT', 'val-green');
+                setField('u-http', '200 OK', 'val-green');
+                setField('u-headers', 'X-Cache: HIT', 'mono val-green');
+
+                await sleep(500);
+
+                // Comparison
+                addStory('📊', `<strong>Performance Comparison:</strong><br>
+                    • <span class="val-green">With CDN (cache hit): ~${totalTime}ms</span> — content served from ${user.distToEdge} away<br>
+                    • <span class="val-orange">Without CDN: ~${user.originLatency}ms</span> — would travel ${user.distToOrigin} to origin<br>
+                    • <span class="val-pink">Speedup: ${Math.round(user.originLatency / totalTime)}× faster!</span>`, 'type-perf');
+
+                /* ═══════════════ CACHE MISS ═══════════════ */
+            } else if (scenario === 'miss') {
+                setNodeState('edge', 'miss');
+                setField('cdn-state', '❌ MISS', 'val-orange');
+                setField('cdn-xcache', 'MISS', 'mono val-orange');
+
+                addStory('❌', `<strong>CACHE MISS!</strong> This content hasn't been requested from this PoP recently (or the TTL expired). The edge must fetch it from upstream.`, 'type-cache-miss');
+                await sleep(500);
+
+                // Shield / Mid-tier
+                setNodeState('shield', 'active');
+                setField('u-status', 'Fetching via Shield...', 'val-orange');
+                totalTime += 15;
+
+                addStory('🛡️', `<strong>${cdn.shieldName}</strong> — Before going all the way to origin, the edge queries a <strong>shield/mid-tier cache</strong>. This is a regional "super-cache" that reduces load on the origin by consolidating misses from many edge PoPs.`, 'type-edge');
+                await animatePacket('edge', 'shield', 'GET (miss)', 'orange');
+                await sleep(400);
+
+                addStory('❌', `Shield cache also doesn't have it. Must fetch from origin server...`, 'type-cache-miss');
+                setNodeState('shield', 'miss');
+                await sleep(300);
+
+                // Origin
+                setNodeState('origin', 'active');
+                setField('u-status', 'Fetching from Origin...', 'val-purple');
+                totalTime += (user.originLatency * 0.4); // shield-to-origin is less than user-to-origin
+
+                addStory('🏢', `<strong>Origin Fetch</strong> — The shield sends a request to the origin server (<span class="mono">${content.originUrl}</span>, ${user.distToOrigin} away). This is the slowest part of the process.`, 'type-origin');
+                await animatePacket('shield', 'origin', 'GET', 'purple');
+                await sleep(600);
+
+                addStory('📥', `Origin responds with the content + caching headers:<br>
+                    • <span class="mono">HTTP/2 200 OK</span><br>
+                    • <span class="mono">Cache-Control: ${content.cacheControl}</span><br>
+                    • <span class="mono">Content-Length: ${content.size}</span><br>
+                    • <span class="mono">ETag: "W/${randomHex(8)}"</span>`, 'type-origin');
+                setNodeState('origin', 'done');
+                await animatePacket('origin', 'shield', '200 OK', 'purple');
+                await sleep(300);
+
+                // Shield caches it
+                setNodeState('shield', 'done');
+                addStory('💾', `Shield caches the response for future edge misses in this region.`, 'type-edge');
+                await animatePacket('shield', 'edge', '200 (cached)', 'cyan');
+                await sleep(300);
+
+                // Edge caches it
+                setNodeState('edge', 'done');
+                addStory('💾', `Edge PoP in ${user.edgeCity} caches the response. Next request from this region will be a <span class="val-green">HIT</span>!`, 'type-edge');
+                await sleep(300);
+
+                // Deliver to user
+                totalTime = Math.round(totalTime);
+                addStory('📥', `<strong>Content delivered to ${user.flag} ${user.name}</strong> in <span class="val-orange">~${totalTime}ms total</span> (first request / cold cache).`, 'type-edge');
+                setNodeState('user', 'done');
+                await animatePacket('edge', 'user', '200 OK', 'green');
+
+                setField('u-status', '✅ Delivered', 'val-green');
+                setField('u-total', `~${totalTime}ms`, 'val-orange');
+                setField('u-cache', '❌ MISS (now cached)', 'val-orange');
+                setField('u-http', '200 OK', 'val-green');
+                setField('u-headers', 'X-Cache: MISS', 'mono val-orange');
+                setField('cdn-age', '0s (just cached)', '');
+
+                await sleep(500);
+
+                addStory('📊', `<strong>Performance Comparison:</strong><br>
+                    • <span class="val-orange">CDN cache miss: ~${totalTime}ms</span> — had to fetch from origin<br>
+                    • <span class="val-red">Without CDN at all: ~${user.originLatency}ms</span> — direct to origin<br>
+                    • <span class="val-green">Next request (HIT): ~${user.edgeLatency + 1}ms</span> — ${Math.round(totalTime / (user.edgeLatency + 1))}× faster!`, 'type-perf');
+
+                /* ═══════════════ STALE REVALIDATE ═══════════════ */
+            } else {
+                setNodeState('edge', 'miss');
+                setField('cdn-state', '⏳ STALE', 'val-yellow');
+                setField('cdn-xcache', 'STALE', 'mono val-yellow');
+                setField('cdn-age', `${content.ttl} (expired)`, 'val-yellow');
+
+                addStory('⏳', `<strong>STALE cache!</strong> The edge has a cached copy, but the TTL (${content.ttl}) has expired. Using <span class="mono">stale-while-revalidate</span> strategy: serve the stale content immediately while revalidating in the background.`, 'type-cache-miss');
+                await sleep(500);
+
+                // Serve stale first
+                totalTime += 1;
+                addStory('⚡', `<strong>Serving stale content immediately!</strong> The user gets the cached (slightly old) version right away in <span class="val-green">~${user.edgeLatency + 1}ms</span>. No waiting for origin!`, 'type-cache-hit');
+                setNodeState('user', 'done');
+                await animatePacket('edge', 'user', '200 OK (stale)', 'yellow');
+
+                setField('u-status', '✅ Delivered (stale)', 'val-yellow');
+                setField('u-total', `~${totalTime + user.edgeLatency}ms`, 'val-green');
+                setField('u-cache', '⏳ Stale (revalidating)', 'val-yellow');
+                setField('u-http', '200 OK', 'val-green');
+                setField('u-headers', 'X-Cache: STALE', 'mono val-yellow');
+                await sleep(600);
+
+                // Background revalidation
+                addStory('🔄', `<strong>Background Revalidation</strong> — Meanwhile, the edge sends a conditional request to the origin with <span class="mono">If-None-Match</span> (ETag) to check if the content has changed.`, 'type-edge');
+                setNodeState('shield', 'active');
+                await animatePacket('edge', 'shield', 'If-None-Match', 'orange');
+                await sleep(300);
+                setNodeState('origin', 'active');
+                await animatePacket('shield', 'origin', 'Revalidate?', 'purple');
+                await sleep(500);
+
+                const contentChanged = Math.random() > 0.5;
+                if (contentChanged) {
+                    addStory('📥', `<strong>Origin says: "Content has changed!"</strong> — Returns <span class="mono">200 OK</span> with the updated version. Edge cache is refreshed.`, 'type-origin');
+                    setNodeState('origin', 'done');
+                    await animatePacket('origin', 'shield', '200 (new!)', 'purple');
+                    setNodeState('shield', 'done');
+                    await animatePacket('shield', 'edge', 'Update cache', 'cyan');
+                    setNodeState('edge', 'hit');
+                    setField('cdn-state', '✅ Refreshed', 'val-green');
+                    setField('cdn-age', '0s (just refreshed)', '');
+                    addStory('✅', `Cache refreshed with the latest version. The user already has their content — they'll get the updated version on their next request.`, 'type-secure');
+                } else {
+                    addStory('📥', `<strong>Origin says: "Not Modified"</strong> — Returns <span class="mono">304 Not Modified</span> (just headers, no body). The cached content is still valid!`, 'type-origin');
+                    setNodeState('origin', 'done');
+                    await animatePacket('origin', 'shield', '304 Not Modified', 'green');
+                    setNodeState('shield', 'done');
+                    await animatePacket('shield', 'edge', 'Extend TTL', 'green');
+                    setNodeState('edge', 'hit');
+                    setField('cdn-state', '✅ Revalidated', 'val-green');
+                    setField('cdn-age', '0s (TTL reset)', '');
+                    addStory('✅', `Cache TTL extended! The stale content the user received was actually still fresh. The <span class="mono">304</span> response saved bandwidth — only headers were transferred, not the full ${content.size}.`, 'type-secure');
+                }
+
+                await sleep(500);
+
+                addStory('📊', `<strong>Stale-While-Revalidate Summary:</strong><br>
+                    • <span class="val-green">User perceived latency: ~${user.edgeLatency + 1}ms</span> — served from stale cache<br>
+                    • Background revalidation: ~${Math.round(user.originLatency * 0.5)}ms — invisible to user<br>
+                    • <span class="val-pink">Best of both worlds:</span> fast response AND fresh content!`, 'type-perf');
+            }
+
+            /* ── Optimizations ── */
+            await sleep(500);
+            const opts = content.optimizations;
+            addStory('🛠️', `<strong>${cdn.name} Optimizations Applied:</strong><br>
+                ${opts.map(o => `• ${o}`).join('<br>')}`, 'type-perf');
+
+            /* ── Fun fact ── */
+            await sleep(400);
+            const facts = {
+                video: `Fun fact: Netflix caches entire seasons of popular shows on ISP-hosted "Open Connect" boxes — which are effectively mini-CDN nodes <em>inside</em> your ISP's data center, reducing latency to near-zero!`,
+                ecommerce: `Fun fact: Modern CDNs can resize and reformat images on-the-fly — serving WebP to Chrome, AVIF to Firefox, and JPEG to older browsers — all from a single uploaded image!`,
+                staticsite: `Fun fact: When you deploy to Vercel or Netlify, your static site is pre-pushed to CDN edges worldwide. The "deploy" button is really a sophisticated cache invalidation operation!`,
+                api: `Fun fact: Fastly can purge cached content globally in <strong><150ms</strong>. This means API responses can be cached aggressively with the safety net of near-instant invalidation!`,
+                download: `Fun fact: When you download a large file, CDNs support <span class="mono">Range</span> requests — if your download fails at 80 MB, you can resume from where you left off without re-downloading!`,
+            };
+            addStory('💡', facts[content.id], 'type-secure');
+
+            await sleep(400);
+            addStory('🎉', `<strong>That's how CDNs work!</strong> ${cdn.name} served ${content.name} from ${cdn.pops.toLocaleString()} possible edge locations, choosing the one ${user.distToEdge} from ${user.name}. Without CDNs, every request would travel ${user.distToOrigin} to the origin — CDNs make the internet feel instant.`, 'type-secure');
+
+            state.animating = false;
+            els.btnGo.innerHTML = '🔄 Request Again';
+            els.btnGo.className = 'primary';
+            els.btnGo.disabled = false;
+        }
+
+        function randomHex(len) {
+            return Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        }
+    </script>
+</body>
+
+</html>

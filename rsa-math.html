@@ -252,7 +252,7 @@
         /* ══════════ THE STAGE (RSA GRAPH) ══════════ */
         .stage {
             position: relative;
-            height: 520px;
+            height: 600px;
             background: rgba(0, 0, 0, .3);
             border: 1px solid var(--panel-border);
             border-radius: 16px;
@@ -623,40 +623,40 @@
             <div class="stage" id="stage">
                 <!-- SVG Connections -->
                 <svg width="100%" height="100%" style="position:absolute; inset:0; z-index:1;">
-                    <line x1="25%" y1="18%" x2="50%" y2="45%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
-                    <line x1="75%" y1="18%" x2="50%" y2="45%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+                    <line x1="25%" y1="15%" x2="50%" y2="38%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+                    <line x1="75%" y1="15%" x2="50%" y2="38%" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
 
-                    <line x1="50%" y1="45%" x2="25%" y2="80%" stroke="rgba(239,68,68,0.2)" stroke-width="3"
+                    <line x1="50%" y1="38%" x2="25%" y2="82%" stroke="rgba(239,68,68,0.2)" stroke-width="3"
                         stroke-dasharray="5 5" />
-                    <line x1="50%" y1="45%" x2="75%" y2="80%" stroke="rgba(74,222,128,0.2)" stroke-width="3"
+                    <line x1="50%" y1="38%" x2="75%" y2="82%" stroke="rgba(74,222,128,0.2)" stroke-width="3"
                         stroke-dasharray="5 5" />
                 </svg>
 
                 <!-- Nodes -->
-                <div class="node n-prime" id="nd-p" style="left:25%; top:18%; opacity:0.2;">
+                <div class="node n-prime" id="nd-p" style="left:25%; top:15%; opacity:0.2;">
                     <span class="lbl-top">Prime P</span>
                     <div class="val" id="val-p">61</div>
                 </div>
-                <div class="node n-prime" id="nd-q" style="left:75%; top:18%; opacity:0.2;">
+                <div class="node n-prime" id="nd-q" style="left:75%; top:15%; opacity:0.2;">
                     <span class="lbl-top">Prime Q</span>
                     <div class="val" id="val-q">53</div>
                 </div>
 
-                <div class="node n-engine" id="nd-engine" style="left:50%; top:45%; opacity:0.2;">
+                <div class="node n-engine" id="nd-engine" style="left:50%; top:38%; opacity:0.2;">
                     <div class="val" id="val-engine">⚙️</div>
                     <div class="lbl-bot">RSA Engine</div>
                 </div>
 
-                <div class="node n-phi" id="nd-phi" style="left:50%; top:70%; opacity:0.1;">
+                <div class="node n-phi" id="nd-phi" style="left:50%; top:66%; opacity:0.1;">
                     <span class="lbl-top">Euler's Totient φ(n)</span>
                     <div class="val" id="val-phi">φ</div>
                 </div>
 
-                <div class="node n-pub" id="nd-pub" style="left:20%; top:80%; opacity:0.2;">
+                <div class="node n-pub" id="nd-pub" style="left:25%; top:82%; opacity:0.2;">
                     <div style="font-size:2.5rem; filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));">🔒</div>
                     <div class="lbl-bot">Public Lock<br><span id="val-pub-k" class="k-val v-n">Waiting...</span></div>
                 </div>
-                <div class="node n-priv" id="nd-priv" style="left:80%; top:80%; opacity:0.2;">
+                <div class="node n-priv" id="nd-priv" style="left:75%; top:82%; opacity:0.2;">
                     <div style="font-size:2.5rem; filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));">🔑</div>
                     <div class="lbl-bot">Private Key<br><span id="val-priv-k" class="k-val v-d">Waiting...</span></div>
                 </div>
